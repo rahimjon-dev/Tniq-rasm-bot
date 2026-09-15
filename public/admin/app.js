@@ -722,75 +722,187 @@
   }
 
   // ----------------------------------------------------------------------------
-  // Calm Ambient Lofi Synthesizer (Sokin Fon Musiqasi)
+  // Clean Bandit ft. Zara Larsson — Symphony Engine (Audio Player & Synth)
   // ----------------------------------------------------------------------------
   let audioCtx = null;
   let isMusicPlaying = false;
-  let musicInterval = null;
+  let symphonyMelodyTimeout = null;
   const musicToggleBtn = document.getElementById('musicToggleBtn');
   const musicIcon = document.getElementById('musicIcon');
   const musicLabel = document.getElementById('musicLabel');
+  const musicWave = document.getElementById('musicWave');
+  const symphonyAudio = document.getElementById('symphonyAudio');
 
-  const calmChords = [
-    [261.63, 329.63, 392.00, 493.88], // Cmaj7
-    [220.00, 261.63, 329.63, 392.00], // Am7
-    [174.61, 220.00, 261.63, 329.63], // Fmaj7
-    [196.00, 246.94, 293.66, 392.00], // G
+  // Symphony (Clean Bandit) Notes & Frequencies (Eb Major / C Minor)
+  const NOTE_FREQ = {
+    C3: 130.81, Eb3: 155.56, F3: 174.61, G3: 196.00, Ab2: 103.83, Bb2: 116.54,
+    C4: 261.63, D4: 293.66, Eb4: 311.13, F4: 349.23, G4: 392.00, Ab4: 415.30, Bb4: 466.16,
+    C5: 523.25, D5: 587.33, Eb5: 622.25
+  };
+
+  // Chorus Chord Progression: Eb -> Ab -> Cm -> Bb
+  const symphonyChords = [
+    { bass: NOTE_FREQ.Eb3, notes: [NOTE_FREQ.G3, NOTE_FREQ.Bb3, NOTE_FREQ.Eb4] },
+    { bass: NOTE_FREQ.Ab2, notes: [NOTE_FREQ.Eb3, NOTE_FREQ.C4, NOTE_FREQ.Eb4] },
+    { bass: NOTE_FREQ.C3,  notes: [NOTE_FREQ.G3, NOTE_FREQ.C4, NOTE_FREQ.Eb4] },
+    { bass: NOTE_FREQ.Bb2, notes: [NOTE_FREQ.F3, NOTE_FREQ.D4, NOTE_FREQ.F4]  },
   ];
-  let chordIndex = 0;
 
-  function playAmbientChord() {
+  // Signature Chorus Melody: "I just wanna be part of your symphony..."
+  const symphonyMelody = [
+    // "I just wanna be"
+    { note: NOTE_FREQ.Eb4, dur: 0.28 },
+    { note: NOTE_FREQ.F4,  dur: 0.28 },
+    { note: NOTE_FREQ.G4,  dur: 0.36 },
+    { note: NOTE_FREQ.Bb4, dur: 0.36 },
+    // "part of your sym-pho-ny"
+    { note: NOTE_FREQ.C5,  dur: 0.44 },
+    { note: NOTE_FREQ.Bb4, dur: 0.32 },
+    { note: NOTE_FREQ.G4,  dur: 0.32 },
+    { note: NOTE_FREQ.F4,  dur: 0.32 },
+    { note: NOTE_FREQ.Eb4, dur: 0.32 },
+    { note: NOTE_FREQ.F4,  dur: 0.32 },
+    { note: NOTE_FREQ.G4,  dur: 0.72 },
+    // "Will you hold me tight and not let go?"
+    { note: NOTE_FREQ.G4,  dur: 0.32 },
+    { note: NOTE_FREQ.F4,  dur: 0.32 },
+    { note: NOTE_FREQ.Eb4, dur: 0.32 },
+    { note: NOTE_FREQ.C4,  dur: 0.32 },
+    { note: NOTE_FREQ.Eb4, dur: 0.32 },
+    { note: NOTE_FREQ.F4,  dur: 0.36 },
+    { note: NOTE_FREQ.G4,  dur: 0.85 },
+    // "Sym-pho-ny"
+    { note: NOTE_FREQ.C5,  dur: 0.55 },
+    { note: NOTE_FREQ.Bb4, dur: 0.45 },
+    { note: NOTE_FREQ.G4,  dur: 0.85 },
+    // "Like a love song on the radio"
+    { note: NOTE_FREQ.F4,  dur: 0.32 },
+    { note: NOTE_FREQ.G4,  dur: 0.32 },
+    { note: NOTE_FREQ.Ab4, dur: 0.36 },
+    { note: NOTE_FREQ.G4,  dur: 0.36 },
+    { note: NOTE_FREQ.F4,  dur: 0.32 },
+    { note: NOTE_FREQ.Eb4, dur: 0.32 },
+    { note: NOTE_FREQ.F4,  dur: 0.75 },
+    // "Will you hold me tight and not let go?"
+    { note: NOTE_FREQ.G4,  dur: 0.32 },
+    { note: NOTE_FREQ.F4,  dur: 0.32 },
+    { note: NOTE_FREQ.Eb4, dur: 0.32 },
+    { note: NOTE_FREQ.C4,  dur: 0.32 },
+    { note: NOTE_FREQ.Eb4, dur: 0.36 },
+    { note: NOTE_FREQ.F4,  dur: 0.36 },
+    { note: NOTE_FREQ.Eb4, dur: 1.40 },
+  ];
+
+  let melodyIdx = 0;
+  let chordIdx = 0;
+
+  function playSymphonyStep() {
     if (!audioCtx || !isMusicPlaying) return;
 
-    const chord = calmChords[chordIndex % calmChords.length];
-    chordIndex++;
+    // Trigger chord progression every few melody notes
+    if (melodyIdx === 0 || melodyIdx % 8 === 0) {
+      const ch = symphonyChords[chordIdx % symphonyChords.length];
+      chordIdx++;
+
+      const now = audioCtx.currentTime;
+      const padGain = audioCtx.createGain();
+      padGain.gain.setValueAtTime(0.001, now);
+      padGain.gain.exponentialRampToValueAtTime(0.04, now + 0.5);
+      padGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.8);
+
+      const padFilter = audioCtx.createBiquadFilter();
+      padFilter.type = 'lowpass';
+      padFilter.frequency.setValueAtTime(650, now);
+
+      padGain.connect(padFilter);
+      padFilter.connect(audioCtx.destination);
+
+      [ch.bass, ...ch.notes].forEach((freq) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.connect(padGain);
+        osc.start(now);
+        osc.stop(now + 4.0);
+      });
+    }
+
+    // Play current melody note (Lead Violin / Piano synth)
+    const item = symphonyMelody[melodyIdx % symphonyMelody.length];
+    melodyIdx++;
 
     const now = audioCtx.currentTime;
-    const masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.001, now);
-    masterGain.gain.exponentialRampToValueAtTime(0.045, now + 1.2);
-    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 5.5);
+    const noteGain = audioCtx.createGain();
+    noteGain.gain.setValueAtTime(0.001, now);
+    noteGain.gain.exponentialRampToValueAtTime(0.07, now + 0.04);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + item.dur * 0.95);
 
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(450, now);
-    filter.Q.value = 1.2;
+    const leadFilter = audioCtx.createBiquadFilter();
+    leadFilter.type = 'lowpass';
+    leadFilter.frequency.setValueAtTime(1400, now);
 
-    masterGain.connect(filter);
-    filter.connect(audioCtx.destination);
+    noteGain.connect(leadFilter);
+    leadFilter.connect(audioCtx.destination);
 
-    chord.forEach((freq) => {
-      const osc = audioCtx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.connect(masterGain);
-      osc.start(now);
-      osc.stop(now + 5.8);
-    });
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle'; // Rich, soft string/violin sound
+    osc.frequency.setValueAtTime(item.note, now);
+    osc.connect(noteGain);
+    osc.start(now);
+    osc.stop(now + item.dur);
+
+    symphonyMelodyTimeout = setTimeout(playSymphonyStep, item.dur * 1000);
   }
 
-  function toggleMusic() {
-    if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextClass) audioCtx = new AudioContextClass();
-    }
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-
+  async function toggleMusic() {
     isMusicPlaying = !isMusicPlaying;
+
     if (isMusicPlaying) {
       musicToggleBtn?.classList.add('playing');
       if (musicIcon) musicIcon.innerText = '🔊';
-      if (musicLabel) musicLabel.innerText = 'Musiqa: Yoqilgan';
-      playAmbientChord();
-      musicInterval = setInterval(playAmbientChord, 4600);
-      showToast('Sokin fon musiqasi ishga tushirildi 🎶');
+      if (musicLabel) musicLabel.innerText = 'Symphony: Yangramoqda';
+      if (musicWave) musicWave.style.display = 'inline-flex';
+
+      // Try playing audio element first if mp3 is present
+      let playedAudio = false;
+      if (symphonyAudio) {
+        try {
+          symphonyAudio.volume = 0.65;
+          await symphonyAudio.play();
+          playedAudio = true;
+        } catch {
+          playedAudio = false;
+        }
+      }
+
+      // Fallback to high-fidelity procedural Web Audio synth of Symphony
+      if (!playedAudio) {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        melodyIdx = 0;
+        chordIdx = 0;
+        playSymphonyStep();
+      }
+
+      showToast('Clean Bandit — Symphony qo\'shig\'i yangramoqda 🎻');
     } else {
       musicToggleBtn?.classList.remove('playing');
       if (musicIcon) musicIcon.innerText = '🎵';
-      if (musicLabel) musicLabel.innerText = 'Musiqa: Yoqish';
-      if (musicInterval) clearInterval(musicInterval);
+      if (musicLabel) musicLabel.innerText = 'Symphony: Yoqish';
+      if (musicWave) musicWave.style.display = 'none';
+
+      if (symphonyAudio) {
+        try { symphonyAudio.pause(); } catch {}
+      }
+      if (symphonyMelodyTimeout) {
+        clearTimeout(symphonyMelodyTimeout);
+        symphonyMelodyTimeout = null;
+      }
       showToast('Musiqa to\'xtatildi');
     }
   }
