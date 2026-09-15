@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import config from '../config/index.js';
 import logger from '../utils/logger.js';
 class StoreService {
     dbPath;
@@ -15,6 +16,25 @@ class StoreService {
         }
         this.dbPath = path.join(storageDir, 'db.json');
         this.data = this.loadData();
+        // Auto-seed admin user so dashboard is never empty
+        if (Object.keys(this.data.users).length === 0) {
+            for (const adminId of config.ADMIN_TELEGRAM_IDS) {
+                const idStr = adminId.toString();
+                this.data.users[idStr] = {
+                    id: `usr_${idStr}`,
+                    telegramId: idStr,
+                    username: 'admin',
+                    firstName: 'Administrator (Siz)',
+                    languageCode: 'uz',
+                    plan: 'BUSINESS',
+                    isBanned: false,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    totalJobs: 0,
+                };
+            }
+            this.saveToDisk();
+        }
     }
     loadData() {
         try {
