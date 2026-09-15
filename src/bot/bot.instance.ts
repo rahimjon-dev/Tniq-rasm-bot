@@ -38,13 +38,23 @@ bot.catch((err, ctx) => {
   }
 });
 
-// Middleware: Logging request metrics
+import store from '../services/store.service.js';
+
+// Middleware: Logging request metrics & Auto-saving active users to store
 bot.use(async (ctx, next) => {
   const start = Date.now();
-  const userId = ctx.from?.id;
-  const username = ctx.from?.username || 'unknown';
-
-  logger.debug(`[INCOMING] User=${userId} (@${username}) Type=${ctx.updateType}`);
+  const from = ctx.from;
+  if (from && from.id) {
+    store.saveUser({
+      telegramId: from.id,
+      username: from.username || null,
+      firstName: from.first_name || null,
+      languageCode: from.language_code || null,
+    });
+  }
+  const userId = from?.id;
+  const username = from?.username || 'unknown';
+  logger.debug(`[INCOMING] Update=${ctx.updateType} User=${userId} (${username})`);
   await next();
   const duration = Date.now() - start;
   logger.debug(`[COMPLETED] User=${userId} Duration=${duration}ms`);
@@ -61,6 +71,14 @@ bot.use(rateLimitMiddleware);
 bot.start(async (ctx) => {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
+
+  // Ensure user is created and visible in Admin Panel immediately
+  await UserService.findOrCreateUser({
+    telegramId,
+    username: ctx.from?.username,
+    firstName: ctx.from?.first_name,
+    languageCode: ctx.from?.language_code,
+  });
 
   const existingLang = await UserService.getUserLanguage(telegramId);
   if (!existingLang) {
@@ -83,6 +101,12 @@ bot.action(['set_lang_uz', 'set_lang_en', 'set_lang_ru'], async (ctx) => {
   const data = ctx.callbackQuery?.data;
   const lang = data === 'set_lang_ru' ? 'ru' : data === 'set_lang_en' ? 'en' : 'uz';
 
+  await UserService.findOrCreateUser({
+    telegramId,
+    username: ctx.from?.username,
+    firstName: ctx.from?.first_name,
+    languageCode: lang,
+  });
   await UserService.setUserLanguage(telegramId, lang);
   await ctx.answerCbQuery();
 

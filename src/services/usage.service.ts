@@ -2,6 +2,7 @@ import prisma, { isDatabaseAvailable } from '../database/prisma.js';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { UserPlan } from '../types/user.types.js';
+import store from './store.service.js';
 
 // In-memory usage store for offline development
 const inMemoryUsage = new Map<string, { images: number; videos: number }>();
@@ -191,6 +192,16 @@ export class UsageService {
     processingTimeSeconds?: number;
     errorMessage?: string;
   }): Promise<string> {
+    store.recordJob({
+      telegramId: params.userId.replace(/^usr_|^mem-/, ''),
+      type: params.type,
+      status: params.status,
+      scale: params.scale,
+      processingTime: params.processingTimeSeconds || 0,
+      inputResolution: params.inputResolution,
+      outputResolution: params.outputResolution,
+    });
+
     if (!isDatabaseAvailable()) {
       return `job-local-${Date.now()}`;
     }

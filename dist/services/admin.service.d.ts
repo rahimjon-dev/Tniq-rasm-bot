@@ -35,6 +35,26 @@ export declare class AdminService {
      */
     static searchUsers(query?: string, page?: number, limit?: number): Promise<{
         users: {
+            subscription: {
+                plan: UserPlan;
+                status: string;
+            };
+            id: string;
+            telegramId: string;
+            username: string | null;
+            firstName: string | null;
+            languageCode: string | null;
+            plan: UserPlan;
+            isBanned: boolean;
+            createdAt: string;
+            updatedAt: string;
+            totalJobs: number;
+        }[];
+        total: number;
+        page: number;
+        totalPages: number;
+    } | {
+        users: {
             telegramId: string;
             totalJobs: number;
             subscription: {
@@ -66,6 +86,21 @@ export declare class AdminService {
      * Get list of recent users
      */
     static getRecentUsers(limit?: number): Promise<{
+        subscription: {
+            plan: UserPlan;
+            status: string;
+        };
+        id: string;
+        telegramId: string;
+        username: string | null;
+        firstName: string | null;
+        languageCode: string | null;
+        plan: UserPlan;
+        isBanned: boolean;
+        createdAt: string;
+        updatedAt: string;
+        totalJobs: number;
+    }[] | {
         telegramId: string;
         subscription: {
             id: string;
@@ -89,6 +124,22 @@ export declare class AdminService {
      * Get list of recent media processing jobs
      */
     static getRecentJobs(limit?: number): Promise<{
+        user: {
+            telegramId: string;
+            firstName: string | null;
+            username: string | null;
+        } | null;
+        id: string;
+        telegramId: string;
+        type: "IMAGE" | "VIDEO";
+        status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+        scale: number;
+        targetResolution?: string;
+        inputResolution?: string;
+        outputResolution?: string;
+        processingTime?: number;
+        createdAt: string;
+    }[] | {
         inputSize: string | null;
         outputSize: string | null;
         user: {

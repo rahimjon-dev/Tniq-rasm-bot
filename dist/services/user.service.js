@@ -1,47 +1,41 @@
 import prisma, { isDatabaseAvailable } from '../database/prisma.js';
 import logger from '../utils/logger.js';
-// In-memory fallback if database connection is offline during local development
-const inMemoryUsers = new Map();
+import store from './store.service.js';
 export class UserService {
     static async getUserLanguage(telegramId) {
-        const telegramIdBigInt = BigInt(telegramId);
-        const key = telegramIdBigInt.toString();
-        const mem = inMemoryUsers.get(key);
-        if (mem && mem.languageCode) {
-            return mem.languageCode;
+        // 1. Check local persistent store first
+        const stored = store.getUser(telegramId);
+        if (stored && stored.languageCode) {
+            return stored.languageCode;
         }
         if (!isDatabaseAvailable()) {
             return null;
         }
         try {
             const user = await prisma.user.findUnique({
-                where: { telegramId: telegramIdBigInt },
+                where: { telegramId: BigInt(telegramId) },
                 select: { languageCode: true },
             });
-            return user?.languageCode || null;
+            if (user?.languageCode) {
+                store.saveUser({ telegramId, languageCode: user.languageCode });
+                return user.languageCode;
+            }
+            return null;
         }
         catch {
             return null;
         }
     }
     static async setUserLanguage(telegramId, languageCode) {
-        const telegramIdBigInt = BigInt(telegramId);
-        const key = telegramIdBigInt.toString();
-        if (inMemoryUsers.has(key)) {
-            inMemoryUsers.get(key).languageCode = languageCode;
-        }
-        else {
-            inMemoryUsers.set(key, {
-                id: `mem-${key}`,
-                telegramId: telegramIdBigInt,
-                plan: 'FREE',
-                languageCode,
-            });
-        }
+        // Save to persistent store
+        store.saveUser({
+            telegramId,
+            languageCode,
+        });
         if (isDatabaseAvailable()) {
             try {
                 await prisma.user.update({
-                    where: { telegramId: telegramIdBigInt },
+                    where: { telegramId: BigInt(telegramId) },
                     data: { languageCode },
                 });
             }
@@ -50,32 +44,27 @@ export class UserService {
     }
     static async findOrCreateUser(params) {
         const telegramIdBigInt = BigInt(params.telegramId);
-        const key = telegramIdBigInt.toString();
+        // Save to persistent store immediately
+        const storedUser = store.saveUser({
+            telegramId: params.telegramId,
+            username: params.username,
+            firstName: params.firstName,
+            languageCode: params.languageCode,
+        });
         if (!isDatabaseAvailable()) {
-            if (!inMemoryUsers.has(key)) {
-                inMemoryUsers.set(key, {
-                    id: `mem-${key}`,
-                    telegramId: telegramIdBigInt,
-                    username: params.username,
-                    firstName: params.firstName,
-                    languageCode: params.languageCode,
-                    plan: 'FREE',
-                });
-            }
-            const memUser = inMemoryUsers.get(key);
             return {
-                id: memUser.id,
-                telegramId: memUser.telegramId,
-                username: memUser.username || null,
-                firstName: memUser.firstName || null,
-                languageCode: memUser.languageCode || params.languageCode || null,
-                isBanned: false,
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                id: storedUser.id,
+                telegramId: telegramIdBigInt,
+                username: storedUser.username,
+                firstName: storedUser.firstName,
+                languageCode: storedUser.languageCode,
+                isBanned: storedUser.isBanned,
+                createdAt: new Date(storedUser.createdAt),
+                updatedAt: new Date(storedUser.updatedAt),
                 subscription: {
-                    id: `sub-${key}`,
-                    userId: memUser.id,
-                    plan: memUser.plan,
+                    id: `sub_${storedUser.telegramId}`,
+                    userId: storedUser.id,
+                    plan: storedUser.plan,
                     status: 'ACTIVE',
                     startDate: new Date(),
                     endDate: null,
@@ -88,15 +77,15 @@ export class UserService {
             const user = await prisma.user.upsert({
                 where: { telegramId: telegramIdBigInt },
                 update: {
-                    username: params.username,
-                    firstName: params.firstName,
-                    languageCode: params.languageCode,
+                    username: params.username || undefined,
+                    firstName: params.firstName || undefined,
+                    languageCode: params.languageCode || undefined,
                 },
                 create: {
                     telegramId: telegramIdBigInt,
-                    username: params.username,
-                    firstName: params.firstName,
-                    languageCode: params.languageCode,
+                    username: params.username || undefined,
+                    firstName: params.firstName || undefined,
+                    languageCode: params.languageCode || undefined,
                     subscription: {
                         create: {
                             plan: 'FREE',
@@ -111,32 +100,22 @@ export class UserService {
             return user;
         }
         catch (error) {
-            logger.debug('Database offline, using in-memory user tracking:', {
+            logger.debug('Database offline, using persistent store for user:', {
                 error: error instanceof Error ? error.message : String(error),
             });
-            if (!inMemoryUsers.has(key)) {
-                inMemoryUsers.set(key, {
-                    id: `mem-${key}`,
-                    telegramId: telegramIdBigInt,
-                    username: params.username,
-                    firstName: params.firstName,
-                    plan: 'FREE',
-                });
-            }
-            const memUser = inMemoryUsers.get(key);
             return {
-                id: memUser.id,
-                telegramId: memUser.telegramId,
-                username: memUser.username || null,
-                firstName: memUser.firstName || null,
-                languageCode: params.languageCode || null,
-                isBanned: false,
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                id: storedUser.id,
+                telegramId: telegramIdBigInt,
+                username: storedUser.username,
+                firstName: storedUser.firstName,
+                languageCode: storedUser.languageCode,
+                isBanned: storedUser.isBanned,
+                createdAt: new Date(storedUser.createdAt),
+                updatedAt: new Date(storedUser.updatedAt),
                 subscription: {
-                    id: `sub-${key}`,
-                    userId: memUser.id,
-                    plan: memUser.plan,
+                    id: `sub_${storedUser.telegramId}`,
+                    userId: storedUser.id,
+                    plan: storedUser.plan,
                     status: 'ACTIVE',
                     startDate: new Date(),
                     endDate: null,
@@ -160,7 +139,7 @@ export class UserService {
             return jobs;
         }
         catch {
-            return [];
+            return store.getRecentJobs(limit);
         }
     }
     static async getUserTotalJobsCount(userId) {
@@ -192,15 +171,7 @@ export class UserService {
                 },
             });
         }
-        catch {
-            for (const [key, user] of inMemoryUsers.entries()) {
-                if (user.id === userId) {
-                    user.plan = plan;
-                    inMemoryUsers.set(key, user);
-                    break;
-                }
-            }
-        }
+        catch { }
     }
 }
 export default UserService;

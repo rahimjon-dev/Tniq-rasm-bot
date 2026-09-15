@@ -4,9 +4,9 @@ export declare class UserService {
     static setUserLanguage(telegramId: number | bigint, languageCode: string): Promise<void>;
     static findOrCreateUser(params: {
         telegramId: number | bigint;
-        username?: string;
-        firstName?: string;
-        languageCode?: string;
+        username?: string | null;
+        firstName?: string | null;
+        languageCode?: string | null;
     }): Promise<({
         subscription: {
             id: string;
@@ -63,6 +63,22 @@ export declare class UserService {
         processingTime: number | null;
         errorMessage: string | null;
         completedAt: Date | null;
+    }[] | {
+        user: {
+            telegramId: string;
+            firstName: string | null;
+            username: string | null;
+        } | null;
+        id: string;
+        telegramId: string;
+        type: "IMAGE" | "VIDEO";
+        status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+        scale: number;
+        targetResolution?: string;
+        inputResolution?: string;
+        outputResolution?: string;
+        processingTime?: number;
+        createdAt: string;
     }[]>;
     static getUserTotalJobsCount(userId: string): Promise<number>;
     static upgradeUserSubscription(userId: string, plan: UserPlan, durationDays?: number): Promise<void>;

@@ -4,6 +4,7 @@ import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { imageQueue, videoQueue, checkRedisConnection } from '../queue/queue.client.js';
 import { bot } from '../bot/bot.instance.js';
+import store from './store.service.js';
 export class AdminService {
     /**
      * Check if a Telegram ID is an authorized administrator
@@ -41,6 +42,18 @@ export class AdminService {
             }
             catch (e) {
                 logger.warn('Failed to query database for admin stats:', e);
+            }
+        }
+        // Fallback to local persistent store if DB is offline or returned 0
+        if (!dbConnected || totalUsers === 0) {
+            const fallback = store.getStats();
+            if (totalUsers === 0)
+                totalUsers = fallback.totalUsers;
+            if (totalJobs === 0) {
+                totalJobs = fallback.totalJobs;
+                imageJobs = fallback.imageJobs;
+                videoJobs = fallback.videoJobs;
+                failedJobs = fallback.failedJobs;
             }
         }
         // Queue counts from BullMQ
@@ -94,13 +107,13 @@ export class AdminService {
      * Search users with query, pagination, and total count
      */
     static async searchUsers(query = '', page = 1, limit = 20) {
+        const isDbOk = await checkDatabaseConnection();
+        if (!isDbOk) {
+            return store.getAllUsers(query, page, limit);
+        }
         const skip = (page - 1) * limit;
         const trimmed = query.trim();
         try {
-            const isDbOk = await checkDatabaseConnection();
-            if (!isDbOk) {
-                return { users: [], total: 0, page: 1, totalPages: 1 };
-            }
             const whereClause = {};
             if (trimmed) {
                 const isNumeric = !isNaN(Number(trimmed));
@@ -133,6 +146,9 @@ export class AdminService {
                 }),
                 prisma.user.count({ where: whereClause }),
             ]);
+            if (total === 0) {
+                return store.getAllUsers(query, page, limit);
+            }
             return {
                 users: users.map((u) => ({
                     ...u,
@@ -145,42 +161,52 @@ export class AdminService {
             };
         }
         catch (e) {
-            logger.error('[ADMIN_SERVICE] searchUsers failed:', e);
-            return { users: [], total: 0, page: 1, totalPages: 1 };
+            return store.getAllUsers(query, page, limit);
         }
     }
     /**
      * Get list of recent users
      */
     static async getRecentUsers(limit = 10) {
+        const isDbOk = await checkDatabaseConnection();
+        if (!isDbOk) {
+            return store.getAllUsers('', 1, limit).users;
+        }
         try {
             const users = await prisma.user.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: limit,
                 include: { subscription: true },
             });
+            if (users.length === 0) {
+                return store.getAllUsers('', 1, limit).users;
+            }
             return users.map((u) => ({
                 ...u,
                 telegramId: u.telegramId.toString(),
             }));
         }
         catch {
-            return [];
+            return store.getAllUsers('', 1, limit).users;
         }
     }
     /**
      * Get list of recent media processing jobs
      */
     static async getRecentJobs(limit = 10) {
+        const isDbOk = await checkDatabaseConnection();
+        if (!isDbOk) {
+            return store.getRecentJobs(limit);
+        }
         try {
-            const isDbOk = await checkDatabaseConnection();
-            if (!isDbOk)
-                return [];
             const jobs = await prisma.mediaJob.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: limit,
                 include: { user: true },
             });
+            if (jobs.length === 0) {
+                return store.getRecentJobs(limit);
+            }
             return jobs.map((j) => ({
                 ...j,
                 inputSize: j.inputSize ? j.inputSize.toString() : null,
@@ -194,32 +220,38 @@ export class AdminService {
             }));
         }
         catch {
-            return [];
+            return store.getRecentJobs(limit);
         }
     }
     /**
      * Broadcast message to all registered bot users
      */
     static async broadcastMessage(text) {
-        let users = [];
-        try {
-            users = await prisma.user.findMany({
-                where: { isBanned: false },
-                select: { telegramId: true },
-            });
+        let targetIds = [];
+        const dbConnected = await checkDatabaseConnection();
+        if (dbConnected) {
+            try {
+                const users = await prisma.user.findMany({
+                    where: { isBanned: false },
+                    select: { telegramId: true },
+                });
+                targetIds = users.map((u) => Number(u.telegramId));
+            }
+            catch { }
         }
-        catch {
-            logger.warn('Database offline during broadcast.');
+        // If DB is offline or empty, use store
+        if (targetIds.length === 0) {
+            targetIds = store.getAllActiveTelegramIds();
         }
-        if (users.length === 0) {
+        if (targetIds.length === 0) {
             return { total: 0, sent: 0, failed: 0 };
         }
         let sent = 0;
         let failed = 0;
-        logger.info(`[BROADCAST] Initiating broadcast to ${users.length} users...`);
-        for (const u of users) {
+        logger.info(`[BROADCAST] Initiating broadcast to ${targetIds.length} users...`);
+        for (const tid of targetIds) {
             try {
-                await bot.telegram.sendMessage(Number(u.telegramId), text, {
+                await bot.telegram.sendMessage(tid, text, {
                     parse_mode: 'HTML',
                 });
                 sent++;
@@ -227,75 +259,72 @@ export class AdminService {
             catch (err) {
                 failed++;
             }
-            // Anti-flood pause: 35ms between messages (~28 messages/sec, within Telegram 30/s limit)
+            // Anti-flood pause: 35ms between messages (~28 messages/sec)
             await new Promise((res) => setTimeout(res, 35));
         }
-        logger.info(`[BROADCAST_COMPLETE] Total: ${users.length}, Sent: ${sent}, Failed: ${failed}`);
-        return { total: users.length, sent, failed };
+        logger.info(`[BROADCAST_COMPLETE] Total: ${targetIds.length}, Sent: ${sent}, Failed: ${failed}`);
+        return { total: targetIds.length, sent, failed };
     }
     /**
      * Ban a user by Telegram ID
      */
     static async banUser(telegramId) {
+        store.setUserBan(telegramId, true);
         try {
             await prisma.user.update({
                 where: { telegramId: BigInt(telegramId) },
                 data: { isBanned: true },
             });
-            return true;
         }
-        catch {
-            return false;
-        }
+        catch { }
+        return true;
     }
     /**
      * Unban a user by Telegram ID
      */
     static async unbanUser(telegramId) {
+        store.setUserBan(telegramId, false);
         try {
             await prisma.user.update({
                 where: { telegramId: BigInt(telegramId) },
                 data: { isBanned: false },
             });
-            return true;
         }
-        catch {
-            return false;
-        }
+        catch { }
+        return true;
     }
     /**
      * Manually grant a subscription plan to any user
      */
     static async setPlan(telegramId, plan, durationDays = 30) {
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + durationDays);
+        store.setUserPlan(telegramId, plan);
         try {
             const user = await prisma.user.findUnique({
                 where: { telegramId: BigInt(telegramId) },
             });
-            if (!user)
-                return false;
-            await prisma.subscription.upsert({
-                where: { userId: user.id },
-                update: {
-                    plan,
-                    status: 'ACTIVE',
-                    startDate: new Date(),
-                    endDate,
-                },
-                create: {
-                    userId: user.id,
-                    plan,
-                    status: 'ACTIVE',
-                    startDate: new Date(),
-                    endDate,
-                },
-            });
-            return true;
+            if (user) {
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + durationDays);
+                await prisma.subscription.upsert({
+                    where: { userId: user.id },
+                    update: {
+                        plan,
+                        status: 'ACTIVE',
+                        startDate: new Date(),
+                        endDate,
+                    },
+                    create: {
+                        userId: user.id,
+                        plan,
+                        status: 'ACTIVE',
+                        startDate: new Date(),
+                        endDate,
+                    },
+                });
+            }
         }
-        catch {
-            return false;
-        }
+        catch { }
+        return true;
     }
 }
 export default AdminService;

@@ -1,6 +1,7 @@
 import prisma, { isDatabaseAvailable } from '../database/prisma.js';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
+import store from './store.service.js';
 // In-memory usage store for offline development
 const inMemoryUsage = new Map();
 export class UsageService {
@@ -165,6 +166,15 @@ export class UsageService {
         }
     }
     static async recordJob(params) {
+        store.recordJob({
+            telegramId: params.userId.replace(/^usr_|^mem-/, ''),
+            type: params.type,
+            status: params.status,
+            scale: params.scale,
+            processingTime: params.processingTimeSeconds || 0,
+            inputResolution: params.inputResolution,
+            outputResolution: params.outputResolution,
+        });
         if (!isDatabaseAvailable()) {
             return `job-local-${Date.now()}`;
         }
