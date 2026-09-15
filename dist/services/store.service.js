@@ -109,11 +109,29 @@ class StoreService {
             // 1. Write primary db.json atomically
             const tmpPrimary = `${this.dbPath}.tmp`;
             fs.writeFileSync(tmpPrimary, serialized, 'utf-8');
-            fs.renameSync(tmpPrimary, this.dbPath);
+            try {
+                fs.renameSync(tmpPrimary, this.dbPath);
+            }
+            catch {
+                fs.writeFileSync(this.dbPath, serialized, 'utf-8');
+                try {
+                    fs.unlinkSync(tmpPrimary);
+                }
+                catch { }
+            }
             // 2. Write backup db.backup.json atomically
             const tmpBackup = `${this.backupPath}.tmp`;
             fs.writeFileSync(tmpBackup, serialized, 'utf-8');
-            fs.renameSync(tmpBackup, this.backupPath);
+            try {
+                fs.renameSync(tmpBackup, this.backupPath);
+            }
+            catch {
+                fs.writeFileSync(this.backupPath, serialized, 'utf-8');
+                try {
+                    fs.unlinkSync(tmpBackup);
+                }
+                catch { }
+            }
         }
         catch (err) {
             logger.error('[STORE] Critical failure writing db.json / db.backup.json:', err);
@@ -196,7 +214,10 @@ class StoreService {
                 const idMatch = u.telegramId.includes(trimmed);
                 const userMatch = u.username?.toLowerCase().includes(trimmed);
                 const nameMatch = u.firstName?.toLowerCase().includes(trimmed);
-                return idMatch || userMatch || nameMatch;
+                const planMatch = u.plan?.toLowerCase().includes(trimmed);
+                const isAdminMatch = (trimmed === 'admin' || trimmed === 'administrator') &&
+                    config.ADMIN_TELEGRAM_IDS.some(aid => aid.toString() === u.telegramId);
+                return idMatch || userMatch || nameMatch || planMatch || isAdminMatch;
             });
         }
         // Sort newest first

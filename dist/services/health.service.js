@@ -60,7 +60,7 @@ export function startHealthServer() {
             }
         }
         // 3. Healthcheck endpoint
-        if (pathname === '/health') {
+        if (pathname === '/health' || pathname === '/api/health') {
             const [dbOk, redisOk] = await Promise.all([
                 checkDatabaseConnection(),
                 checkRedisConnection(),
