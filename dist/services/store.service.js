@@ -50,54 +50,61 @@ class StoreService {
         process.once('SIGTERM', handleExit);
     }
     loadData() {
-        // 1. Try loading primary db.json
-        try {
-            if (fs.existsSync(this.dbPath)) {
-                const raw = fs.readFileSync(this.dbPath, 'utf-8');
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed.users === 'object') {
-                    return {
-                        users: parsed.users || {},
-                        jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
-                        stats: parsed.stats || { totalImages: 0, totalVideos: 0, failedJobs: 0 },
-                    };
+        const candidatePaths = [
+            this.dbPath,
+            this.backupPath,
+            path.resolve(process.cwd(), 'db.json'),
+        ];
+        const mergedUsers = {};
+        const mergedJobs = [];
+        let maxImages = 0;
+        let maxVideos = 0;
+        let maxFailed = 0;
+        for (const p of candidatePaths) {
+            try {
+                if (fs.existsSync(p)) {
+                    const raw = fs.readFileSync(p, 'utf-8');
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed.users === 'object') {
+                        for (const [k, u] of Object.entries(parsed.users)) {
+                            if (!mergedUsers[k] || new Date(u.updatedAt || u.createdAt).getTime() >= new Date(mergedUsers[k].updatedAt || mergedUsers[k].createdAt).getTime()) {
+                                mergedUsers[k] = u;
+                            }
+                        }
+                    }
+                    if (Array.isArray(parsed.jobs)) {
+                        for (const j of parsed.jobs) {
+                            if (!mergedJobs.some((existing) => existing.id === j.id)) {
+                                mergedJobs.push(j);
+                            }
+                        }
+                    }
+                    if (parsed.stats) {
+                        maxImages = Math.max(maxImages, parsed.stats.totalImages || 0);
+                        maxVideos = Math.max(maxVideos, parsed.stats.totalVideos || 0);
+                        maxFailed = Math.max(maxFailed, parsed.stats.failedJobs || 0);
+                    }
                 }
             }
-        }
-        catch (e) {
-            logger.warn('[STORE] Primary db.json read error, attempting backup load:', e);
-        }
-        // 2. Try loading backup db.backup.json
-        try {
-            if (fs.existsSync(this.backupPath)) {
-                const raw = fs.readFileSync(this.backupPath, 'utf-8');
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed.users === 'object') {
-                    logger.info('[STORE] Successfully recovered database state from db.backup.json');
-                    return {
-                        users: parsed.users || {},
-                        jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
-                        stats: parsed.stats || { totalImages: 0, totalVideos: 0, failedJobs: 0 },
-                    };
-                }
+            catch (err) {
+                logger.debug(`[STORE] Path ${p} read notice:`, err);
             }
         }
-        catch (e) {
-            logger.warn('[STORE] Backup db.backup.json read error:', e);
-        }
+        const userCount = Object.keys(mergedUsers).length;
+        logger.info(`[STORE] Multi-source database loaded. Total persistent users: ${userCount}`);
         return {
-            users: {},
-            jobs: [],
+            users: mergedUsers,
+            jobs: mergedJobs.slice(0, 150),
             stats: {
-                totalImages: 0,
-                totalVideos: 0,
-                failedJobs: 0,
+                totalImages: maxImages,
+                totalVideos: maxVideos,
+                failedJobs: maxFailed,
             },
         };
     }
     /**
      * Synchronously and atomically flushes all current in-memory state to disk
-     * Writes to a temporary file first, then atomically renames to prevent corruption.
+     * Writes to temporary files first, then atomically renames to prevent corruption.
      */
     flushSync() {
         try {
@@ -106,31 +113,33 @@ class StoreService {
                 this.saveTimeout = null;
             }
             const serialized = JSON.stringify(this.data, null, 2);
-            // 1. Write primary db.json atomically
-            const tmpPrimary = `${this.dbPath}.tmp`;
-            fs.writeFileSync(tmpPrimary, serialized, 'utf-8');
-            try {
-                fs.renameSync(tmpPrimary, this.dbPath);
-            }
-            catch {
-                fs.writeFileSync(this.dbPath, serialized, 'utf-8');
+            const targetPaths = [
+                this.dbPath,
+                this.backupPath,
+                path.resolve(process.cwd(), 'db.json'),
+            ];
+            for (const target of targetPaths) {
                 try {
-                    fs.unlinkSync(tmpPrimary);
+                    const targetDir = path.dirname(target);
+                    if (!fs.existsSync(targetDir)) {
+                        fs.mkdirSync(targetDir, { recursive: true });
+                    }
+                    const tmp = `${target}.tmp`;
+                    fs.writeFileSync(tmp, serialized, 'utf-8');
+                    try {
+                        fs.renameSync(tmp, target);
+                    }
+                    catch {
+                        fs.writeFileSync(target, serialized, 'utf-8');
+                        try {
+                            fs.unlinkSync(tmp);
+                        }
+                        catch { }
+                    }
                 }
-                catch { }
-            }
-            // 2. Write backup db.backup.json atomically
-            const tmpBackup = `${this.backupPath}.tmp`;
-            fs.writeFileSync(tmpBackup, serialized, 'utf-8');
-            try {
-                fs.renameSync(tmpBackup, this.backupPath);
-            }
-            catch {
-                fs.writeFileSync(this.backupPath, serialized, 'utf-8');
-                try {
-                    fs.unlinkSync(tmpBackup);
+                catch (targetErr) {
+                    logger.debug(`[STORE] Error writing target ${target}:`, targetErr);
                 }
-                catch { }
             }
         }
         catch (err) {

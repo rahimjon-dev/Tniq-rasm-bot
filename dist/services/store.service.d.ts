@@ -33,7 +33,7 @@ declare class StoreService {
     private loadData;
     /**
      * Synchronously and atomically flushes all current in-memory state to disk
-     * Writes to a temporary file first, then atomically renames to prevent corruption.
+     * Writes to temporary files first, then atomically renames to prevent corruption.
      */
     flushSync(): void;
     private saveToDisk;

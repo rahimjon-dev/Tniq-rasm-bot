@@ -208,13 +208,80 @@
     loadUsers();
   });
 
+  // Cached users fallback renderer
+  function renderCachedUsers() {
+    try {
+      const cached = localStorage.getItem('admin_cached_users');
+      if (!cached) return false;
+      const parsed = JSON.parse(cached);
+      if (parsed && Array.isArray(parsed.users) && parsed.users.length > 0) {
+        userTableSummary.innerText = `Jami saqlangan: ${parsed.total || parsed.users.length} ta`;
+        usersTableBody.innerHTML = renderUsersHtml(parsed.users);
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  function renderUsersHtml(usersList) {
+    return usersList.map((u) => {
+      const plan = u.subscription?.plan || u.plan || 'FREE';
+      const planPill = plan === 'PRO' ? 'plan-pro' : (plan === 'BUSINESS' ? 'plan-business' : '');
+      const isBanned = !!u.isBanned;
+      const userPayload = encodeURIComponent(JSON.stringify(u));
+
+      return `
+        <tr class="user-table-row" style="cursor: pointer;" onclick="window.openUserDetails('${userPayload}')" title="Batafsil ma'lumotni ko'rish">
+          <td><code>${u.telegramId}</code></td>
+          <td>
+            <strong>${escapeHtml(u.firstName || 'Foydalanuvchi')}</strong>
+            <div class="input-hint">${u.username ? '@' + u.username : 'username yo\'q'}</div>
+          </td>
+          <td><code>${u.languageCode || 'uz'}</code></td>
+          <td><span class="status-pill ${planPill}">${plan}</span></td>
+          <td><strong>${u.totalJobs || 0} ta</strong></td>
+          <td>
+            <span class="status-pill ${isBanned ? 'banned' : 'active'}">
+              ${isBanned ? 'Bloklangan' : 'Faol'}
+            </span>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
+              ${isBanned ? 'Ochish' : 'Bloklash'}
+            </button>
+            <button class="btn-action-sm" onclick="window.openPlanModal('${u.telegramId}', '${escapeHtml(u.firstName || '')}')">
+              ⭐ Tarif
+            </button>
+            <button class="btn-action-sm" onclick="window.openUserDetails('${userPayload}')">
+              👤 Profil
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   async function loadUsers() {
     try {
-      usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Foydalanuvchilar qidirilmoqda...</td></tr>`;
+      const hasCached = renderCachedUsers();
+      if (!hasCached) {
+        usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Foydalanuvchilar yuklanmoqda...</td></tr>`;
+      }
+
       const url = `/api/admin/users?q=${encodeURIComponent(currentUserQuery)}&page=${currentUserPage}&limit=15`;
       const data = await apiFetch(url);
 
       if (!data.success) return;
+
+      if (data.users && data.users.length > 0) {
+        // Cache to localStorage so users persist on screen across refreshes or sleeps
+        localStorage.setItem('admin_cached_users', JSON.stringify({
+          users: data.users,
+          total: data.total,
+          page: data.page,
+          totalPages: data.totalPages,
+        }));
+      }
 
       userTableSummary.innerText = `Jami topildi: ${data.total} ta`;
       pageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages}`;
@@ -222,43 +289,16 @@
       btnNextPage.disabled = data.page >= data.totalPages;
 
       if (!data.users || data.users.length === 0) {
-        usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Foydalanuvchi topilmadi.</td></tr>`;
+        if (!hasCached) {
+          usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Foydalanuvchi topilmadi.</td></tr>`;
+        }
         return;
       }
 
-      usersTableBody.innerHTML = data.users.map((u) => {
-        const plan = u.subscription?.plan || 'FREE';
-        const planPill = plan === 'PRO' ? 'plan-pro' : (plan === 'BUSINESS' ? 'plan-business' : '');
-        const isBanned = u.isBanned;
-
-        return `
-          <tr>
-            <td><code>${u.telegramId}</code></td>
-            <td>
-              <strong>${escapeHtml(u.firstName || 'Foydalanuvchi')}</strong>
-              <div class="input-hint">${u.username ? '@' + u.username : 'username yo\'q'}</div>
-            </td>
-            <td><code>${u.languageCode || 'uz'}</code></td>
-            <td><span class="status-pill ${planPill}">${plan}</span></td>
-            <td><strong>${u.totalJobs || 0} ta</strong></td>
-            <td>
-              <span class="status-pill ${isBanned ? 'banned' : 'active'}">
-                ${isBanned ? 'Bloklangan' : 'Faol'}
-              </span>
-            </td>
-            <td>
-              <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
-                ${isBanned ? 'Ochish' : 'Bloklash'}
-              </button>
-              <button class="btn-action-sm" onclick="window.openPlanModal('${u.telegramId}', '${escapeHtml(u.firstName || '')}')">
-                ⭐ Tarif
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      usersTableBody.innerHTML = renderUsersHtml(data.users);
     } catch (e) {
-      console.warn('Failed to load users:', e);
+      console.warn('Failed to load users, keeping cached:', e);
+      renderCachedUsers();
     }
   }
 
@@ -273,6 +313,10 @@
         body: JSON.stringify({ isBanned: ban }),
       });
       if (res.success) {
+        if (activeUserForDetails && activeUserForDetails.telegramId === telegramId) {
+          activeUserForDetails.isBanned = ban;
+          window.openUserDetails(activeUserForDetails);
+        }
         loadUsers();
       } else {
         alert('Xatolik: ' + res.message);
@@ -281,6 +325,70 @@
       alert('Tarmoq xatosi');
     }
   };
+
+  // User Details Modal Elements
+  const userDetailsModal = document.getElementById('userDetailsModal');
+  const udId = document.getElementById('udId');
+  const udUsername = document.getElementById('udUsername');
+  const udFirstName = document.getElementById('udFirstName');
+  const udLang = document.getElementById('udLang');
+  const udPlan = document.getElementById('udPlan');
+  const udStatus = document.getElementById('udStatus');
+  const udJobs = document.getElementById('udJobs');
+  const udDate = document.getElementById('udDate');
+  const udBtnPlan = document.getElementById('udBtnPlan');
+  const udBtnBan = document.getElementById('udBtnBan');
+  const udBtnClose = document.getElementById('udBtnClose');
+
+  let activeUserForDetails = null;
+
+  window.openUserDetails = function (userPayload) {
+    try {
+      const u = typeof userPayload === 'string' ? JSON.parse(decodeURIComponent(userPayload)) : userPayload;
+      if (!u) return;
+      activeUserForDetails = u;
+
+      udId.innerText = u.telegramId;
+      udUsername.innerText = u.username ? `@${u.username}` : 'Mavjud emas';
+      udFirstName.innerText = u.firstName || 'Foydalanuvchi';
+      udLang.innerText = (u.languageCode || 'uz').toUpperCase();
+
+      const plan = u.subscription?.plan || u.plan || 'FREE';
+      udPlan.innerText = plan;
+      udPlan.className = `status-pill ${plan === 'PRO' ? 'plan-pro' : (plan === 'BUSINESS' ? 'plan-business' : '')}`;
+
+      const isBanned = !!u.isBanned;
+      udStatus.innerText = isBanned ? 'Bloklangan' : 'Faol';
+      udStatus.className = `status-pill ${isBanned ? 'banned' : 'active'}`;
+
+      udJobs.innerText = `${u.totalJobs || 0} ta vazifa`;
+      udDate.innerText = u.createdAt ? new Date(u.createdAt).toLocaleString() : 'Noma\'lum';
+
+      udBtnBan.innerText = isBanned ? '✅ Blokdan Chiqarish' : '⛔ Bloklash';
+      udBtnBan.className = `btn-secondary ${isBanned ? 'btn-unban' : 'btn-ban'}`;
+
+      userDetailsModal.style.display = 'flex';
+    } catch (err) {
+      console.error('Error displaying user details:', err);
+    }
+  };
+
+  udBtnClose?.addEventListener('click', () => {
+    userDetailsModal.style.display = 'none';
+  });
+
+  udBtnPlan?.addEventListener('click', () => {
+    if (activeUserForDetails) {
+      userDetailsModal.style.display = 'none';
+      window.openPlanModal(activeUserForDetails.telegramId, activeUserForDetails.firstName || '');
+    }
+  });
+
+  udBtnBan?.addEventListener('click', () => {
+    if (activeUserForDetails) {
+      window.toggleUserBan(activeUserForDetails.telegramId, !activeUserForDetails.isBanned);
+    }
+  });
 
   // Plan Modal
   const planModal = document.getElementById('planModal');
@@ -440,6 +548,14 @@
     if (activeTab === 'tab-users') loadUsers();
     if (activeTab === 'tab-jobs') loadJobs();
   });
+
+  // Interactive Overview Cards navigation
+  document.getElementById('cardUsers')?.addEventListener('click', () => switchTab('tab-users'));
+  document.getElementById('cardImages')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardVideos')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardSuccessRate')?.addEventListener('click', () => switchTab('tab-system'));
+  document.getElementById('cardQueue')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardSystem')?.addEventListener('click', () => switchTab('tab-system'));
 
   async function initDashboard() {
     await loadStats();
