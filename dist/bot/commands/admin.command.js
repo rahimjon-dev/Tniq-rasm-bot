@@ -1,5 +1,6 @@
 import { Markup } from 'telegraf';
 import AdminService from '../../services/admin.service.js';
+import config from '../../config/index.js';
 export const adminKeyboard = Markup.inlineKeyboard([
     [
         Markup.button.callback('📊 Tizim Statistikasi', 'admin_stats'),
@@ -16,13 +17,19 @@ export const adminKeyboard = Markup.inlineKeyboard([
 ]);
 export async function handleAdminCommand(ctx) {
     const telegramId = ctx.from?.id;
-    if (!telegramId || !AdminService.isAdmin(telegramId)) {
-        return; // Silently ignore non-admins
+    // @ts-ignore
+    const text = ctx.message?.text || '';
+    const inputCode = text.replace(/^\/admin\s*/i, '').trim();
+    const isAuthorized = (telegramId && AdminService.isAdmin(telegramId)) ||
+        inputCode === config.ADMIN_SECRET_KEY ||
+        text.trim() === config.ADMIN_SECRET_KEY;
+    if (!isAuthorized) {
+        return; // Silently ignore non-admins so regular users never know it exists
     }
     const adminText = `👑 <b>AI MEDIA UPSCALER — ADMINISTRATOR PANELI</b>\n\n` +
         `Xush kelibsiz, administrator! Quyidagi menyu orqali bot faoliyatini to'liq boshqarishingiz mumkin:\n\n` +
         `🌐 <b>Veb Dashboard:</b> https://tniq-rasm-bot.onrender.com\n` +
-        `🔑 <b>Maxfiy kalit:</b> <code>admin123</code>\n\n` +
+        `🔑 <b>Maxfiy kalit:</b> <code>${config.ADMIN_SECRET_KEY}</code>\n\n` +
         `• <b>/stats</b> — Jonli tizim va navbat statistikasi\n` +
         `• <b>/broadcast &lt;xabar&gt;</b> — Barcha foydalanuvchilarga e'lon yuborish\n` +
         `• <b>/ban &lt;telegramId&gt;</b> — Foydalanuvchini bloklash\n` +

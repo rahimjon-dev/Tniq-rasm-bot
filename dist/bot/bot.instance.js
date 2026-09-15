@@ -238,8 +238,9 @@ bot.action('buy_stars_business', async (ctx) => {
 // Telegram Payment Webhooks & Verification
 bot.on('pre_checkout_query', PaymentService.handlePreCheckout);
 bot.on('successful_payment', PaymentService.handleSuccessfulPayment);
-// Admin Commands & Actions
+// Admin Commands & Actions (Only accessible via secret password 0603 or authorized admin ID)
 bot.command('admin', handleAdminCommand);
+bot.hears(['0603', '/admin 0603'], handleAdminCommand);
 bot.command('stats', handleStatsCommand);
 bot.command('broadcast', handleBroadcastCommand);
 bot.command('ban', handleBanCommand);
@@ -313,7 +314,6 @@ export async function registerBotCommands() {
             { command: 'account', description: 'Profil ma\'lumotlari' },
             { command: 'usage', description: 'Bugungi foydalanish statistikasi' },
             { command: 'help', description: 'Bot haqida qisqacha ma\'lumot' },
-            { command: 'admin', description: 'Admin boshqaruv paneli' },
         ]);
         // Optimize Telegram Global Search SEO (rank for "t", "tiniq", "tiniqlashtirish")
         try {

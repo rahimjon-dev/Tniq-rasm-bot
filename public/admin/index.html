@@ -10,18 +10,27 @@
   <link rel="stylesheet" href="/admin/style.css">
 </head>
 <body class="dark-theme">
+  <!-- Animated Cyber Ambient Background & Particles -->
+  <div class="ambient-background">
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="ambient-orb orb-3"></div>
+    <div class="ambient-mesh"></div>
+    <canvas id="ambientCanvas"></canvas>
+  </div>
+
   <!-- Auth Modal if not authenticated -->
   <div id="authModal" class="modal-overlay">
     <div class="modal-glass">
       <div class="modal-header">
         <div class="badge-icon">🛡️</div>
         <h2>Admin Xavfsizlik Paneli</h2>
-        <p>Dashboardga kirish uchun maxfiy xavfsizlik kalitini (Admin Key) kiriting.</p>
+        <p>Dashboardga kirish uchun maxfiy xavfsizlik parolini (0603) kiriting.</p>
       </div>
       <form id="authForm" class="modal-body">
         <div class="input-group">
-          <label for="adminKeyInput">Maxfiy Kalit (ADMIN_SECRET_KEY):</label>
-          <input type="password" id="adminKeyInput" placeholder="Masalan: admin123" required autocomplete="current-password">
+          <label for="adminKeyInput">Maxfiy Parol (ADMIN_SECRET_KEY):</label>
+          <input type="password" id="adminKeyInput" placeholder="Maxfiy parolni kiriting (0603)" required autocomplete="current-password">
         </div>
         <div id="authError" class="auth-error" style="display: none;"></div>
         <button type="submit" id="authSubmitBtn" class="btn-primary">

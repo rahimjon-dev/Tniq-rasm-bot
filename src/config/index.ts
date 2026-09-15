@@ -22,7 +22,7 @@ const envSchema = z.object({
         .filter(Boolean)
         .map((id) => BigInt(id))
     ),
-  ADMIN_SECRET_KEY: z.string().default('admin123'),
+  ADMIN_SECRET_KEY: z.string().default('0603'),
 
   // Database & Redis
   DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/ai_upscaler?schema=public'),
