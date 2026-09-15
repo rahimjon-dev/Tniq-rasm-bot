@@ -176,11 +176,11 @@ export declare class AdminService {
     /**
      * Ban a user by Telegram ID
      */
-    static banUser(telegramId: number): Promise<boolean>;
+    static banUser(telegramId: number | bigint | string): Promise<boolean>;
     /**
      * Unban a user by Telegram ID
      */
-    static unbanUser(telegramId: number): Promise<boolean>;
+    static unbanUser(telegramId: number | bigint | string): Promise<boolean>;
     /**
      * Manually grant a subscription plan to any user
      */

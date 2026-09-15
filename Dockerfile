@@ -24,6 +24,8 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+ENV VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 
 # Install system dependencies & Vulkan runtime for Real-ESRGAN
 RUN apt-get update && apt-get install -y --no-install-recommends \

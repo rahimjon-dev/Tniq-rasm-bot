@@ -42,6 +42,7 @@ export async function processImageJob(payload) {
             UsageService.incrementImageUsage(userId),
             UsageService.recordJob({
                 userId,
+                telegramId: telegramChatId,
                 type: 'IMAGE',
                 scale,
                 status: 'COMPLETED',
@@ -66,6 +67,7 @@ export async function processImageJob(payload) {
         await bot.telegram.sendMessage(telegramChatId, `❌ <b>AI processing encountered an issue:</b>\n<code>${errorMsg}</code>\n\nPlease try again with a different image or contact support.`, { parse_mode: 'HTML' });
         await UsageService.recordJob({
             userId,
+            telegramId: telegramChatId,
             type: 'IMAGE',
             scale,
             status: 'FAILED',

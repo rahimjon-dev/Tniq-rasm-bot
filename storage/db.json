@@ -1,0 +1,22 @@
+{
+  "users": {
+    "7534175269": {
+      "id": "usr_7534175269",
+      "telegramId": "7534175269",
+      "username": "rahmonoov_19",
+      "firstName": "Rahimjon",
+      "languageCode": "en",
+      "plan": "BUSINESS",
+      "isBanned": false,
+      "createdAt": "2026-09-15T07:16:15.035Z",
+      "updatedAt": "2026-09-15T07:56:15.536Z",
+      "totalJobs": 0
+    }
+  },
+  "jobs": [],
+  "stats": {
+    "totalImages": 0,
+    "totalVideos": 0,
+    "failedJobs": 0
+  }
+}

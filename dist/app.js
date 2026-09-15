@@ -8,6 +8,7 @@ import { imageWorker, startImageWorker } from './queue/workers/image.worker.js';
 import { videoWorker, startVideoWorker } from './queue/workers/video.worker.js';
 import CleanupService from './services/media/cleanup.service.js';
 import { startHealthServer, stopHealthServer } from './services/health.service.js';
+import store from './services/store.service.js';
 export async function bootstrap() {
     logger.info('================================================================');
     logger.info('🚀 AI MEDIA UPSCALER TELEGRAM BOT - PRODUCTION ENGINE ONLINE');
@@ -26,6 +27,21 @@ export async function bootstrap() {
         checkRedisConnection(),
     ]);
     logger.info(`Infrastructure Status: Database=${dbOk ? 'ONLINE (PostgreSQL)' : 'IN-MEMORY MODE'}, Redis=${redisOk ? 'ONLINE (BullMQ)' : 'IN-MEMORY ASYNC'}`);
+    // Sync users from PostgreSQL into store on startup if database is online
+    if (dbOk) {
+        try {
+            const dbUsers = await prisma.user.findMany({
+                include: {
+                    subscription: true,
+                    _count: { select: { jobs: true } },
+                },
+            });
+            store.syncFromDatabase(dbUsers);
+        }
+        catch (err) {
+            logger.warn('Initial database sync error:', err);
+        }
+    }
     // 3. Start BullMQ workers if Redis is available
     if (redisOk) {
         const redis = getRedisClient();
@@ -84,6 +100,12 @@ export async function bootstrap() {
         catch { }
         // 6. Stop HTTP health server
         await stopHealthServer();
+        // 7. Flush persistent storage to disk
+        try {
+            store.flushSync();
+            logger.debug('Persistent storage state saved.');
+        }
+        catch { }
         logger.info('All subsystems halted safely. Exiting process.');
         process.exit(0);
     };

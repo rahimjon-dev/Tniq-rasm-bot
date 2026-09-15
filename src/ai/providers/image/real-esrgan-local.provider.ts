@@ -61,8 +61,8 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
 
   /**
    * Ultra-Clarity Multi-Pass Filter Engine
-   * Utilizes CLAHE adaptive histogram equalization, Lanczos3 supersampling,
-   * and dual-pass unsharp masking to dramatically sharpen details and remove blur.
+   * Eliminates blurriness using high-order Lanczos3 supersampling,
+   * full dynamic range contrast normalization, and high-frequency edge crisping.
    */
   private async fallbackSharpUpscale(
     inputPath: string,
@@ -75,29 +75,31 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
     const targetWidth = Math.round(originalWidth * scale);
     const targetHeight = Math.round(originalHeight * scale);
 
-    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine (CLAHE + Lanczos3 + Dual Unsharp Mask)...`);
+    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine (Lanczos3 + Normalization + Multi-Scale Crisp Sharpening)...`);
 
+    // High fidelity resize without blocky grid artifacts
     await sharp(inputPath)
-      .clahe({ width: 60, height: 60, maxSlope: 3 })
       .resize({
         width: targetWidth,
         height: targetHeight,
         kernel: sharp.kernel.lanczos3,
         fit: 'fill',
+        fastShrinkOnLoad: false,
       })
+      .normalise() // Stretch contrast over full 0-255 dynamic range (removes haziness)
       .modulate({
-        brightness: 1.02,
-        saturation: 1.08,
+        brightness: 1.01,
+        saturation: 1.06,
       })
       .sharpen({
-        sigma: 1.5,
-        m1: 2.2,
-        m2: 0.8,
+        sigma: 1.2,
+        m1: 2.8, // Strong edge contrast for crystal sharpness
+        m2: 0.9,
         x1: 2,
-        y2: 12,
-        y3: 25,
+        y2: 8,
+        y3: 20,
       })
-      .jpeg({ quality: 98, chromaSubsampling: '4:4:4' })
+      .jpeg({ quality: 99, chromaSubsampling: '4:4:4' })
       .toFile(outputPath);
 
     const processingTimeSeconds = (Date.now() - startTime) / 1000;
@@ -165,6 +167,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       '-n', modelName,
       '-m', models,
       '-s', scale.toString(),
+      '-t', '256',
       '-f', format,
     ];
 

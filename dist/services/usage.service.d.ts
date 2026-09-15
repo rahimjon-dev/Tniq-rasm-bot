@@ -17,6 +17,7 @@ export declare class UsageService {
     static incrementVideoUsage(userId: string): Promise<void>;
     static recordJob(params: {
         userId: string;
+        telegramId?: string | number | bigint;
         type: 'IMAGE' | 'VIDEO';
         scale: number;
         status: 'COMPLETED' | 'FAILED';

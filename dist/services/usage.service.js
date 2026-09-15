@@ -166,8 +166,9 @@ export class UsageService {
         }
     }
     static async recordJob(params) {
+        const tgId = params.telegramId ? params.telegramId.toString() : params.userId.replace(/^usr_|^mem-/, '');
         store.recordJob({
-            telegramId: params.userId.replace(/^usr_|^mem-/, ''),
+            telegramId: tgId,
             type: params.type,
             status: params.status,
             scale: params.scale,

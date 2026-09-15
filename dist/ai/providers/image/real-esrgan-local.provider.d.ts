@@ -9,8 +9,8 @@ export declare class RealESRGANLocalProvider implements ImageUpscalerProvider {
     isAvailable(): Promise<boolean>;
     /**
      * Ultra-Clarity Multi-Pass Filter Engine
-     * Utilizes CLAHE adaptive histogram equalization, Lanczos3 supersampling,
-     * and dual-pass unsharp masking to dramatically sharpen details and remove blur.
+     * Eliminates blurriness using high-order Lanczos3 supersampling,
+     * full dynamic range contrast normalization, and high-frequency edge crisping.
      */
     private fallbackSharpUpscale;
     upscaleImage(inputPath: string, outputPath: string, options: ImageUpscaleOptions): Promise<ImageUpscaleResult>;

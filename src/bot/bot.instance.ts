@@ -60,6 +60,33 @@ bot.use(async (ctx, next) => {
   logger.debug(`[COMPLETED] User=${userId} Duration=${duration}ms`);
 });
 
+// Middleware: Strict Ban Enforcement (blocks banned users instantly)
+bot.use(async (ctx, next) => {
+  const telegramId = ctx.from?.id;
+  if (!telegramId) return next();
+
+  if (store.isUserBanned(telegramId)) {
+    logger.warn(`[BLOCKED_USER] Prevented banned user ${telegramId} from executing action.`);
+    if (ctx.callbackQuery) {
+      try {
+        await ctx.answerCbQuery('⛔️ Siz bot ma\'muriyati tomonidan bloklangansiz!', { show_alert: true });
+      } catch {}
+      return;
+    }
+
+    try {
+      await ctx.replyWithHTML(
+        '⛔️ <b>Kirish taqiqlangan!</b>\n\n' +
+        'Siz bot ma\'muriyati tomonidan bloklangansiz. Bot xizmatlaridan foydalana olmaysiz.\n' +
+        'Qo\'shimcha ma\'lumot olish uchun ma\'muriyat bilan bog\'laning.'
+      );
+    } catch {}
+    return;
+  }
+
+  return next();
+});
+
 // Middleware: Anti-Abuse Rate Limiting
 bot.use(rateLimitMiddleware);
 
@@ -363,7 +390,27 @@ export async function registerBotCommands(): Promise<void> {
       { command: 'help', description: 'Bot haqida qisqacha ma\'lumot' },
       { command: 'admin', description: 'Admin boshqaruv paneli' },
     ]);
-    logger.info('Telegram bot commands registered successfully');
+
+    // Optimize Telegram Global Search SEO (rank for "t", "tiniq", "tiniqlashtirish")
+    try {
+      // @ts-ignore
+      await bot.telegram.setMyName('Tiniq Rasm & Video HD | AI Upscaler');
+      // @ts-ignore
+      await bot.telegram.setMyShortDescription('Rasmlar va videolarni 4K Ultra HD tiniqlashtiruvchi professional AI bot.');
+      // @ts-ignore
+      await bot.telegram.setMyDescription(
+        '🤖 Rasmlar va videolaringizni sun\'iy intellekt (AI) yordamida tiniqlashtiring va 4K formatga o\'tkazing!\n\n' +
+        '✨ Asosiy imkoniyatlar:\n' +
+        '• Xira va noaniq rasmlarni tiniqlashtirish\n' +
+        '• Yuz va libos detallarini Ultra HD formatda tiklash\n' +
+        '• Videolarni 1080p va 4K sifatga ko\'tarish\n' +
+        '• 100% asl sifatda hujjat (Document) ko\'rinishida yuklab olish'
+      );
+    } catch (seoErr) {
+      logger.debug('SEO profile setup notice:', seoErr);
+    }
+
+    logger.info('Telegram bot commands and SEO profile registered successfully');
 
   } catch (error) {
     logger.warn('Could not register bot commands with Telegram:', {

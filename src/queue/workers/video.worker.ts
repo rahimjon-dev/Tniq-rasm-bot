@@ -69,6 +69,7 @@ export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
       UsageService.incrementVideoUsage(userId),
       UsageService.recordJob({
         userId,
+        telegramId: telegramChatId,
         type: 'VIDEO',
         scale,
         status: 'COMPLETED',
@@ -99,6 +100,7 @@ export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
 
     await UsageService.recordJob({
       userId,
+      telegramId: telegramChatId,
       type: 'VIDEO',
       scale,
       status: 'FAILED',

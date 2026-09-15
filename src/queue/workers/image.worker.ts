@@ -73,6 +73,7 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
       UsageService.incrementImageUsage(userId),
       UsageService.recordJob({
         userId,
+        telegramId: telegramChatId,
         type: 'IMAGE',
         scale,
         status: 'COMPLETED',
@@ -103,6 +104,7 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
 
     await UsageService.recordJob({
       userId,
+      telegramId: telegramChatId,
       type: 'IMAGE',
       scale,
       status: 'FAILED',

@@ -182,7 +182,7 @@ export class AdminService {
         prisma.user.count({ where: whereClause }),
       ]);
 
-      if (total === 0) {
+      if (total === 0 || store.getStats().totalUsers > total) {
         return store.getAllUsers(query, page, limit);
       }
 
@@ -315,29 +315,31 @@ export class AdminService {
   /**
    * Ban a user by Telegram ID
    */
-  static async banUser(telegramId: number): Promise<boolean> {
-    store.setUserBan(telegramId, true);
+  static async banUser(telegramId: number | bigint | string): Promise<boolean> {
+    const idStr = telegramId.toString();
+    const ok = store.setUserBan(idStr, true);
     try {
       await prisma.user.update({
-        where: { telegramId: BigInt(telegramId) },
+        where: { telegramId: BigInt(idStr) },
         data: { isBanned: true },
       });
     } catch {}
-    return true;
+    return ok;
   }
 
   /**
    * Unban a user by Telegram ID
    */
-  static async unbanUser(telegramId: number): Promise<boolean> {
-    store.setUserBan(telegramId, false);
+  static async unbanUser(telegramId: number | bigint | string): Promise<boolean> {
+    const idStr = telegramId.toString();
+    const ok = store.setUserBan(idStr, false);
     try {
       await prisma.user.update({
-        where: { telegramId: BigInt(telegramId) },
+        where: { telegramId: BigInt(idStr) },
         data: { isBanned: false },
       });
     } catch {}
-    return true;
+    return ok;
   }
 
   /**

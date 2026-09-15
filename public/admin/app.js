@@ -247,10 +247,10 @@
               </span>
             </td>
             <td>
-              <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan(${u.telegramId}, ${!isBanned})">
+              <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
                 ${isBanned ? 'Ochish' : 'Bloklash'}
               </button>
-              <button class="btn-action-sm" onclick="window.openPlanModal(${u.telegramId}, '${escapeHtml(u.firstName || '')}')">
+              <button class="btn-action-sm" onclick="window.openPlanModal('${u.telegramId}', '${escapeHtml(u.firstName || '')}')">
                 ⭐ Tarif
               </button>
             </td>

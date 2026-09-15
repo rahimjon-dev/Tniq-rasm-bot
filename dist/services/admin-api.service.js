@@ -114,7 +114,7 @@ export class AdminApiService {
             // 4. Ban / Unban user
             const banMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/ban$/);
             if (banMatch && req.method === 'POST') {
-                const telegramId = parseInt(banMatch[1], 10);
+                const telegramId = banMatch[1];
                 const body = await this.parseBody(req);
                 const isBanned = body.isBanned !== undefined ? body.isBanned : true;
                 const success = isBanned
@@ -131,11 +131,11 @@ export class AdminApiService {
             // 5. Update user plan
             const planMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/plan$/);
             if (planMatch && req.method === 'POST') {
-                const telegramId = parseInt(planMatch[1], 10);
+                const telegramId = planMatch[1];
                 const body = await this.parseBody(req);
                 const plan = (body.plan || 'PRO').toUpperCase();
                 const durationDays = body.durationDays || 30;
-                const success = await AdminService.setPlan(telegramId, plan, durationDays);
+                const success = await AdminService.setPlan(parseInt(telegramId, 10), plan, durationDays);
                 this.sendJson(res, success ? 200 : 400, {
                     success,
                     message: success ? `Plan updated to ${plan}` : 'Failed to update plan',

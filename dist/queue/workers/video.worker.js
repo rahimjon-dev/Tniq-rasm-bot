@@ -45,6 +45,7 @@ export async function processVideoJob(payload) {
             UsageService.incrementVideoUsage(userId),
             UsageService.recordJob({
                 userId,
+                telegramId: telegramChatId,
                 type: 'VIDEO',
                 scale,
                 status: 'COMPLETED',
@@ -69,6 +70,7 @@ export async function processVideoJob(payload) {
         await bot.telegram.sendMessage(telegramChatId, `❌ <b>Video processing encountered an issue:</b>\n<code>${errorMsg}</code>\n\nPlease try again with a shorter clip or contact support.`, { parse_mode: 'HTML' });
         await UsageService.recordJob({
             userId,
+            telegramId: telegramChatId,
             type: 'VIDEO',
             scale,
             status: 'FAILED',

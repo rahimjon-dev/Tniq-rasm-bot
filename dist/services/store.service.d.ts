@@ -25,19 +25,28 @@ export interface StoredJob {
 }
 declare class StoreService {
     private dbPath;
+    private backupPath;
     private data;
     private saveTimeout;
+    private isShuttingDown;
     constructor();
     private loadData;
+    /**
+     * Synchronously and atomically flushes all current in-memory state to disk
+     * Writes to a temporary file first, then atomically renames to prevent corruption.
+     */
+    flushSync(): void;
     private saveToDisk;
+    isUserBanned(telegramId: number | bigint | string): boolean;
+    setUserBan(telegramId: number | bigint | string, isBanned: boolean): boolean;
     saveUser(params: {
-        telegramId: number | bigint;
+        telegramId: number | bigint | string;
         username?: string | null;
         firstName?: string | null;
         languageCode?: string | null;
         plan?: UserPlan;
     }): StoredUser;
-    getUser(telegramId: number | bigint): StoredUser | null;
+    getUser(telegramId: number | bigint | string): StoredUser | null;
     getAllUsers(query?: string, page?: number, limit?: number): {
         users: {
             subscription: {
@@ -59,9 +68,9 @@ declare class StoreService {
         page: number;
         totalPages: number;
     };
-    setUserBan(telegramId: number | bigint, isBanned: boolean): boolean;
-    setUserPlan(telegramId: number | bigint, plan: UserPlan): boolean;
+    setUserPlan(telegramId: number | bigint | string, plan: UserPlan): boolean;
     getAllActiveTelegramIds(): number[];
+    syncFromDatabase(dbUsers: any[]): void;
     recordJob(job: {
         telegramId: string | number | bigint;
         type: 'IMAGE' | 'VIDEO';

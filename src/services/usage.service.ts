@@ -182,6 +182,7 @@ export class UsageService {
 
   static async recordJob(params: {
     userId: string;
+    telegramId?: string | number | bigint;
     type: 'IMAGE' | 'VIDEO';
     scale: number;
     status: 'COMPLETED' | 'FAILED';
@@ -192,8 +193,9 @@ export class UsageService {
     processingTimeSeconds?: number;
     errorMessage?: string;
   }): Promise<string> {
+    const tgId = params.telegramId ? params.telegramId.toString() : params.userId.replace(/^usr_|^mem-/, '');
     store.recordJob({
-      telegramId: params.userId.replace(/^usr_|^mem-/, ''),
+      telegramId: tgId,
       type: params.type,
       status: params.status,
       scale: params.scale,
