@@ -7,11 +7,24 @@ import { checkDatabaseConnection } from '../database/prisma.js';
 import { checkRedisConnection } from '../queue/queue.client.js';
 import AdminApiService from './admin-api.service.js';
 
+function findPublicFile(filename: string): string | null {
+  const candidates = [
+    path.resolve(process.cwd(), 'public/admin', filename),
+    path.resolve(process.cwd(), 'public', filename),
+    path.resolve(process.cwd(), filename),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch {}
+  }
+  return null;
+}
+
 let server: http.Server | undefined;
 
 export function startHealthServer(): http.Server {
   const port = config.PORT || 3000;
-  const publicAdminDir = path.resolve(process.cwd(), 'public/admin');
 
   server = http.createServer(async (req, res) => {
     const rawUrl = req.url || '/';
@@ -26,28 +39,28 @@ export function startHealthServer(): http.Server {
 
     // 2. Admin Dashboard Static Assets (Both root "/" and "/admin" load Admin Panel)
     if (pathname === '/' || pathname === '/admin' || pathname === '/admin/') {
-      const indexPath = path.join(publicAdminDir, 'index.html');
-      if (fs.existsSync(indexPath)) {
+      const filePath = findPublicFile('index.html');
+      if (filePath) {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(fs.readFileSync(indexPath));
+        res.end(fs.readFileSync(filePath));
         return;
       }
     }
 
     if (pathname === '/admin/style.css' || pathname === '/style.css') {
-      const cssPath = path.join(publicAdminDir, 'style.css');
-      if (fs.existsSync(cssPath)) {
+      const filePath = findPublicFile('style.css');
+      if (filePath) {
         res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' });
-        res.end(fs.readFileSync(cssPath));
+        res.end(fs.readFileSync(filePath));
         return;
       }
     }
 
     if (pathname === '/admin/app.js' || pathname === '/app.js') {
-      const jsPath = path.join(publicAdminDir, 'app.js');
-      if (fs.existsSync(jsPath)) {
+      const filePath = findPublicFile('app.js');
+      if (filePath) {
         res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
-        res.end(fs.readFileSync(jsPath));
+        res.end(fs.readFileSync(filePath));
         return;
       }
     }
