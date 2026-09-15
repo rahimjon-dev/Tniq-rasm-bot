@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../src/ai/providers/video/index.ts"],"names":[],"mappings":"AAAA,OAAO,MAAM,MAAM,0BAA0B,CAAC;AAE9C,OAAO,EAAE,uBAAuB,EAAE,MAAM,iCAAiC,CAAC;AAE1E,MAAM,UAAU,wBAAwB;IACtC,QAAQ,MAAM,CAAC,iBAAiB,EAAE,CAAC;QACjC,KAAK,yBAAyB,CAAC;QAC/B;YACE,OAAO,IAAI,uBAAuB,EAAE,CAAC;IACzC,CAAC;AACH,CAAC"}

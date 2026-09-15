@@ -1,0 +1,30 @@
+export declare const config: {
+    paths: {
+        tempStorage: string;
+        outputStorage: string;
+        realEsrganExe: string;
+        realEsrganModels: string;
+    };
+    NODE_ENV: "development" | "production" | "test";
+    PORT: number;
+    LOG_LEVEL: "debug" | "info" | "warn" | "error";
+    BOT_TOKEN: string;
+    ADMIN_TELEGRAM_IDS: bigint[];
+    DATABASE_URL: string;
+    REDIS_URL: string;
+    STORAGE_TEMP_DIR: string;
+    STORAGE_OUTPUT_DIR: string;
+    FREE_DAILY_IMAGE_LIMIT: number;
+    FREE_DAILY_VIDEO_LIMIT: number;
+    MAX_IMAGE_SIZE_MB: number;
+    MAX_VIDEO_SIZE_MB: number;
+    MAX_VIDEO_DURATION_SECONDS: number;
+    AI_IMAGE_PROVIDER: string;
+    AI_VIDEO_PROVIDER: string;
+    REAL_ESRGAN_PATH: string;
+    REAL_ESRGAN_MODELS_DIR: string;
+    REPLICATE_API_TOKEN?: string | undefined;
+    RUNWARE_API_KEY?: string | undefined;
+};
+export type AppConfig = typeof config;
+export default config;

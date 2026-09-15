@@ -1,0 +1,13 @@
+import { Redis } from 'ioredis';
+import { Queue } from 'bullmq';
+import { ImageJobPayload, VideoJobPayload } from '../types/job.types.js';
+export declare function isRedisAvailable(): boolean;
+export declare function isRedisReachable(timeoutMs?: number): Promise<boolean>;
+export declare function checkRedisConnection(): Promise<boolean>;
+export declare function getRedisClient(): Redis | null;
+export declare function getImageQueue(): Queue<ImageJobPayload> | null;
+export declare function getVideoQueue(): Queue<VideoJobPayload> | null;
+export declare function closeRedis(): Promise<void>;
+export declare const redisConnection: Redis;
+export declare const imageQueue: Queue<ImageJobPayload>;
+export declare const videoQueue: Queue<VideoJobPayload>;
