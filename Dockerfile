@@ -25,12 +25,24 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install system dependencies (ffmpeg, ca-certificates, libvips for sharp)
+# Install system dependencies & Vulkan runtime for Real-ESRGAN
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     ca-certificates \
     curl \
+    wget \
+    unzip \
+    libvulkan1 \
+    libgomp1 \
+    mesa-vulkan-drivers \
     && rm -rf /var/lib/apt/lists/*
+
+# Download native Linux Real-ESRGAN AI engine & models
+RUN mkdir -p /app/realesrgan && \
+    wget -q https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip -O /tmp/realesrgan.zip && \
+    unzip -q /tmp/realesrgan.zip -d /app/realesrgan && \
+    chmod +x /app/realesrgan/realesrgan-ncnn-vulkan && \
+    rm /tmp/realesrgan.zip
 
 COPY package*.json ./
 COPY prisma ./prisma/

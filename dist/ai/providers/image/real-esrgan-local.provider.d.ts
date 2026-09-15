@@ -4,7 +4,14 @@ export declare class RealESRGANLocalProvider implements ImageUpscalerProvider {
     private readonly exePath;
     private readonly modelsDir;
     constructor();
+    private getExecutablePath;
+    private getModelsDirectory;
     isAvailable(): Promise<boolean>;
+    /**
+     * Ultra-Clarity Multi-Pass Filter Engine
+     * Utilizes CLAHE adaptive histogram equalization, Lanczos3 supersampling,
+     * and dual-pass unsharp masking to dramatically sharpen details and remove blur.
+     */
     private fallbackSharpUpscale;
     upscaleImage(inputPath: string, outputPath: string, options: ImageUpscaleOptions): Promise<ImageUpscaleResult>;
 }
