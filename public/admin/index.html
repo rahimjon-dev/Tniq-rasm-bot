@@ -105,9 +105,13 @@
             <span class="sync-dot"></span>
             <span id="lastUpdatedText">Yangilandi: Hozirgina</span>
           </div>
-          <button id="refreshBtn" class="btn-secondary" title="Yangilash">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Yangilash
+          <button id="musicToggleBtn" class="btn-secondary btn-music" title="Sokin Lofi Musiqa">
+            <span id="musicIcon">🎵</span>
+            <span id="musicLabel">Musiqa: Yoqish</span>
+          </button>
+          <button id="refreshBtn" class="btn-secondary btn-refresh" title="Ma'lumotlarni yangilash">
+            <svg id="refreshSvg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span id="refreshBtnText">Yangilash</span>
           </button>
         </div>
       </header>
@@ -280,10 +284,39 @@
               </div>
 
               <div class="broadcast-form">
+                <!-- Media Type Tabs -->
+                <div class="input-group">
+                  <label>Xabar Formatini Tanlang:</label>
+                  <div class="media-type-selector">
+                    <button type="button" class="type-btn active" data-type="text" id="typeBtnText">📝 Faqat Matn</button>
+                    <button type="button" class="type-btn" data-type="photo" id="typeBtnPhoto">🖼️ Rasm Bilan</button>
+                    <button type="button" class="type-btn" data-type="video" id="typeBtnVideo">🎬 Video Bilan</button>
+                  </div>
+                </div>
+
+                <!-- Media URL input (conditionally shown) -->
+                <div class="input-group" id="mediaUrlGroup" style="display: none;">
+                  <label for="broadcastMediaUrl" id="mediaUrlLabel">Media Havolasi (URL yoki Telegram File ID):</label>
+                  <input type="url" id="broadcastMediaUrl" placeholder="https://example.com/rasm.jpg">
+                  <span class="input-hint">To'g'ridan-to'g'ri rasm yoki video internet havolasini kiriting</span>
+                </div>
+
                 <div class="input-group">
                   <label for="broadcastMessage">Xabar Matni (HTML teglari qo'llab-quvvatlanadi):</label>
-                  <textarea id="broadcastMessage" rows="8" placeholder="Assalomu alaykum, hurmatli foydalanuvchilar!\n\nBotimizda yangi 4K Ultra HD imkoniyatlari ishga tushirildi..."></textarea>
+                  <textarea id="broadcastMessage" rows="6" placeholder="Assalomu alaykum, hurmatli foydalanuvchilar!\n\nBotimizda yangi 4K Ultra HD imkoniyatlari ishga tushirildi..."></textarea>
                   <span class="input-hint">HTML formatlari: &lt;b&gt;qalin&lt;/b&gt;, &lt;i&gt;kursiv&lt;/i&gt;, &lt;code&gt;kod&lt;/code&gt;, &lt;a href="..."&gt;havola&lt;/a&gt;</span>
+                </div>
+
+                <!-- Inline Button Options -->
+                <div class="grid-two-cols" style="gap: 12px; margin-bottom: 16px;">
+                  <div class="input-group" style="margin-bottom: 0;">
+                    <label for="broadcastBtnText">Tugma Matni (Ixtiyoriy):</label>
+                    <input type="text" id="broadcastBtnText" placeholder="Masalan: 🤖 Botni Sinash">
+                  </div>
+                  <div class="input-group" style="margin-bottom: 0;">
+                    <label for="broadcastBtnUrl">Tugma Havolasi (URL):</label>
+                    <input type="url" id="broadcastBtnUrl" placeholder="https://t.me/tiniq_rasm_bot">
+                  </div>
                 </div>
 
                 <div class="broadcast-actions">
@@ -322,8 +355,12 @@
                   </div>
                 </div>
                 <div class="tg-bubble">
+                  <div id="tgPreviewMedia" style="display: none; margin-bottom: 8px; border-radius: 8px; overflow: hidden;"></div>
                   <div id="tgPreviewContent">Xabar matnini chap tomonda yozing...</div>
                   <span class="tg-time">12:00</span>
+                </div>
+                <div id="tgPreviewBtnWrap" style="display: none; margin-top: 6px;">
+                  <a id="tgPreviewBtn" href="#" target="_blank" class="tg-inline-btn">Tugma Havolasi</a>
                 </div>
               </div>
             </div>
@@ -463,6 +500,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Toast Notification -->
+  <div id="adminToast" class="admin-toast" style="display: none;"></div>
 
   <script src="/admin/app.js"></script>
 </body>

@@ -1048,3 +1048,125 @@ body {
   margin-top: 10px;
 }
 
+/* ------------------------------------------------------------------------------
+   Broadcast Media Selector & Telegram Buttons
+   ------------------------------------------------------------------------------ */
+.media-type-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.type-btn {
+  flex: 1;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.type-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.type-btn.active {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: #00f2fe;
+  color: #00f2fe;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
+}
+
+.tg-inline-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  color: #00f2fe;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.tg-inline-btn:hover {
+  background: #00f2fe;
+  color: #000;
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.4);
+}
+
+/* ------------------------------------------------------------------------------
+   Music Player & Refresh Button Enhancements
+   ------------------------------------------------------------------------------ */
+.btn-music {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+  transition: all 0.25s ease;
+}
+
+.btn-music:hover {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #e9d5ff;
+}
+
+.btn-music.playing {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+}
+
+.btn-refresh {
+  transition: all 0.2s ease;
+}
+
+.btn-refresh.refreshing svg {
+  animation: spin 0.8s linear infinite;
+  color: #00f2fe;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------------------------
+   Admin Toast Notification
+   ------------------------------------------------------------------------------ */
+.admin-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 242, 254, 0.2);
+  z-index: 10000;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+

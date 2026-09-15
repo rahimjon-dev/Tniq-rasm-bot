@@ -1,5 +1,17 @@
 {
   "users": {
+    "5392129023": {
+      "id": "usr_5392129023",
+      "telegramId": "5392129023",
+      "username": "Batirov_09",
+      "firstName": "..",
+      "languageCode": "uz",
+      "plan": "FREE",
+      "isBanned": false,
+      "createdAt": "2026-09-15T17:32:00.000Z",
+      "updatedAt": "2026-09-15T17:32:00.000Z",
+      "totalJobs": 0
+    },
     "7534175269": {
       "id": "usr_7534175269",
       "telegramId": "7534175269",

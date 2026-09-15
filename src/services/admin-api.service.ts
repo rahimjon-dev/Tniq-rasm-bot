@@ -162,13 +162,20 @@ export class AdminApiService {
       if (pathname === '/api/admin/broadcast' && req.method === 'POST') {
         const body = await this.parseBody(req);
         const text = (body.text || '').trim();
+        const mediaUrl = (body.mediaUrl || '').trim();
 
-        if (!text) {
-          this.sendJson(res, 400, { error: 'Broadcast message text is required' });
+        if (!text && !mediaUrl) {
+          this.sendJson(res, 400, { error: 'Xabar matni yoki media havolasi kiritilishi shart' });
           return true;
         }
 
-        const result = await AdminService.broadcastMessage(text);
+        const result = await AdminService.broadcastMessage({
+          text,
+          mediaType: body.mediaType || 'text',
+          mediaUrl: mediaUrl || undefined,
+          buttonText: body.buttonText || undefined,
+          buttonUrl: body.buttonUrl || undefined,
+        });
         this.sendJson(res, 200, { success: true, result });
         return true;
       }

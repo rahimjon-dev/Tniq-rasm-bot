@@ -430,36 +430,113 @@
   });
 
   // ----------------------------------------------------------------------------
-  // Broadcast Studio
+  // Broadcast Studio (Rich Format: Text, Photo, Video, Buttons)
   // ----------------------------------------------------------------------------
+  let broadcastType = 'text'; // 'text' | 'photo' | 'video'
   const broadcastMessage = document.getElementById('broadcastMessage');
+  const broadcastMediaUrl = document.getElementById('broadcastMediaUrl');
+  const mediaUrlGroup = document.getElementById('mediaUrlGroup');
+  const mediaUrlLabel = document.getElementById('mediaUrlLabel');
+  const broadcastBtnText = document.getElementById('broadcastBtnText');
+  const broadcastBtnUrl = document.getElementById('broadcastBtnUrl');
+  const typeBtnText = document.getElementById('typeBtnText');
+  const typeBtnPhoto = document.getElementById('typeBtnPhoto');
+  const typeBtnVideo = document.getElementById('typeBtnVideo');
+
   const tgPreviewContent = document.getElementById('tgPreviewContent');
+  const tgPreviewMedia = document.getElementById('tgPreviewMedia');
+  const tgPreviewBtnWrap = document.getElementById('tgPreviewBtnWrap');
+  const tgPreviewBtn = document.getElementById('tgPreviewBtn');
+
   const btnSendBroadcast = document.getElementById('btnSendBroadcast');
   const broadcastProgress = document.getElementById('broadcastProgress');
   const broadcastProgressBar = document.getElementById('broadcastProgressBar');
   const broadcastProgressText = document.getElementById('broadcastProgressText');
 
-  broadcastMessage.addEventListener('input', () => {
-    const raw = broadcastMessage.value.trim();
-    if (!raw) {
-      tgPreviewContent.innerText = 'Xabar matnini chap tomonda yozing...';
-      return;
+  // Media Type Switching
+  function setBroadcastType(type) {
+    broadcastType = type;
+    [typeBtnText, typeBtnPhoto, typeBtnVideo].forEach((btn) => btn?.classList.remove('active'));
+
+    if (type === 'text') {
+      typeBtnText?.classList.add('active');
+      mediaUrlGroup.style.display = 'none';
+    } else if (type === 'photo') {
+      typeBtnPhoto?.classList.add('active');
+      mediaUrlGroup.style.display = 'block';
+      mediaUrlLabel.innerText = "Rasm Havolasi (URL yoki Telegram file_id):";
+      broadcastMediaUrl.placeholder = "https://example.com/rasm.jpg";
+    } else if (type === 'video') {
+      typeBtnVideo?.classList.add('active');
+      mediaUrlGroup.style.display = 'block';
+      mediaUrlLabel.innerText = "Video Havolasi (URL yoki Telegram file_id):";
+      broadcastMediaUrl.placeholder = "https://example.com/video.mp4";
     }
-    // Simple HTML sanitize for preview
-    tgPreviewContent.innerHTML = raw
-      .replace(/\n/g, '<br>')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>');
+    updateTgPreview();
+  }
+
+  typeBtnText?.addEventListener('click', () => setBroadcastType('text'));
+  typeBtnPhoto?.addEventListener('click', () => setBroadcastType('photo'));
+  typeBtnVideo?.addEventListener('click', () => setBroadcastType('video'));
+
+  function updateTgPreview() {
+    const rawText = broadcastMessage.value.trim();
+    const mediaUrl = broadcastMediaUrl?.value.trim() || '';
+    const btnText = broadcastBtnText?.value.trim() || '';
+    const btnUrl = broadcastBtnUrl?.value.trim() || '';
+
+    // 1. Text caption
+    if (!rawText && !mediaUrl) {
+      tgPreviewContent.innerText = 'Xabar matnini chap tomonda yozing...';
+    } else {
+      tgPreviewContent.innerHTML = rawText
+        ? rawText.replace(/\n/g, '<br>').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        : (broadcastType === 'photo' ? '<i>(Faqat rasm yuboriladi)</i>' : '<i>(Faqat video yuboriladi)</i>');
+    }
+
+    // 2. Media Preview
+    if (broadcastType === 'photo' && mediaUrl) {
+      tgPreviewMedia.style.display = 'block';
+      tgPreviewMedia.innerHTML = `<img src="${escapeHtml(mediaUrl)}" alt="Rasm" style="width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px;" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'padding:20px;background:rgba(255,255,255,0.06);text-align:center;border-radius:6px;\'>🖼️ Rasm havolasi kiritildi</div>';">`;
+    } else if (broadcastType === 'video' && mediaUrl) {
+      tgPreviewMedia.style.display = 'block';
+      tgPreviewMedia.innerHTML = `<div style="padding: 24px; background: rgba(0,242,254,0.08); border: 1px dashed rgba(0,242,254,0.3); text-align: center; border-radius: 6px;">🎬 <strong>Video Havolasi Biriktirildi</strong><br><small style="color:var(--text-muted);">${escapeHtml(mediaUrl)}</small></div>`;
+    } else {
+      tgPreviewMedia.style.display = 'none';
+      tgPreviewMedia.innerHTML = '';
+    }
+
+    // 3. Inline Button Preview
+    if (btnText) {
+      tgPreviewBtnWrap.style.display = 'block';
+      tgPreviewBtn.innerText = btnText;
+      tgPreviewBtn.href = btnUrl || '#';
+    } else {
+      tgPreviewBtnWrap.style.display = 'none';
+    }
+  }
+
+  [broadcastMessage, broadcastMediaUrl, broadcastBtnText, broadcastBtnUrl].forEach((el) => {
+    el?.addEventListener('input', updateTgPreview);
   });
 
   btnSendBroadcast.addEventListener('click', async () => {
     const text = broadcastMessage.value.trim();
-    if (!text) {
-      alert('Iltimos, xabar matnini kiriting!');
+    const mediaUrl = broadcastMediaUrl?.value.trim() || '';
+    const buttonText = broadcastBtnText?.value.trim() || '';
+    const buttonUrl = broadcastBtnUrl?.value.trim() || '';
+
+    if (!text && !mediaUrl) {
+      alert('Iltimos, xabar matnini yoki media havolasini kiriting!');
       return;
     }
 
-    if (!confirm("Haqiqatan ham barcha foydalanuvchilarga ushbu xabarni yubormoqchimisiz?")) {
+    if (buttonText && !buttonUrl) {
+      alert('Tugma matnini kiritdingiz, endi tugma havolasini (URL) ham kiriting!');
+      return;
+    }
+
+    if (!confirm("Haqiqatan ham barcha foydalanuvchilarga ushbu xabarni tarqatmoqchimisiz?")) {
       return;
     }
 
@@ -471,14 +548,25 @@
     try {
       const res = await apiFetch('/api/admin/broadcast', {
         method: 'POST',
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          mediaType: broadcastType,
+          mediaUrl: mediaUrl || undefined,
+          buttonText: buttonText || undefined,
+          buttonUrl: buttonUrl || undefined,
+        }),
       });
 
       broadcastProgressBar.style.width = '100%';
       if (res.success) {
         const r = res.result;
         broadcastProgressText.innerHTML = `✅ <b>Tugatildi!</b> Jami: ${r.total} ta, Yetkazildi: <b>${r.sent} ta</b>, Bloklaganlar: ${r.failed} ta.`;
+        showToast(`Xabar muvaffaqiyatli tarqatildi: ${r.sent} ta yetkazildi!`);
         broadcastMessage.value = '';
+        if (broadcastMediaUrl) broadcastMediaUrl.value = '';
+        if (broadcastBtnText) broadcastBtnText.value = '';
+        if (broadcastBtnUrl) broadcastBtnUrl.value = '';
+        updateTgPreview();
       } else {
         broadcastProgressText.innerText = '❌ Xatolik yuz berdi: ' + (res.error || 'Noma\'lum xato');
       }
@@ -490,50 +578,86 @@
   });
 
   // ----------------------------------------------------------------------------
-  // Jobs List
+  // Jobs List with Persistence Caching
   // ----------------------------------------------------------------------------
   const jobsTableBody = document.getElementById('jobsTableBody');
 
+  function renderCachedJobs() {
+    try {
+      const cached = localStorage.getItem('admin_cached_jobs');
+      if (!cached) return false;
+      const jobs = JSON.parse(cached);
+      if (Array.isArray(jobs) && jobs.length > 0) {
+        jobsTableBody.innerHTML = renderJobsHtml(jobs);
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  function renderJobsHtml(jobs) {
+    return jobs.map((j) => {
+      const isImg = j.type === 'IMAGE';
+      const typeIcon = isImg ? '🖼️ Rasm' : '🎬 Video';
+      const userDisplay = j.user
+        ? `${escapeHtml(j.user.firstName || 'User')} (<code>${j.user.telegramId}</code>)`
+        : 'Noma\'lum';
+      const timeSec = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
+      const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-pro');
+      const dateStr = j.createdAt ? new Date(j.createdAt).toLocaleTimeString() : '-';
+
+      return `
+        <tr>
+          <td><strong>${typeIcon}</strong></td>
+          <td>${userDisplay}</td>
+          <td><span class="badge-number">${j.scale}x (${j.targetResolution || 'HD'})</span></td>
+          <td>${j.inputResolution || '-'}</td>
+          <td><code>${timeSec}</code></td>
+          <td><span class="status-pill ${statusClass}">${j.status}</span></td>
+          <td>${dateStr}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   async function loadJobs() {
     try {
-      jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Yuklanmoqda...</td></tr>`;
-      const data = await apiFetch('/api/admin/jobs?limit=25');
+      const hasCached = renderCachedJobs();
+      if (!hasCached) {
+        jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Yuklanmoqda...</td></tr>`;
+      }
+      const data = await apiFetch('/api/admin/jobs?limit=50');
 
       if (!data.success || !data.jobs || data.jobs.length === 0) {
-        jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Hozircha birorta ham ish mavjud emas.</td></tr>`;
+        if (!hasCached) {
+          jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Hozircha birorta ham ish mavjud emas.</td></tr>`;
+        }
         return;
       }
 
-      jobsTableBody.innerHTML = data.jobs.map((j) => {
-        const isImg = j.type === 'IMAGE';
-        const typeIcon = isImg ? '🖼️ Rasm' : '🎬 Video';
-        const userDisplay = j.user
-          ? `${escapeHtml(j.user.firstName || 'User')} (<code>${j.user.telegramId}</code>)`
-          : 'Noma\'lum';
-        const timeSec = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
-        const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-pro');
-        const dateStr = new Date(j.createdAt).toLocaleTimeString();
-
-        return `
-          <tr>
-            <td><strong>${typeIcon}</strong></td>
-            <td>${userDisplay}</td>
-            <td><span class="badge-number">${j.scale}x (${j.targetResolution || 'HD'})</span></td>
-            <td>${j.inputResolution || '-'}</td>
-            <td><code>${timeSec}</code></td>
-            <td><span class="status-pill ${statusClass}">${j.status}</span></td>
-            <td>${dateStr}</td>
-          </tr>
-        `;
-      }).join('');
+      localStorage.setItem('admin_cached_jobs', JSON.stringify(data.jobs));
+      jobsTableBody.innerHTML = renderJobsHtml(data.jobs);
     } catch (e) {
       console.warn('Failed to load jobs:', e);
+      renderCachedJobs();
     }
   }
 
   // ----------------------------------------------------------------------------
-  // Helpers & Init
+  // Toast Notifications & Helpers
   // ----------------------------------------------------------------------------
+  let toastTimeout = null;
+  function showToast(message, isSuccess = true) {
+    const toast = document.getElementById('adminToast');
+    if (!toast) return;
+    toast.innerHTML = `${isSuccess ? '✅' : '⚠️'} <span>${escapeHtml(message)}</span>`;
+    toast.style.display = 'flex';
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      toast.style.display = 'none';
+    }, 3200);
+  }
+
   function escapeHtml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
@@ -543,10 +667,26 @@
       .replace(/'/g, '&#039;');
   }
 
-  refreshBtn.addEventListener('click', () => {
-    if (activeTab === 'tab-overview') loadStats();
-    if (activeTab === 'tab-users') loadUsers();
-    if (activeTab === 'tab-jobs') loadJobs();
+  // Top-Right Yangilash Button with Spin & Notification
+  refreshBtn.addEventListener('click', async () => {
+    refreshBtn.classList.add('refreshing');
+    const refreshText = document.getElementById('refreshBtnText');
+    if (refreshText) refreshText.innerText = 'Yangilanmoqda...';
+
+    try {
+      if (activeTab === 'tab-overview') await loadStats();
+      if (activeTab === 'tab-users') await loadUsers();
+      if (activeTab === 'tab-jobs') await loadJobs();
+      if (activeTab === 'tab-system') await loadStats();
+      showToast('Barcha ko\'rsatkichlar yangilandi!');
+    } catch {
+      showToast('Yangilashda xatolik yuz berdi', false);
+    } finally {
+      setTimeout(() => {
+        refreshBtn.classList.remove('refreshing');
+        if (refreshText) refreshText.innerText = 'Yangilash';
+      }, 500);
+    }
   });
 
   // Interactive Overview Cards navigation
@@ -582,9 +722,85 @@
   }
 
   // ----------------------------------------------------------------------------
-  // Interactive Ambient Particles & Star Field Engine
+  // Calm Ambient Lofi Synthesizer (Sokin Fon Musiqasi)
   // ----------------------------------------------------------------------------
-  function initAmbientParticles() {
+  let audioCtx = null;
+  let isMusicPlaying = false;
+  let musicInterval = null;
+  const musicToggleBtn = document.getElementById('musicToggleBtn');
+  const musicIcon = document.getElementById('musicIcon');
+  const musicLabel = document.getElementById('musicLabel');
+
+  const calmChords = [
+    [261.63, 329.63, 392.00, 493.88], // Cmaj7
+    [220.00, 261.63, 329.63, 392.00], // Am7
+    [174.61, 220.00, 261.63, 329.63], // Fmaj7
+    [196.00, 246.94, 293.66, 392.00], // G
+  ];
+  let chordIndex = 0;
+
+  function playAmbientChord() {
+    if (!audioCtx || !isMusicPlaying) return;
+
+    const chord = calmChords[chordIndex % calmChords.length];
+    chordIndex++;
+
+    const now = audioCtx.currentTime;
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.001, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.045, now + 1.2);
+    masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 5.5);
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(450, now);
+    filter.Q.value = 1.2;
+
+    masterGain.connect(filter);
+    filter.connect(audioCtx.destination);
+
+    chord.forEach((freq) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 5.8);
+    });
+  }
+
+  function toggleMusic() {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) audioCtx = new AudioContextClass();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    isMusicPlaying = !isMusicPlaying;
+    if (isMusicPlaying) {
+      musicToggleBtn?.classList.add('playing');
+      if (musicIcon) musicIcon.innerText = '🔊';
+      if (musicLabel) musicLabel.innerText = 'Musiqa: Yoqilgan';
+      playAmbientChord();
+      musicInterval = setInterval(playAmbientChord, 4600);
+      showToast('Sokin fon musiqasi ishga tushirildi 🎶');
+    } else {
+      musicToggleBtn?.classList.remove('playing');
+      if (musicIcon) musicIcon.innerText = '🎵';
+      if (musicLabel) musicLabel.innerText = 'Musiqa: Yoqish';
+      if (musicInterval) clearInterval(musicInterval);
+      showToast('Musiqa to\'xtatildi');
+    }
+  }
+
+  musicToggleBtn?.addEventListener('click', toggleMusic);
+
+  // ----------------------------------------------------------------------------
+  // Gentle Falling Snowflakes Animation Engine (Mayda-Mayda Qor Yog'ishi)
+  // ----------------------------------------------------------------------------
+  function initFallingSnowEngine() {
     const canvas = document.getElementById('ambientCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -598,58 +814,52 @@
       height = canvas.height = window.innerHeight;
     });
 
-    const particles = [];
-    const count = Math.min(45, Math.floor((width * height) / 25000));
+    const flakes = [];
+    const count = Math.min(85, Math.floor((width * height) / 16000));
 
     for (let i = 0; i < count; i++) {
-      particles.push({
+      flakes.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        radius: Math.random() * 1.8 + 0.8,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        hue: Math.random() > 0.5 ? 185 : 265, // Cyan & Purple
-        alpha: Math.random() * 0.6 + 0.2,
+        radius: Math.random() * 2.2 + 0.8, // delicate small snowflakes
+        speedY: Math.random() * 0.9 + 0.45, // gentle falling speed
+        speedX: (Math.random() - 0.5) * 0.3,
+        driftAngle: Math.random() * Math.PI * 2,
+        driftSpeed: Math.random() * 0.02 + 0.008,
+        opacity: Math.random() * 0.65 + 0.25,
       });
     }
 
-    function animate() {
+    function animateSnow() {
       ctx.clearRect(0, 0, width, height);
 
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
+      for (let i = 0; i < flakes.length; i++) {
+        const f = flakes[i];
+        f.driftAngle += f.driftSpeed;
+        f.y += f.speedY;
+        f.x += f.speedX + Math.sin(f.driftAngle) * 0.4;
 
-        if (p.x < 0) p.x = width;
-        if (p.x > width) p.x = 0;
-        if (p.y < 0) p.y = height;
-        if (p.y > height) p.y = 0;
+        // Wrap around smoothly
+        if (f.y > height) {
+          f.y = -5;
+          f.x = Math.random() * width;
+        }
+        if (f.x < -5) f.x = width + 5;
+        if (f.x > width + 5) f.x = -5;
 
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue}, 90%, 65%, ${p.alpha})`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = `hsla(${p.hue}, 90%, 60%, 0.8)`;
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(226, 245, 255, ${f.opacity})`;
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = `rgba(0, 242, 254, ${f.opacity * 0.8})`;
         ctx.fill();
-
-        // Connect nearby particles
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-          if (dist < 110) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `hsla(${p.hue}, 80%, 60%, ${(1 - dist / 110) * 0.15})`;
-            ctx.lineWidth = 0.7;
-            ctx.stroke();
-          }
-        }
       }
-      requestAnimationFrame(animate);
+
+      requestAnimationFrame(animateSnow);
     }
-    animate();
+    animateSnow();
   }
-  initAmbientParticles();
+
+  initFallingSnowEngine();
 })();
+

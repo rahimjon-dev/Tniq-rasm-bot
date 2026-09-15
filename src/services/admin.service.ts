@@ -263,11 +263,28 @@ export class AdminService {
   }
 
   /**
-   * Broadcast message to all registered bot users
+   * Broadcast rich message (text, photo, video, button) to all registered bot users
    */
   static async broadcastMessage(
-    text: string
+    payload: string | {
+      text: string;
+      mediaType?: 'text' | 'photo' | 'video';
+      mediaUrl?: string;
+      buttonText?: string;
+      buttonUrl?: string;
+    }
   ): Promise<{ total: number; sent: number; failed: number }> {
+    const data = typeof payload === 'string' ? { text: payload } : payload;
+    const text = (data.text || '').trim();
+    const mediaType = data.mediaType || 'text';
+    const mediaUrl = data.mediaUrl ? data.mediaUrl.trim() : '';
+    const buttonText = data.buttonText ? data.buttonText.trim() : '';
+    const buttonUrl = data.buttonUrl ? data.buttonUrl.trim() : '';
+
+    const reply_markup = (buttonText && buttonUrl)
+      ? { inline_keyboard: [[{ text: buttonText, url: buttonUrl }]] }
+      : undefined;
+
     let targetIds: number[] = [];
 
     const dbConnected = await checkDatabaseConnection();
@@ -293,14 +310,58 @@ export class AdminService {
     let sent = 0;
     let failed = 0;
 
-    logger.info(`[BROADCAST] Initiating broadcast to ${targetIds.length} users...`);
+    logger.info(`[BROADCAST] Initiating ${mediaType} broadcast to ${targetIds.length} users...`);
 
     for (const tid of targetIds) {
       try {
-        await bot.telegram.sendMessage(tid, text, {
-          parse_mode: 'HTML',
-        });
-        sent++;
+        if (mediaType === 'photo' && mediaUrl) {
+          try {
+            await bot.telegram.sendPhoto(tid, mediaUrl, {
+              caption: text || undefined,
+              parse_mode: 'HTML',
+              reply_markup,
+            });
+            sent++;
+          } catch {
+            // Fallback without HTML parse_mode
+            await bot.telegram.sendPhoto(tid, mediaUrl, {
+              caption: text || undefined,
+              reply_markup,
+            });
+            sent++;
+          }
+        } else if (mediaType === 'video' && mediaUrl) {
+          try {
+            await bot.telegram.sendVideo(tid, mediaUrl, {
+              caption: text || undefined,
+              parse_mode: 'HTML',
+              reply_markup,
+            });
+            sent++;
+          } catch {
+            // Fallback without HTML parse_mode
+            await bot.telegram.sendVideo(tid, mediaUrl, {
+              caption: text || undefined,
+              reply_markup,
+            });
+            sent++;
+          }
+        } else {
+          // Plain Text with resilient HTML fallback
+          try {
+            await bot.telegram.sendMessage(tid, text, {
+              parse_mode: 'HTML',
+              reply_markup,
+            });
+            sent++;
+          } catch {
+            // Fallback to plain text if HTML contains unclosed tags or syntax errors
+            await bot.telegram.sendMessage(tid, text, {
+              reply_markup,
+            });
+            sent++;
+          }
+        }
       } catch (err) {
         failed++;
       }
@@ -308,7 +369,7 @@ export class AdminService {
       await new Promise((res) => setTimeout(res, 35));
     }
 
-    logger.info(`[BROADCAST_COMPLETE] Total: ${targetIds.length}, Sent: ${sent}, Failed: ${failed}`);
+    logger.info(`[BROADCAST_COMPLETE] Type: ${mediaType}, Total: ${targetIds.length}, Sent: ${sent}, Failed: ${failed}`);
     return { total: targetIds.length, sent, failed };
   }
 

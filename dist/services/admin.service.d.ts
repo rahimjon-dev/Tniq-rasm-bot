@@ -166,9 +166,15 @@ export declare class AdminService {
         completedAt: Date | null;
     }[]>;
     /**
-     * Broadcast message to all registered bot users
+     * Broadcast rich message (text, photo, video, button) to all registered bot users
      */
-    static broadcastMessage(text: string): Promise<{
+    static broadcastMessage(payload: string | {
+        text: string;
+        mediaType?: 'text' | 'photo' | 'video';
+        mediaUrl?: string;
+        buttonText?: string;
+        buttonUrl?: string;
+    }): Promise<{
         total: number;
         sent: number;
         failed: number;
