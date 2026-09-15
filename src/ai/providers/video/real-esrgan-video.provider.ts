@@ -29,6 +29,40 @@ export class RealESRGANVideoProvider implements VideoUpscalerProvider {
     }
   }
 
+  private async fallbackFfmpegUpscale(
+    inputPath: string,
+    outputPath: string,
+    scale: number,
+    startTime: number,
+    meta: any
+  ): Promise<VideoUpscaleResult> {
+    logger.info(`[AI_VIDEO] Running FFmpeg Lanczos High-Fidelity Video Pipeline...`);
+    await FFmpegService.upscaleDirect({
+      inputPath,
+      outputPath,
+      scale,
+      fps: meta.fps,
+    });
+
+    const outMeta = await FFmpegService.getMetadata(outputPath);
+    const outStat = await fs.promises.stat(outputPath);
+    const durationSeconds = (Date.now() - startTime) / 1000;
+
+    logger.info(`[AI_VIDEO] Video upscale complete in ${durationSeconds.toFixed(1)}s: ${outMeta.width}x${outMeta.height}`);
+
+    return {
+      outputPath,
+      originalResolution: `${meta.width}x${meta.height}`,
+      outputResolution: `${outMeta.width}x${outMeta.height}`,
+      fps: outMeta.fps,
+      durationSeconds: meta.durationSeconds,
+      outputSizeBytes: outStat.size,
+      processingTimeSeconds: durationSeconds,
+      provider: 'ffmpeg-lanczos-hq',
+      modelUsed: 'FFmpeg Lanczos HQ Filter',
+    };
+  }
+
   async upscaleVideo(
     inputPath: string,
     outputPath: string,
@@ -48,11 +82,16 @@ export class RealESRGANVideoProvider implements VideoUpscalerProvider {
       const meta = await FFmpegService.getMetadata(inputPath);
       logger.info(`[AI_VIDEO] Metadata inspected: ${meta.width}x${meta.height}, ${meta.fps} FPS, ${meta.durationSeconds.toFixed(1)}s, ${meta.totalFrames} frames`);
 
-      // Calculate scale factor according to target resolution
-      // Target options: '720p' | '1080p' | '2K' | '4K'
       let scale = options.scale || 2;
       if (options.targetResolution === '4K' || (meta.width < 720 && options.targetResolution === '1080p')) {
         scale = 4;
+      }
+
+      // Check if Real-ESRGAN binary exists
+      const available = await this.isAvailable();
+      if (!available) {
+        logger.info(`[AI_VIDEO] Real-ESRGAN binary not found at: ${this.exePath}. Using built-in FFmpeg Lanczos High-Fidelity Video Pipeline.`);
+        return this.fallbackFfmpegUpscale(inputPath, outputPath, scale, startTime, meta);
       }
 
       fs.mkdirSync(inputFramesDir, { recursive: true });
@@ -60,18 +99,14 @@ export class RealESRGANVideoProvider implements VideoUpscalerProvider {
 
       // 2. Extract Audio Stream
       const hasAudio = await FFmpegService.extractAudio(inputPath, tempAudioPath);
-      logger.info(`[AI_VIDEO] Audio extraction completed: hasAudio=${hasAudio}`);
 
       // 3. Extract Video Frames
       const frameCount = await FFmpegService.extractFrames(inputPath, inputFramesDir, meta.fps);
-      logger.info(`[AI_VIDEO] Extracted ${frameCount} frames for AI batch enhancement`);
-
       if (frameCount === 0) {
         throw new Error('No frames were extracted from video.');
       }
 
       // 4. Batch Super-Resolution on Frames Directory via Real-ESRGAN
-      // Real-ESRGAN accepts directory input (-i) and directory output (-o)
       const modelName = 'realesrgan-x4plus';
       const args = [
         '-i', inputFramesDir,
@@ -83,54 +118,51 @@ export class RealESRGANVideoProvider implements VideoUpscalerProvider {
       ];
 
       logger.info(`[AI_VIDEO] Running Real-ESRGAN neural network on ${frameCount} frames...`);
-      await new Promise<void>((resolve, reject) => {
-        execFile(this.exePath, args, { timeout: 900000 }, (error, stdout, stderr) => {
-          if (error) {
-            logger.error('[AI_VIDEO] Frame upscaling failed:', { error: error.message, stderr });
-            return reject(new Error(`AI video upscaling failed: ${error.message}`));
-          }
-          resolve();
+      try {
+        await new Promise<void>((resolve, reject) => {
+          execFile(this.exePath, args, { timeout: 900000 }, (error, stdout, stderr) => {
+            if (error) {
+              return reject(error);
+            }
+            resolve();
+          });
         });
-      });
 
-      // 5. Reconstruct Video with Audio Synchronization
-      logger.info(`[AI_VIDEO] Reconstructing video with FFmpeg H.264 & syncing audio...`);
-      await FFmpegService.muxFramesAndAudio({
-        framesDir: outputFramesDir,
-        audioPath: hasAudio ? tempAudioPath : undefined,
-        fps: meta.fps,
-        outputPath,
-        crf: options.crf || 20,
-      });
+        // 5. Reconstruct Video with Audio Synchronization
+        logger.info(`[AI_VIDEO] Reconstructing video with FFmpeg H.264 & syncing audio...`);
+        await FFmpegService.muxFramesAndAudio({
+          framesDir: outputFramesDir,
+          audioPath: hasAudio ? tempAudioPath : undefined,
+          fps: meta.fps,
+          outputPath,
+          crf: options.crf || 20,
+        });
 
-      // 6. Inspect Generated Video for Final Metrics
-      const outMeta = await FFmpegService.getMetadata(outputPath);
-      const outStat = await fs.promises.stat(outputPath);
-      const durationSeconds = (Date.now() - startTime) / 1000;
+        const outMeta = await FFmpegService.getMetadata(outputPath);
+        const outStat = await fs.promises.stat(outputPath);
+        const durationSeconds = (Date.now() - startTime) / 1000;
 
-      logger.info(`[AI_VIDEO] Video pipeline complete in ${durationSeconds.toFixed(1)}s: ${outMeta.width}x${outMeta.height}`);
-
-      return {
-        outputPath,
-        originalResolution: `${meta.width}x${meta.height}`,
-        outputResolution: `${outMeta.width}x${outMeta.height}`,
-        fps: outMeta.fps,
-        durationSeconds: meta.durationSeconds,
-        outputSizeBytes: outStat.size,
-        processingTimeSeconds: durationSeconds,
-        provider: this.name,
-        modelUsed: modelName,
-      };
+        return {
+          outputPath,
+          originalResolution: `${meta.width}x${meta.height}`,
+          outputResolution: `${outMeta.width}x${outMeta.height}`,
+          fps: outMeta.fps,
+          durationSeconds: meta.durationSeconds,
+          outputSizeBytes: outStat.size,
+          processingTimeSeconds: durationSeconds,
+          provider: this.name,
+          modelUsed: modelName,
+        };
+      } catch (e: any) {
+        logger.warn(`[AI_VIDEO] Real-ESRGAN frame execution failed (${e.message}), switching to FFmpeg Lanczos direct upscaler.`);
+        return this.fallbackFfmpegUpscale(inputPath, outputPath, scale, startTime, meta);
+      }
     } finally {
-      // 7. Thorough Cleanup: Delete all extracted frame images and temp audio
       try {
         if (fs.existsSync(workDir)) {
           await fs.promises.rm(workDir, { recursive: true, force: true });
-          logger.debug(`Cleaned up temp video working directory: ${workDir}`);
         }
-      } catch (err) {
-        logger.warn('Failed to clean video work directory:', err);
-      }
+      } catch {}
     }
   }
 }

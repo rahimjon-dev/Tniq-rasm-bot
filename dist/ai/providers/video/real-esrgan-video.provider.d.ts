@@ -5,6 +5,7 @@ export declare class RealESRGANVideoProvider implements VideoUpscalerProvider {
     private readonly modelsDir;
     constructor();
     isAvailable(): Promise<boolean>;
+    private fallbackFfmpegUpscale;
     upscaleVideo(inputPath: string, outputPath: string, options: VideoUpscaleOptions): Promise<VideoUpscaleResult>;
 }
 export default RealESRGANVideoProvider;

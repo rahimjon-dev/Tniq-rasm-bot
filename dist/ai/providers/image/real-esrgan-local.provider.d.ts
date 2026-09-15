@@ -5,6 +5,7 @@ export declare class RealESRGANLocalProvider implements ImageUpscalerProvider {
     private readonly modelsDir;
     constructor();
     isAvailable(): Promise<boolean>;
+    private fallbackSharpUpscale;
     upscaleImage(inputPath: string, outputPath: string, options: ImageUpscaleOptions): Promise<ImageUpscaleResult>;
 }
 export default RealESRGANLocalProvider;

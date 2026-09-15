@@ -150,6 +150,41 @@ export class FFmpegService {
             throw new Error('Video reconstruction completed but output file was not created.');
         }
     }
+    /**
+     * Directly upscale video using high-quality Lanczos scaling and unsharp filter
+     * without exploding into individual disk frames
+     */
+    static async upscaleDirect(params) {
+        const { inputPath, outputPath, scale, crf = 20 } = params;
+        const outputDir = path.dirname(outputPath);
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
+        const filter = `scale=iw*${scale}:ih*${scale}:flags=lanczos,unsharp=5:5:0.8:5:5:0.4`;
+        const args = [
+            '-y',
+            '-i', inputPath,
+            '-vf', filter,
+            '-c:v', 'libx264',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'fast',
+            '-crf', crf.toString(),
+            '-c:a', 'copy',
+            '-movflags', '+faststart',
+            outputPath,
+        ];
+        await new Promise((resolve, reject) => {
+            execFile(this.ffmpegExe, args, { timeout: 300000 }, (error, stdout, stderr) => {
+                if (error) {
+                    return reject(new Error(`FFmpeg direct upscale failed: ${error.message}`));
+                }
+                resolve();
+            });
+        });
+        if (!fs.existsSync(outputPath)) {
+            throw new Error('Video upscale completed but output file was not produced.');
+        }
+    }
 }
 export default FFmpegService;
 //# sourceMappingURL=ffmpeg.service.js.map

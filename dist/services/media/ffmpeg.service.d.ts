@@ -24,5 +24,16 @@ export declare class FFmpegService {
         outputPath: string;
         crf?: number;
     }): Promise<void>;
+    /**
+     * Directly upscale video using high-quality Lanczos scaling and unsharp filter
+     * without exploding into individual disk frames
+     */
+    static upscaleDirect(params: {
+        inputPath: string;
+        outputPath: string;
+        scale: number;
+        fps?: number;
+        crf?: number;
+    }): Promise<void>;
 }
 export default FFmpegService;
