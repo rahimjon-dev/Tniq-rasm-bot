@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — AI Media Upscaler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/style.css">
+</head>
+<body class="dark-theme">
+  <!-- Auth Modal if not authenticated -->
+  <div id="authModal" class="modal-overlay">
+    <div class="modal-glass">
+      <div class="modal-header">
+        <div class="badge-icon">🛡️</div>
+        <h2>Admin Xavfsizlik Paneli</h2>
+        <p>Dashboardga kirish uchun maxfiy xavfsizlik kalitini (Admin Key) kiriting.</p>
+      </div>
+      <form id="authForm" class="modal-body">
+        <div class="input-group">
+          <label for="adminKeyInput">Maxfiy Kalit (ADMIN_SECRET_KEY):</label>
+          <input type="password" id="adminKeyInput" placeholder="Masalan: admin123" required autocomplete="current-password">
+        </div>
+        <div id="authError" class="auth-error" style="display: none;"></div>
+        <button type="submit" id="authSubmitBtn" class="btn-primary">
+          <span>Kirish</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App Layout -->
+  <div class="app-layout" id="appLayout" style="display: none;">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-glow"></div>
+        <div class="brand-logo">✨</div>
+        <div class="brand-text">
+          <span class="brand-title">AI Media Upscaler</span>
+          <span class="brand-subtitle">Control Dashboard</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="tab-overview" id="navOverview">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Umumiy Ko'rsatkichlar</span>
+        </button>
+        <button class="nav-item" data-tab="tab-users" id="navUsers">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Foydalanuvchilar</span>
+          <span class="badge-pill" id="badgeUserCount">0</span>
+        </button>
+        <button class="nav-item" data-tab="tab-broadcast" id="navBroadcast">
+          <span class="nav-icon">📢</span>
+          <span class="nav-label">Xabar Tarqatish</span>
+        </button>
+        <button class="nav-item" data-tab="tab-jobs" id="navJobs">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-label">Ishlar Navbati</span>
+        </button>
+        <button class="nav-item" data-tab="tab-system" id="navSystem">
+          <span class="nav-icon">🖥️</span>
+          <span class="nav-label">Server Salomatligi</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="admin-profile">
+          <div class="admin-avatar">👑</div>
+          <div class="admin-info">
+            <span class="admin-name">Administrator</span>
+            <span class="admin-status" id="liveStatusDot">
+              <span class="dot pulse"></span> Jonli Rejim
+            </span>
+          </div>
+        </div>
+        <button id="logoutBtn" class="btn-logout" title="Chiqish">🚪</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="pageTitle">Umumiy Ko'rsatkichlar</h1>
+          <p id="pageSubtitle">Bot faoliyati va AI serverining jonli monitoringi</p>
+        </div>
+        <div class="topbar-right">
+          <div class="sync-indicator">
+            <span class="sync-dot"></span>
+            <span id="lastUpdatedText">Yangilandi: Hozirgina</span>
+          </div>
+          <button id="refreshBtn" class="btn-secondary" title="Yangilash">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Yangilash
+          </button>
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- 1. OVERVIEW TAB -->
+        <section id="tab-overview" class="tab-pane active">
+          <!-- Metric Cards Grid -->
+          <div class="metrics-grid">
+            <div class="metric-card gradient-cyan">
+              <div class="metric-icon">👥</div>
+              <div class="metric-meta">
+                <span class="metric-title">Jami Foydalanuvchilar</span>
+                <h3 class="metric-val" id="statUsers">0</h3>
+                <span class="metric-desc">Ro'yxatdan o'tganlar</span>
+              </div>
+            </div>
+
+            <div class="metric-card gradient-purple">
+              <div class="metric-icon">🖼️</div>
+              <div class="metric-meta">
+                <span class="metric-title">Qayta Ishlangan Rasmlar</span>
+                <h3 class="metric-val" id="statImages">0</h3>
+                <span class="metric-desc">AI 2x / 4x HD</span>
+              </div>
+            </div>
+
+            <div class="metric-card gradient-amber">
+              <div class="metric-icon">🎬</div>
+              <div class="metric-meta">
+                <span class="metric-title">Tiniqlashtirilgan Videolar</span>
+                <h3 class="metric-val" id="statVideos">0</h3>
+                <span class="metric-desc">720p, 1080p, 4K</span>
+              </div>
+            </div>
+
+            <div class="metric-card gradient-emerald">
+              <div class="metric-icon">🎯</div>
+              <div class="metric-meta">
+                <span class="metric-title">Muvaffaqiyat Darajasi</span>
+                <h3 class="metric-val" id="statSuccessRate">100%</h3>
+                <span class="metric-desc">Xatosiz qayta ishlash</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue & Server Status Grid -->
+          <div class="grid-two-cols">
+            <!-- BullMQ Queue Card -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="header-icon">⏳</div>
+                <div>
+                  <h3>BullMQ Ishlar Navbati</h3>
+                  <p>Hozirgi vaqtda qayta ishlanayotgan vazifalar</p>
+                </div>
+              </div>
+              <div class="queue-status-list">
+                <div class="queue-row">
+                  <div class="queue-row-title">
+                    <span class="dot cyan"></span> Rasm Navbati (Kutilmoqda):
+                  </div>
+                  <span class="badge-number" id="queueImgWaiting">0</span>
+                </div>
+                <div class="queue-row">
+                  <div class="queue-row-title">
+                    <span class="dot emerald"></span> Rasm Navbati (Ishlanmoqda):
+                  </div>
+                  <span class="badge-number highlight" id="queueImgActive">0</span>
+                </div>
+                <div class="queue-row">
+                  <div class="queue-row-title">
+                    <span class="dot amber"></span> Video Navbati (Kutilmoqda):
+                  </div>
+                  <span class="badge-number" id="queueVidWaiting">0</span>
+                </div>
+                <div class="queue-row">
+                  <div class="queue-row-title">
+                    <span class="dot purple"></span> Video Navbati (Ishlanmoqda):
+                  </div>
+                  <span class="badge-number highlight" id="queueVidActive">0</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Quick Info -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="header-icon">⚡</div>
+                <div>
+                  <h3>Server Salomatligi</h3>
+                  <p>Inference va xizmat ko'rsatish resurslari</p>
+                </div>
+              </div>
+              <div class="server-status-list">
+                <div class="server-item">
+                  <span>Ma'lumotlar Bazasi:</span>
+                  <strong id="statusDb" class="text-emerald">Ulangan</strong>
+                </div>
+                <div class="server-item">
+                  <span>Redis Navbat Tizimi:</span>
+                  <strong id="statusRedis" class="text-emerald">Ulangan</strong>
+                </div>
+                <div class="server-item">
+                  <span>Server Ish Vaqti (Uptime):</span>
+                  <strong id="statusUptime">0 soat</strong>
+                </div>
+                <div class="server-item">
+                  <span>RAM Xotira Ishlatilishi:</span>
+                  <strong id="statusRam">0 MB</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. USERS TAB -->
+        <section id="tab-users" class="tab-pane">
+          <div class="table-controls glass-card">
+            <div class="search-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="userSearchInput" placeholder="Telegram ID, username yoki ism orqali qidirish...">
+            </div>
+            <div class="table-pagination-info">
+              <span id="userTableSummary">Ko'rsatilmoqda: 0 ta</span>
+            </div>
+          </div>
+
+          <div class="glass-card table-wrapper">
+            <table class="styled-table" id="usersTable">
+              <thead>
+                <tr>
+                  <th>Telegram ID</th>
+                  <th>Ism & Username</th>
+                  <th>Til</th>
+                  <th>Tarif</th>
+                  <th>Ishlar Soni</th>
+                  <th>Holati</th>
+                  <th>Amallar</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="7" class="text-center py-4">Yuklanmoqda...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-footer">
+            <button class="btn-secondary" id="btnPrevPage" disabled>&larr; Oldingi</button>
+            <span id="pageIndicator">Sahifa 1 / 1</span>
+            <button class="btn-secondary" id="btnNextPage" disabled>Keyingi &rarr;</button>
+          </div>
+        </section>
+
+        <!-- 3. BROADCAST TAB -->
+        <section id="tab-broadcast" class="tab-pane">
+          <div class="grid-two-cols">
+            <!-- Composer Form -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="header-icon">📢</div>
+                <div>
+                  <h3>Barcha Foydalanuvchilarga E'lon Yuborish</h3>
+                  <p>Xabar botdagi barcha faol foydalanuvchilarga yetkaziladi</p>
+                </div>
+              </div>
+
+              <div class="broadcast-form">
+                <div class="input-group">
+                  <label for="broadcastMessage">Xabar Matni (HTML teglari qo'llab-quvvatlanadi):</label>
+                  <textarea id="broadcastMessage" rows="8" placeholder="Assalomu alaykum, hurmatli foydalanuvchilar!\n\nBotimizda yangi 4K Ultra HD imkoniyatlari ishga tushirildi..."></textarea>
+                  <span class="input-hint">HTML formatlari: &lt;b&gt;qalin&lt;/b&gt;, &lt;i&gt;kursiv&lt;/i&gt;, &lt;code&gt;kod&lt;/code&gt;, &lt;a href="..."&gt;havola&lt;/a&gt;</span>
+                </div>
+
+                <div class="broadcast-actions">
+                  <button id="btnSendBroadcast" class="btn-primary">
+                    <span>Xabarni Yuborish</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </button>
+                </div>
+
+                <!-- Progress block -->
+                <div id="broadcastProgress" class="broadcast-progress" style="display: none;">
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="broadcastProgressBar"></div>
+                  </div>
+                  <div class="progress-text" id="broadcastProgressText">Yuborilmoqda...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Telegram Message Preview -->
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="header-icon">📱</div>
+                <div>
+                  <h3>Jonli Telegram Ko'rinishi (Preview)</h3>
+                  <p>Xabar foydalanuvchi ekranida qanday ko'rinishi</p>
+                </div>
+              </div>
+
+              <div class="telegram-preview-box">
+                <div class="tg-chat-header">
+                  <div class="tg-bot-avatar">✨</div>
+                  <div class="tg-bot-details">
+                    <strong>AI Media Upscaler Bot</strong>
+                    <span class="tg-bot-tag">bot</span>
+                  </div>
+                </div>
+                <div class="tg-bubble">
+                  <div id="tgPreviewContent">Xabar matnini chap tomonda yozing...</div>
+                  <span class="tg-time">12:00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. JOBS TAB -->
+        <section id="tab-jobs" class="tab-pane">
+          <div class="glass-card">
+            <div class="card-header">
+              <div class="header-icon">⚡</div>
+              <div>
+                <h3>So'nggi Qayta Ishlangan Media Fayllar</h3>
+                <p>AI orqali tiniqlashtirilgan rasmlar va videolarning real-vaqt jurnali</p>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="styled-table" id="jobsTable">
+                <thead>
+                  <tr>
+                    <th>Fayl Turi</th>
+                    <th>Foydalanuvchi</th>
+                    <th>Masshtab</th>
+                    <th>Kirish Hajmi</th>
+                    <th>Vaqt</th>
+                    <th>Holati</th>
+                    <th>Sana</th>
+                  </tr>
+                </thead>
+                <tbody id="jobsTableBody">
+                  <tr>
+                    <td colspan="7" class="text-center py-4">Yuklanmoqda...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. SYSTEM TAB -->
+        <section id="tab-system" class="tab-pane">
+          <div class="grid-two-cols">
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="header-icon">⚙️</div>
+                <div>
+                  <h3>Server Konfiguratsiyasi</h3>
+                  <p>Operatsion tizim va infratuzilma</p>
+                </div>
+              </div>
+              <div class="sys-info-table">
+                <div class="sys-row"><span>Node.js Versiyasi:</span><strong id="sysNodeVer">-</strong></div>
+                <div class="sys-row"><span>CPU Yadrolari Soni:</span><strong id="sysCpuCores">-</strong></div>
+                <div class="sys-row"><span>AI Inference Engine:</span><strong class="text-cyan">Real-ESRGAN NCNN Vulkan</strong></div>
+                <div class="sys-row"><span>Optimizatsiyalangan Model:</span><strong class="text-cyan">realesr-animevideov3 (4.2s)</strong></div>
+                <div class="sys-row"><span>Audio Sinxronizatsiya:</span><strong class="text-emerald">FFmpeg High-Fidelity Sync</strong></div>
+                <div class="sys-row"><span>Kunlik Bepul Rasm Limiti:</span><strong class="text-emerald">500 ta / kun</strong></div>
+                <div class="sys-row"><span>Kunlik Bepul Video Limiti:</span><strong class="text-emerald">50 ta / kun</strong></div>
+              </div>
+            </div>
+
+            <div class="glass-card">
+              <div class="card-header">
+                <div class="header-icon">👑</div>
+                <div>
+                  <h3>Administrator Ma'lumotlari</h3>
+                  <p>Xavfsizlik va ruxsatlar</p>
+                </div>
+              </div>
+              <div class="sys-info-table">
+                <div class="sys-row"><span>Bosh Administrator ID:</span><strong>7534175269</strong></div>
+                <div class="sys-row"><span>Dashboard Xavfsizlik Kaliti:</span><strong id="sysKeyMasked">••••••••</strong></div>
+                <div class="sys-row"><span>HTTP Server Port:</span><strong>3000</strong></div>
+                <div class="sys-row"><span>Veb Panel Manzili:</span><code class="code-badge">/admin</code></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Plan Selection Modal -->
+  <div id="planModal" class="modal-overlay" style="display: none;">
+    <div class="modal-glass">
+      <div class="modal-header">
+        <div class="badge-icon">⭐</div>
+        <h3>Foydalanuvchi Tarifini Yangilash</h3>
+        <p id="planModalUserText">Foydalanuvchi: -</p>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label>Tarifni Tanlang:</label>
+          <select id="modalPlanSelect">
+            <option value="PRO">PRO (Barcha imkoniyatlar ochiq)</option>
+            <option value="BUSINESS">BUSINESS (Cheksiz 4K & Max tezlik)</option>
+            <option value="FREE">FREE (Standart)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Muddat (kun):</label>
+          <input type="number" id="modalPlanDays" value="30" min="1" max="365">
+        </div>
+        <div class="modal-actions">
+          <button id="btnCancelPlanModal" class="btn-secondary">Bekor qilish</button>
+          <button id="btnSavePlanModal" class="btn-primary">Saqlash</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin/app.js"></script>
+</body>
+</html>

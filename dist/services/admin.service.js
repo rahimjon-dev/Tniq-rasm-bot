@@ -91,15 +91,74 @@ export class AdminService {
         };
     }
     /**
+     * Search users with query, pagination, and total count
+     */
+    static async searchUsers(query = '', page = 1, limit = 20) {
+        const skip = (page - 1) * limit;
+        const trimmed = query.trim();
+        try {
+            const whereClause = {};
+            if (trimmed) {
+                const isNumeric = !isNaN(Number(trimmed));
+                if (isNumeric) {
+                    whereClause.OR = [
+                        { telegramId: BigInt(trimmed) },
+                        { username: { contains: trimmed, mode: 'insensitive' } },
+                        { firstName: { contains: trimmed, mode: 'insensitive' } },
+                    ];
+                }
+                else {
+                    whereClause.OR = [
+                        { username: { contains: trimmed, mode: 'insensitive' } },
+                        { firstName: { contains: trimmed, mode: 'insensitive' } },
+                    ];
+                }
+            }
+            const [users, total] = await Promise.all([
+                prisma.user.findMany({
+                    where: whereClause,
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: limit,
+                    include: {
+                        subscription: true,
+                        _count: {
+                            select: { jobs: true },
+                        },
+                    },
+                }),
+                prisma.user.count({ where: whereClause }),
+            ]);
+            return {
+                users: users.map((u) => ({
+                    ...u,
+                    telegramId: u.telegramId.toString(),
+                    totalJobs: u._count.jobs,
+                })),
+                total,
+                page,
+                totalPages: Math.ceil(total / limit) || 1,
+            };
+        }
+        catch (e) {
+            logger.error('[ADMIN_SERVICE] searchUsers failed:', e);
+            return { users: [], total: 0, page: 1, totalPages: 1 };
+        }
+    }
+    /**
      * Get list of recent users
      */
     static async getRecentUsers(limit = 10) {
         try {
-            return await prisma.user.findMany({
+            const users = await prisma.user.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: limit,
                 include: { subscription: true },
             });
+            return users.map((u) => ({
+                ...u,
+                telegramId: u.telegramId.toString(),
+            }));
         }
         catch {
             return [];
@@ -110,11 +169,22 @@ export class AdminService {
      */
     static async getRecentJobs(limit = 10) {
         try {
-            return await prisma.mediaJob.findMany({
+            const jobs = await prisma.mediaJob.findMany({
                 orderBy: { createdAt: 'desc' },
                 take: limit,
                 include: { user: true },
             });
+            return jobs.map((j) => ({
+                ...j,
+                inputSize: j.inputSize ? j.inputSize.toString() : null,
+                outputSize: j.outputSize ? j.outputSize.toString() : null,
+                user: j.user
+                    ? {
+                        ...j.user,
+                        telegramId: j.user.telegramId.toString(),
+                    }
+                    : null,
+            }));
         }
         catch {
             return [];

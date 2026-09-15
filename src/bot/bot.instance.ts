@@ -312,6 +312,19 @@ bot.action('admin_broadcast_info', async (ctx) => {
   );
 });
 
+bot.action('admin_web_link', async (ctx) => {
+  const telegramId = ctx.from?.id;
+  if (!telegramId || !AdminService.isAdmin(telegramId)) return;
+  await ctx.answerCbQuery();
+  await ctx.replyWithHTML(
+    `🌐 <b>AI MEDIA UPSCALER — VEB ADMIN DASHBOARD</b>\n\n` +
+    `Brauzeringiz orqali kompyuter yoki telefondan to'liq boshqaruv paneliga kirishingiz mumkin:\n\n` +
+    `🔗 <b>Manzil:</b> <code>http://localhost:3000/admin</code>\n` +
+    `🔑 <b>Maxfiy kalit:</b> <code>${config.ADMIN_SECRET_KEY}</code>\n\n` +
+    `<i>Ushbu havola orqali jonli statistika, barcha foydalanuvchilar jadvali, xabar tarqatish studiyasi va navbatni real-vaqtda kuzatishingiz mumkin.</i>`
+  );
+});
+
 bot.action('cancel_action', handleCancelAction);
 
 export async function registerBotCommands(): Promise<void> {

@@ -9,6 +9,9 @@ export const adminKeyboard = Markup.inlineKeyboard([
         Markup.button.callback('👥 Foydalanuvchilar', 'admin_users'),
         Markup.button.callback('📢 Xabar Tarqatish', 'admin_broadcast_info'),
     ],
+    [
+        Markup.button.callback('🌐 Veb Admin Dashboard', 'admin_web_link'),
+    ],
     [Markup.button.callback('❌ Panelni Yopish', 'cancel_action')],
 ]);
 export async function handleAdminCommand(ctx) {

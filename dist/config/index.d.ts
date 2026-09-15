@@ -10,6 +10,7 @@ export declare const config: {
     LOG_LEVEL: "debug" | "info" | "warn" | "error";
     BOT_TOKEN: string;
     ADMIN_TELEGRAM_IDS: bigint[];
+    ADMIN_SECRET_KEY: string;
     DATABASE_URL: string;
     REDIS_URL: string;
     STORAGE_TEMP_DIR: string;

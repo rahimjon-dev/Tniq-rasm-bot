@@ -31,9 +31,42 @@ export declare class AdminService {
      */
     static getSystemStats(): Promise<SystemStats>;
     /**
+     * Search users with query, pagination, and total count
+     */
+    static searchUsers(query?: string, page?: number, limit?: number): Promise<{
+        users: {
+            telegramId: string;
+            totalJobs: number;
+            subscription: {
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                userId: string;
+                status: import(".prisma/client").$Enums.SubscriptionStatus;
+                plan: import(".prisma/client").$Enums.PlanType;
+                startDate: Date;
+                endDate: Date | null;
+            } | null;
+            _count: {
+                jobs: number;
+            };
+            id: string;
+            username: string | null;
+            firstName: string | null;
+            languageCode: string | null;
+            isBanned: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+        }[];
+        total: number;
+        page: number;
+        totalPages: number;
+    }>;
+    /**
      * Get list of recent users
      */
-    static getRecentUsers(limit?: number): Promise<({
+    static getRecentUsers(limit?: number): Promise<{
+        telegramId: string;
         subscription: {
             id: string;
             createdAt: Date;
@@ -44,31 +77,30 @@ export declare class AdminService {
             startDate: Date;
             endDate: Date | null;
         } | null;
-    } & {
         id: string;
-        telegramId: bigint;
         username: string | null;
         firstName: string | null;
         languageCode: string | null;
         isBanned: boolean;
         createdAt: Date;
         updatedAt: Date;
-    })[]>;
+    }[]>;
     /**
      * Get list of recent media processing jobs
      */
-    static getRecentJobs(limit?: number): Promise<({
+    static getRecentJobs(limit?: number): Promise<{
+        inputSize: string | null;
+        outputSize: string | null;
         user: {
+            telegramId: string;
             id: string;
-            telegramId: bigint;
             username: string | null;
             firstName: string | null;
             languageCode: string | null;
             isBanned: boolean;
             createdAt: Date;
             updatedAt: Date;
-        };
-    } & {
+        } | null;
         type: import(".prisma/client").$Enums.JobType;
         id: string;
         createdAt: Date;
@@ -78,12 +110,10 @@ export declare class AdminService {
         targetResolution: string | null;
         inputResolution: string | null;
         outputResolution: string | null;
-        inputSize: bigint | null;
-        outputSize: bigint | null;
         processingTime: number | null;
         errorMessage: string | null;
         completedAt: Date | null;
-    })[]>;
+    }[]>;
     /**
      * Broadcast message to all registered bot users
      */
