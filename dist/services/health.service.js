@@ -20,8 +20,8 @@ export function startHealthServer() {
             if (handled)
                 return;
         }
-        // 2. Admin Dashboard Static Assets
-        if (pathname === '/admin' || pathname === '/admin/') {
+        // 2. Admin Dashboard Static Assets (Both root "/" and "/admin" load Admin Panel)
+        if (pathname === '/' || pathname === '/admin' || pathname === '/admin/') {
             const indexPath = path.join(publicAdminDir, 'index.html');
             if (fs.existsSync(indexPath)) {
                 res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -29,7 +29,7 @@ export function startHealthServer() {
                 return;
             }
         }
-        if (pathname === '/admin/style.css') {
+        if (pathname === '/admin/style.css' || pathname === '/style.css') {
             const cssPath = path.join(publicAdminDir, 'style.css');
             if (fs.existsSync(cssPath)) {
                 res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' });
@@ -37,7 +37,7 @@ export function startHealthServer() {
                 return;
             }
         }
-        if (pathname === '/admin/app.js') {
+        if (pathname === '/admin/app.js' || pathname === '/app.js') {
             const jsPath = path.join(publicAdminDir, 'app.js');
             if (fs.existsSync(jsPath)) {
                 res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
@@ -46,7 +46,7 @@ export function startHealthServer() {
             }
         }
         // 3. Healthcheck endpoint
-        if (pathname === '/health' || pathname === '/') {
+        if (pathname === '/health') {
             const [dbOk, redisOk] = await Promise.all([
                 checkDatabaseConnection(),
                 checkRedisConnection(),

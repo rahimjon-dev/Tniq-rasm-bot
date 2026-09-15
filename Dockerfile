@@ -39,6 +39,7 @@ RUN npm ci --only=production
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist/
+COPY public ./public/
 
 # Create persistent storage directories
 RUN mkdir -p storage/temp storage/outputs

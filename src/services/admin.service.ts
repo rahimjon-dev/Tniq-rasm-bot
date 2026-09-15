@@ -131,6 +131,11 @@ export class AdminService {
     const trimmed = query.trim();
 
     try {
+      const isDbOk = await checkDatabaseConnection();
+      if (!isDbOk) {
+        return { users: [], total: 0, page: 1, totalPages: 1 };
+      }
+
       const whereClause: any = {};
       if (trimmed) {
         const isNumeric = !isNaN(Number(trimmed));
@@ -204,6 +209,9 @@ export class AdminService {
    */
   static async getRecentJobs(limit = 10) {
     try {
+      const isDbOk = await checkDatabaseConnection();
+      if (!isDbOk) return [];
+
       const jobs = await prisma.mediaJob.findMany({
         orderBy: { createdAt: 'desc' },
         take: limit,

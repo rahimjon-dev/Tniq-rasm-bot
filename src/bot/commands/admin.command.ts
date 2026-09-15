@@ -12,7 +12,7 @@ export const adminKeyboard = Markup.inlineKeyboard([
     Markup.button.callback('📢 Xabar Tarqatish', 'admin_broadcast_info'),
   ],
   [
-    Markup.button.callback('🌐 Veb Admin Dashboard', 'admin_web_link'),
+    Markup.button.url('🌐 Veb Admin Dashboardni Ochish', 'https://tniq-rasm-bot.onrender.com'),
   ],
   [Markup.button.callback('❌ Panelni Yopish', 'cancel_action')],
 ]);
@@ -26,6 +26,8 @@ export async function handleAdminCommand(ctx: Context): Promise<void> {
   const adminText =
     `👑 <b>AI MEDIA UPSCALER — ADMINISTRATOR PANELI</b>\n\n` +
     `Xush kelibsiz, administrator! Quyidagi menyu orqali bot faoliyatini to'liq boshqarishingiz mumkin:\n\n` +
+    `🌐 <b>Veb Dashboard:</b> https://tniq-rasm-bot.onrender.com\n` +
+    `🔑 <b>Maxfiy kalit:</b> <code>admin123</code>\n\n` +
     `• <b>/stats</b> — Jonli tizim va navbat statistikasi\n` +
     `• <b>/broadcast &lt;xabar&gt;</b> — Barcha foydalanuvchilarga e'lon yuborish\n` +
     `• <b>/ban &lt;telegramId&gt;</b> — Foydalanuvchini bloklash\n` +
