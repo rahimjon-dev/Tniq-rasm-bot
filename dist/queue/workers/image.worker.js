@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { Worker } from 'bullmq';
+import { redisConnection } from '../queue.client.js';
 import { getImageUpscalerProvider } from '../../ai/providers/image/index.js';
-import ImageService from '../../services/media/image.service.js';
 import UsageService from '../../services/usage.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
@@ -12,22 +12,25 @@ export async function processImageJob(payload) {
     let statusMsgId;
     const t = getT(payload.language);
     try {
-        // 1. Notify user in Telegram
-        const sent = await bot.telegram.sendMessage(telegramChatId, t.processing_image(scale), { parse_mode: 'HTML' });
+        // 1. Stage 1: Preparing
+        const sent = await bot.telegram.sendMessage(telegramChatId, t.stage_preparing, { parse_mode: 'HTML' });
         statusMsgId = sent.message_id;
-        // 2. Perform AI Upscale
+        // 2. Stage 2: Generating
+        try {
+            await bot.telegram.editMessageText(telegramChatId, statusMsgId, undefined, t.stage_generating(scale), { parse_mode: 'HTML' });
+        }
+        catch { }
+        // Perform AI Upscale
         const provider = getImageUpscalerProvider();
         const result = await provider.upscaleImage(inputFilePath, outputFilePath, {
             scale,
             format: payload.format || 'jpg',
         });
-        // 3. Remove status message
-        if (statusMsgId) {
-            try {
-                await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
-            }
-            catch { }
+        // 3. Stage 3: Enhancing & Uploading
+        try {
+            await bot.telegram.editMessageText(telegramChatId, statusMsgId, undefined, t.stage_uploading, { parse_mode: 'HTML' });
         }
+        catch { }
         // 4. Send Enhanced Image to User
         const inputSize = fs.existsSync(inputFilePath) ? (await fs.promises.stat(inputFilePath)).size : 0;
         const outputSize = fs.existsSync(outputFilePath) ? (await fs.promises.stat(outputFilePath)).size : 0;
@@ -37,9 +40,16 @@ export async function processImageJob(payload) {
         await bot.telegram.sendPhoto(telegramChatId, { source: outputFilePath }, { caption, parse_mode: 'HTML' });
         // Send as uncompressed document to prevent Telegram lossy re-compression
         await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${scale}x_${result.outputWidth}x${result.outputHeight}.jpg` }, { caption: `📁 <i>Asl sifatdagi fayl (100% Full Fidelity)</i>`, parse_mode: 'HTML' });
+        // Clean up status message
+        if (statusMsgId) {
+            try {
+                await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
+            }
+            catch { }
+        }
         // 5. Update Database Records
         await Promise.all([
-            UsageService.incrementImageUsage(userId),
+            UsageService.incrementImageUsage(userId, telegramChatId),
             UsageService.recordJob({
                 userId,
                 telegramId: telegramChatId,
@@ -58,61 +68,39 @@ export async function processImageJob(payload) {
     catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error(`[JOB_FAILED] Job=${jobId}:`, { error: errorMsg });
+        UsageService.releaseImageReservation(telegramChatId);
         if (statusMsgId) {
             try {
                 await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
             }
             catch { }
         }
-        await bot.telegram.sendMessage(telegramChatId, `❌ <b>AI processing encountered an issue:</b>\n<code>${errorMsg}</code>\n\nPlease try again with a different image or contact support.`, { parse_mode: 'HTML' });
+        await bot.telegram.sendMessage(telegramChatId, `❌ <b>AI Tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${errorMsg}</code>\n\nIltimos boshqa rasm bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`, { parse_mode: 'HTML' });
         await UsageService.recordJob({
             userId,
             telegramId: telegramChatId,
             type: 'IMAGE',
             scale,
             status: 'FAILED',
-            errorMessage: errorMsg,
         });
     }
-    finally {
-        // 6. Strict Cleanup: remove temp files from disk
-        await ImageService.safeDelete(inputFilePath);
-        await ImageService.safeDelete(outputFilePath);
-    }
 }
-// BullMQ Worker lifecycle
-let imageWorkerInstance = null;
-export function startImageWorker(redis) {
-    if (imageWorkerInstance)
-        return imageWorkerInstance;
-    imageWorkerInstance = new Worker('image-upscale', async (job) => {
-        logger.info(`[WORKER] Picking up job #${job.id} for user ${job.data.userId}`);
+export let imageWorker;
+export function startImageWorker(connection = redisConnection) {
+    imageWorker = new Worker('image-upscale-queue', async (job) => {
+        logger.info(`[IMAGE_WORKER] Processing job: ${job.id}`);
         await processImageJob(job.data);
     }, {
-        connection: redis,
-        concurrency: 2, // process up to 2 images concurrently on local GPU/CPU
+        connection,
+        concurrency: 4,
     });
-    imageWorkerInstance.on('failed', (job, err) => {
-        logger.error(`[WORKER_FAILED] Job #${job?.id} failed:`, err);
+    imageWorker.on('completed', (job) => {
+        logger.debug(`[IMAGE_WORKER] Job completed successfully: ${job.id}`);
     });
-    imageWorkerInstance.on('error', (err) => {
-        logger.warn('BullMQ image worker Redis error:', err.message);
+    imageWorker.on('failed', (job, err) => {
+        logger.error(`[IMAGE_WORKER] Job failed: ${job?.id}`, { error: err.message });
     });
-    return imageWorkerInstance;
+    return imageWorker;
 }
-export async function stopImageWorker() {
-    if (imageWorkerInstance) {
-        try {
-            await imageWorkerInstance.close();
-        }
-        catch { }
-        imageWorkerInstance = null;
-    }
-}
-export const imageWorker = {
-    async close() {
-        await stopImageWorker();
-    },
-};
-export default imageWorker;
+export default startImageWorker;
 //# sourceMappingURL=image.worker.js.map

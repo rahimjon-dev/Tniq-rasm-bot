@@ -31,21 +31,19 @@ export async function handleIncomingVideo(ctx: Context): Promise<void> {
       telegramId,
       username: ctx.from?.username,
       firstName: ctx.from?.first_name,
+      lastName: ctx.from?.last_name,
       languageCode: ctx.from?.language_code,
+      lastAction: 'Sent Video',
     });
 
     const lang = user.languageCode || 'uz';
     const t = getT(lang);
 
-    const plan = (user.subscription?.plan as any) || 'FREE';
-    const quota = await UsageService.canProcessVideo(user.id, plan);
+    const quota = await UsageService.canProcessVideo(user.id, telegramId, user.plan);
 
     if (!quota.allowed) {
-      await ctx.replyWithHTML(
-        `⚠️ <b>Kunlik limitga yetildi!</b>\n\n` +
-        `Siz bugun uchun belgilangan barcha (<b>${quota.maxLimit} ta</b>) bepul video tiniqlashtirish limitidan foydalandingiz.\n\n` +
-        `Ertaga soat 00:00 da limit avtomatik yangilanadi!`
-      );
+      const typeStr = lang === 'ru' ? 'видео' : lang === 'en' ? 'video' : 'video';
+      await ctx.replyWithHTML(t.limit_reached(typeStr, quota.maxLimit));
       return;
     }
 
@@ -58,60 +56,55 @@ export async function handleIncomingVideo(ctx: Context): Promise<void> {
     if (video.file_size && video.file_size > config.MAX_VIDEO_SIZE_MB * 1024 * 1024) {
       await ctx.replyWithHTML(
         `⚠️ <b>Video hajmi juda katta!</b>\n\n` +
-        `Videongiz hajmi ${(video.file_size / (1024 * 1024)).toFixed(1)}MB. ` +
-        `Maksimal ruxsat etilgan hajm: <b>${config.MAX_VIDEO_SIZE_MB}MB</b>.`
+        `Bot hozirda maksimal <b>${config.MAX_VIDEO_SIZE_MB}MB</b> gacha bo'lgan videolarni qabul qiladi.`
+      );
+      return;
+    }
+
+    // Check duration limit
+    if (video.duration && video.duration > config.MAX_VIDEO_DURATION_SECONDS) {
+      await ctx.replyWithHTML(
+        `⚠️ <b>Video davomiyligi juda uzun!</b>\n\n` +
+        `Maksimal ruxsat etilgan davomiylik: <b>${config.MAX_VIDEO_DURATION_SECONDS} soniya</b>.`
       );
       return;
     }
 
     const statusMsg = await ctx.reply('⏳ <i>...</i>', { parse_mode: 'HTML' });
 
-    // 3. Download Video to storage/temp
+    // 3. Download to storage/temp
     const uniqueId = crypto.randomBytes(8).toString('hex');
-    const tempVideoPath = path.join(config.paths.tempStorage, `video_in_${uniqueId}.mp4`);
+    const tempInputPath = path.join(config.paths.tempStorage, `video_in_${uniqueId}.mp4`);
 
     const fileLink = await ctx.telegram.getFileLink(video.file_id);
-    await ImageService.downloadTelegramFile(fileLink.href || String(fileLink), tempVideoPath);
+    await ImageService.downloadTelegramFile(fileLink.href || String(fileLink), tempInputPath);
 
-    // 4. Inspect Metadata via FFprobe
-    const meta = await FFmpegService.getMetadata(tempVideoPath);
+    // 4. Probe video using FFprobe
+    const metadata = await FFmpegService.probeVideo(tempInputPath);
 
-    // 5. Enforce Duration Limit
-    if (meta.durationSeconds > config.MAX_VIDEO_DURATION_SECONDS) {
-      await ImageService.safeDelete(tempVideoPath);
-      try { await ctx.deleteMessage(statusMsg.message_id); } catch {}
-
-      await ctx.replyWithHTML(
-        `⏱ <b>Video davomiyligi cheklangan!</b>\n\n` +
-        `Videongiz davomiyligi <b>${meta.durationSeconds.toFixed(1)}s</b>.\n` +
-        `Maksimal ruxsat etilgan davomiylik: <b>${config.MAX_VIDEO_DURATION_SECONDS} soniya</b>.\n\n` +
-        `💡 <i>Iltimos, qisqaroq video yuboring.</i>`
-      );
-      return;
-    }
-
-    // 6. Save in Pending Map
+    // 5. Save pending state
     pendingVideoUploads.set(telegramId, {
       userId: user.id,
-      filePath: tempVideoPath,
-      originalWidth: meta.width,
-      originalHeight: meta.height,
-      fps: meta.fps,
-      durationSeconds: meta.durationSeconds,
+      filePath: tempInputPath,
+      originalWidth: metadata.width,
+      originalHeight: metadata.height,
+      fps: metadata.fps,
+      durationSeconds: metadata.durationSeconds,
       language: lang,
       timestamp: Date.now(),
     });
 
-    try { await ctx.deleteMessage(statusMsg.message_id); } catch {}
+    try {
+      await ctx.deleteMessage(statusMsg.message_id);
+    } catch {}
 
-    // 7. Present Target Resolution Options
+    // 6. Present Resolution Selection
     await ctx.replyWithHTML(
       `🎬 <b>Video qabul qilindi!</b>\n\n` +
-      `📐 <b>O'lchami:</b> ${meta.width} × ${meta.height} px\n` +
-      `⏱ <b>Davomiyligi:</b> ${meta.durationSeconds.toFixed(1)}s (${meta.fps} FPS)\n` +
-      `🔊 <b>Ovoz:</b> ${meta.hasAudio ? 'Mavjud (Sinxron saqlanadi)' : 'Mavjud emas'}\n` +
+      `📐 <b>Asl o'lchami:</b> ${metadata.width} × ${metadata.height} px (${metadata.fps} FPS)\n` +
+      `⏱ <b>Davomiyligi:</b> ${metadata.durationSeconds.toFixed(1)} soniya\n` +
       `📊 <b>Bugungi qoldiq:</b> ${quota.remaining} / ${quota.maxLimit}\n\n` +
-      `<b>AI orqali erishmoqchi bo'lgan sifat darajasini tanlang:</b>`,
+      `<b>AI orqali qaysi sifat darajasiga ko'tarmoqchisiz?</b>`,
       getVideoResolutionKeyboard(lang)
     );
   } catch (error) {

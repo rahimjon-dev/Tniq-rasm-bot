@@ -13,10 +13,19 @@ export function getMainKeyboard(lang?: string | null) {
   const t = getT(lang);
   return Markup.keyboard([
     [t.btn_image, t.btn_video],
-    [t.btn_account, t.btn_history],
-    [t.btn_usage, t.btn_language],
-    [t.btn_help],
+    [t.btn_account, t.btn_usage],
+    [t.btn_plans, t.btn_settings],
+    [t.btn_restart, t.btn_help],
   ]).resize();
+}
+
+export function getSettingsKeyboard(lang?: string | null) {
+  const t = getT(lang);
+  return Markup.inlineKeyboard([
+    [Markup.button.callback(t.btn_language, 'settings_change_language')],
+    [Markup.button.callback(t.btn_custom_bg, 'settings_pro_custom_bg')],
+    [Markup.button.callback(t.btn_reset_bg, 'settings_reset_custom_bg')],
+  ]);
 }
 
 export function getScaleSelectionKeyboard(lang?: string | null) {

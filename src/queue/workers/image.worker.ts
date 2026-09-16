@@ -7,7 +7,6 @@ import ImageService from '../../services/media/image.service.js';
 import UsageService from '../../services/usage.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
-
 import { getT } from '../../i18n/index.js';
 
 export async function processImageJob(payload: ImageJobPayload): Promise<void> {
@@ -18,27 +17,42 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
   const t = getT(payload.language);
 
   try {
-    // 1. Notify user in Telegram
+    // 1. Stage 1: Preparing
     const sent = await bot.telegram.sendMessage(
       telegramChatId,
-      t.processing_image(scale),
+      t.stage_preparing,
       { parse_mode: 'HTML' }
     );
     statusMsgId = sent.message_id;
 
-    // 2. Perform AI Upscale
+    // 2. Stage 2: Generating
+    try {
+      await bot.telegram.editMessageText(
+        telegramChatId,
+        statusMsgId,
+        undefined,
+        t.stage_generating(scale),
+        { parse_mode: 'HTML' }
+      );
+    } catch {}
+
+    // Perform AI Upscale
     const provider = getImageUpscalerProvider();
     const result = await provider.upscaleImage(inputFilePath, outputFilePath, {
       scale,
       format: payload.format || 'jpg',
     });
 
-    // 3. Remove status message
-    if (statusMsgId) {
-      try {
-        await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
-      } catch {}
-    }
+    // 3. Stage 3: Enhancing & Uploading
+    try {
+      await bot.telegram.editMessageText(
+        telegramChatId,
+        statusMsgId,
+        undefined,
+        t.stage_uploading,
+        { parse_mode: 'HTML' }
+      );
+    } catch {}
 
     // 4. Send Enhanced Image to User
     const inputSize = fs.existsSync(inputFilePath) ? (await fs.promises.stat(inputFilePath)).size : 0;
@@ -51,8 +65,6 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
       `${result.outputWidth}x${result.outputHeight}`,
       duration
     );
-
-
 
     // Send as compressed photo for instant viewing
     await bot.telegram.sendPhoto(
@@ -68,9 +80,16 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
       { caption: `📁 <i>Asl sifatdagi fayl (100% Full Fidelity)</i>`, parse_mode: 'HTML' }
     );
 
+    // Clean up status message
+    if (statusMsgId) {
+      try {
+        await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
+      } catch {}
+    }
+
     // 5. Update Database Records
     await Promise.all([
-      UsageService.incrementImageUsage(userId),
+      UsageService.incrementImageUsage(userId, telegramChatId),
       UsageService.recordJob({
         userId,
         telegramId: telegramChatId,
@@ -90,6 +109,8 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`[JOB_FAILED] Job=${jobId}:`, { error: errorMsg });
 
+    UsageService.releaseImageReservation(telegramChatId);
+
     if (statusMsgId) {
       try {
         await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
@@ -98,7 +119,7 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
 
     await bot.telegram.sendMessage(
       telegramChatId,
-      `❌ <b>AI processing encountered an issue:</b>\n<code>${errorMsg}</code>\n\nPlease try again with a different image or contact support.`,
+      `❌ <b>AI Tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${errorMsg}</code>\n\nIltimos boshqa rasm bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`,
       { parse_mode: 'HTML' }
     );
 
@@ -108,58 +129,34 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
       type: 'IMAGE',
       scale,
       status: 'FAILED',
-      errorMessage: errorMsg,
     });
-  } finally {
-    // 6. Strict Cleanup: remove temp files from disk
-    await ImageService.safeDelete(inputFilePath);
-    await ImageService.safeDelete(outputFilePath);
   }
 }
 
-// BullMQ Worker lifecycle
-let imageWorkerInstance: Worker<ImageJobPayload> | null = null;
+export let imageWorker: Worker;
 
-export function startImageWorker(redis: any): Worker<ImageJobPayload> {
-  if (imageWorkerInstance) return imageWorkerInstance;
-
-  imageWorkerInstance = new Worker<ImageJobPayload>(
-    'image-upscale',
+export function startImageWorker(connection = redisConnection): Worker {
+  imageWorker = new Worker(
+    'image-upscale-queue',
     async (job: Job<ImageJobPayload>) => {
-      logger.info(`[WORKER] Picking up job #${job.id} for user ${job.data.userId}`);
+      logger.info(`[IMAGE_WORKER] Processing job: ${job.id}`);
       await processImageJob(job.data);
     },
     {
-      connection: redis,
-      concurrency: 2, // process up to 2 images concurrently on local GPU/CPU
+      connection,
+      concurrency: 4,
     }
   );
 
-  imageWorkerInstance.on('failed', (job, err) => {
-    logger.error(`[WORKER_FAILED] Job #${job?.id} failed:`, err);
+  imageWorker.on('completed', (job: Job) => {
+    logger.debug(`[IMAGE_WORKER] Job completed successfully: ${job.id}`);
   });
 
-  imageWorkerInstance.on('error', (err) => {
-    logger.warn('BullMQ image worker Redis error:', err.message);
+  imageWorker.on('failed', (job: Job | undefined, err: Error) => {
+    logger.error(`[IMAGE_WORKER] Job failed: ${job?.id}`, { error: err.message });
   });
 
-  return imageWorkerInstance;
+  return imageWorker;
 }
 
-export async function stopImageWorker(): Promise<void> {
-  if (imageWorkerInstance) {
-    try {
-      await imageWorkerInstance.close();
-    } catch {}
-    imageWorkerInstance = null;
-  }
-}
-
-export const imageWorker = {
-  async close() {
-    await stopImageWorker();
-  },
-} as unknown as Worker<ImageJobPayload>;
-
-export default imageWorker;
-
+export default startImageWorker;

@@ -1,21 +1,24 @@
 import { Telegraf } from 'telegraf';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
-import { mainKeyboard, languageKeyboard, getMainKeyboard } from './keyboards/main.keyboard.js';
+import { mainKeyboard, languageKeyboard, getMainKeyboard, getSettingsKeyboard, } from './keyboards/main.keyboard.js';
 import { getT, translations } from '../i18n/index.js';
 import { handleIncomingPhoto, handleIncomingDocument } from './handlers/image.handler.js';
 import { handleIncomingVideo } from './handlers/video.handler.js';
-import { handleScaleSelection, handleVideoResolutionSelection, handleCancelAction } from './handlers/callback.handler.js';
+import { handleScaleSelection, handleVideoResolutionSelection, handleCancelAction, } from './handlers/callback.handler.js';
+import { handleProCustomBackgroundCommand, handleResetCustomBackground, awaitingProBackgroundUsers, } from './handlers/pro-background.handler.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.middleware.js';
 import UserService from '../services/user.service.js';
 import UsageService from '../services/usage.service.js';
 import PaymentService from '../services/payments/payment.service.js';
 import AdminService from '../services/admin.service.js';
+import PlanService from '../services/plan.service.js';
+import store from '../services/store.service.js';
 import { handleAdminCommand, handleStatsCommand, handleBroadcastCommand, handleBanCommand, handleUnbanCommand, handleSetPlanCommand, } from './commands/admin.command.js';
 export const bot = new Telegraf(config.BOT_TOKEN);
 // Global Error Handler
 bot.catch((err, ctx) => {
-    logger.error(`Unhandled error during update ${ctx.update.update_id}:`, {
+    logger.error(`Unhandled error during update ${ctx.update?.update_id}:`, {
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
         updateType: ctx.updateType,
@@ -27,7 +30,6 @@ bot.catch((err, ctx) => {
         logger.error('Failed to send error message to user:', replyErr);
     }
 });
-import store from '../services/store.service.js';
 // Middleware: Logging request metrics & Auto-saving active users to store
 bot.use(async (ctx, next) => {
     const start = Date.now();
@@ -37,7 +39,9 @@ bot.use(async (ctx, next) => {
             telegramId: from.id,
             username: from.username || null,
             firstName: from.first_name || null,
+            lastName: from.last_name || null,
             languageCode: from.language_code || null,
+            lastAction: ctx.message ? 'Sent message' : (ctx.callbackQuery ? 'Pressed button' : 'Active'),
         });
     }
     const userId = from?.id;
@@ -64,7 +68,7 @@ bot.use(async (ctx, next) => {
         try {
             await ctx.replyWithHTML('⛔️ <b>Kirish taqiqlangan!</b>\n\n' +
                 'Siz bot ma\'muriyati tomonidan bloklangansiz. Bot xizmatlaridan foydalana olmaysiz.\n' +
-                'Qo\'shimcha ma\'lumot olish uchun ma\'muriyat bilan bog\'laning.');
+                'Qo\'shimcha ma\'lumot olish uchun ma\'muriyat bilan bog\'laning: @rahmonoov_19');
         }
         catch { }
         return;
@@ -81,21 +85,41 @@ bot.start(async (ctx) => {
     const telegramId = ctx.from?.id;
     if (!telegramId)
         return;
-    // Ensure user is created and visible in Admin Panel immediately
-    await UserService.findOrCreateUser({
-        telegramId,
-        username: ctx.from?.username,
-        firstName: ctx.from?.first_name,
-        languageCode: ctx.from?.language_code,
-    });
+    awaitingProBackgroundUsers.delete(telegramId);
+    // 1. Check if user already exists
     const existingLang = await UserService.getUserLanguage(telegramId);
     if (!existingLang) {
-        // Prompt user to select language first
+        // New user: register in DB and prompt language selection first
+        await UserService.findOrCreateUser({
+            telegramId,
+            username: ctx.from?.username,
+            firstName: ctx.from?.first_name,
+            lastName: ctx.from?.last_name,
+            languageCode: 'uz',
+            lastAction: 'First time /start',
+        });
         await ctx.replyWithHTML(translations.uz.choose_language, languageKeyboard);
         return;
     }
+    // Existing user: preserve language, plan, and statistics
+    const user = await UserService.findOrCreateUser({
+        telegramId,
+        username: ctx.from?.username,
+        firstName: ctx.from?.first_name,
+        lastName: ctx.from?.last_name,
+        languageCode: existingLang,
+        lastAction: '/start',
+    });
     const t = getT(existingLang);
     const name = ctx.from?.first_name || 'Creator';
+    // Check if Pro user has custom background
+    const customBg = UserService.getUserCustomBackground(telegramId);
+    if (customBg) {
+        try {
+            await ctx.replyWithPhoto({ source: customBg }, { caption: `🎨 <i>Sizning maxsus foningiz</i>`, parse_mode: 'HTML' });
+        }
+        catch { }
+    }
     await ctx.replyWithHTML(t.welcome(name), getMainKeyboard(existingLang));
 });
 // Language selection callbacks
@@ -110,7 +134,9 @@ bot.action(['set_lang_uz', 'set_lang_en', 'set_lang_ru'], async (ctx) => {
         telegramId,
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
+        lastName: ctx.from?.last_name,
         languageCode: lang,
+        lastAction: `Selected language: ${lang}`,
     });
     await UserService.setUserLanguage(telegramId, lang);
     await ctx.answerCbQuery();
@@ -123,26 +149,112 @@ bot.action(['set_lang_uz', 'set_lang_en', 'set_lang_ru'], async (ctx) => {
     await ctx.replyWithHTML(t.language_selected);
     await ctx.replyWithHTML(t.welcome(name), getMainKeyboard(lang));
 });
+// 🔄 Restart Bot
+bot.hears([
+    '🔄 Botni qayta ishga tushirish',
+    '🔄 Restart Bot',
+    '🔄 Перезапустить бота',
+    '/restart',
+], async (ctx) => {
+    const telegramId = ctx.from?.id;
+    if (!telegramId)
+        return;
+    awaitingProBackgroundUsers.delete(telegramId);
+    const lang = (await UserService.getUserLanguage(telegramId)) || 'uz';
+    const t = getT(lang);
+    const name = ctx.from?.first_name || 'Creator';
+    UserService.updateActivity(telegramId, 'Restarted bot');
+    await ctx.replyWithHTML(t.restart_success);
+    await ctx.replyWithHTML(t.welcome(name), getMainKeyboard(lang));
+});
+// 💎 Plans
+bot.hears([
+    '💎 Tariflar',
+    '💎 Plans',
+    '💎 Тарифы',
+    '/plans',
+    '/tariffs',
+], async (ctx) => {
+    const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
+    const t = getT(lang);
+    if (ctx.from?.id)
+        UserService.updateActivity(ctx.from.id, 'Viewed plans');
+    await ctx.replyWithHTML(t.plans_info, getMainKeyboard(lang));
+});
+// ⚙️ Settings
+bot.hears([
+    '⚙️ Sozlamalar',
+    '⚙️ Settings',
+    '⚙️ Настройки',
+    '/settings',
+], async (ctx) => {
+    const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
+    const t = getT(lang);
+    if (ctx.from?.id)
+        UserService.updateActivity(ctx.from.id, 'Viewed settings');
+    await ctx.replyWithHTML(t.settings_menu, getSettingsKeyboard(lang));
+});
+// Settings Actions
+bot.action('settings_change_language', async (ctx) => {
+    await ctx.answerCbQuery();
+    const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
+    const t = getT(lang);
+    await ctx.replyWithHTML(t.choose_language, languageKeyboard);
+});
+bot.action('settings_pro_custom_bg', async (ctx) => {
+    await ctx.answerCbQuery();
+    await handleProCustomBackgroundCommand(ctx);
+});
+bot.action('settings_reset_custom_bg', async (ctx) => {
+    await ctx.answerCbQuery();
+    await handleResetCustomBackground(ctx);
+});
 // Change language command & menu button
 bot.hears(['🌐 Change Language', '🌐 Tilni o\'zgartirish', '🌐 Сменить язык', '/language', '/lang'], async (ctx) => {
     const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
     const t = getT(lang);
     await ctx.replyWithHTML(t.choose_language, languageKeyboard);
 });
-// 🖼 Upscale Image
-bot.hears(['🖼 Upscale Image', '🖼 Rasm Tiniqlashtirish', '🖼 Улучшить фото', '/image'], async (ctx) => {
+// 🎨 / 🖼 Upscale Image
+bot.hears([
+    '🎨 Rasm Tiniqlashtirish',
+    '🎨 Upscale Image',
+    '🎨 Улучшить фото',
+    '🖼 Upscale Image',
+    '🖼 Rasm Tiniqlashtirish',
+    '🖼 Улучшить фото',
+    '/image',
+], async (ctx) => {
     const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
     const t = getT(lang);
+    if (ctx.from?.id)
+        UserService.updateActivity(ctx.from.id, 'Image mode');
     await ctx.replyWithHTML(t.image_mode(config.MAX_IMAGE_SIZE_MB), getMainKeyboard(lang));
 });
 // 🎬 Upscale Video
-bot.hears(['🎬 Video 4K qilish', '🎬 Upscale Video', '🎬 Video Tiniqlashtirish', '🎬 Улучшить видео', '/video'], async (ctx) => {
+bot.hears([
+    '🎬 Video Tiniqlashtirish',
+    '🎬 Upscale Video',
+    '🎬 Улучшить видео',
+    '🎬 Video 4K qilish',
+    '/video',
+], async (ctx) => {
     const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
     const t = getT(lang);
+    if (ctx.from?.id)
+        UserService.updateActivity(ctx.from.id, 'Video mode');
     await ctx.replyWithHTML(t.video_mode(config.MAX_VIDEO_SIZE_MB, config.MAX_VIDEO_DURATION_SECONDS), getMainKeyboard(lang));
 });
-// 👤 My Account
-bot.hears(['👤 My Account', '👤 Profilim', '👤 Mening Hisobim', '👤 Мой профиль', '/account'], async (ctx) => {
+// 👤 My Profile
+bot.hears([
+    '👤 Profilim',
+    '👤 My Profile',
+    '👤 Мой профиль',
+    '👤 My Account',
+    '👤 Mening Hisobim',
+    '/account',
+    '/profile',
+], async (ctx) => {
     const telegramId = ctx.from?.id;
     if (!telegramId)
         return;
@@ -150,24 +262,38 @@ bot.hears(['👤 My Account', '👤 Profilim', '👤 Mening Hisobim', '👤 Мо
         telegramId,
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
+        lastName: ctx.from?.last_name,
         languageCode: ctx.from?.language_code,
+        lastAction: 'Viewed profile',
     });
     const lang = user.languageCode || 'uz';
     const t = getT(lang);
-    const totalJobs = await UserService.getUserTotalJobsCount(user.id);
+    const totalJobs = user.totalJobs || (await UserService.getUserTotalJobsCount(user.id));
     const joinedDate = new Date(user.createdAt).toLocaleDateString();
-    await ctx.replyWithHTML(t.account_info(telegramId, ctx.from?.first_name || 'User', ctx.from?.username || '', totalJobs, joinedDate), getMainKeyboard(lang));
+    const planName = PlanService.getPlanDisplayName(user.plan, lang);
+    const hasCustomBg = !!UserService.getUserCustomBackground(telegramId);
+    await ctx.replyWithHTML(t.account_info(telegramId, ctx.from?.first_name || 'User', ctx.from?.username || '', planName, totalJobs, joinedDate, hasCustomBg), getMainKeyboard(lang));
 });
 // 📊 My Usage
-bot.hears(['📊 My Usage', '📊 Limitlar', '📊 Kunlik Limitlar', '📊 Лимиты', '/usage'], async (ctx) => {
+bot.hears([
+    '📊 Limitlarim',
+    '📊 My Usage',
+    '📊 Мои лимиты',
+    '📊 Limitlar',
+    '📊 Kunlik Limitlar',
+    '📊 Лимиты',
+    '/usage',
+], async (ctx) => {
     const telegramId = ctx.from?.id;
     if (!telegramId)
         return;
     const user = await UserService.findOrCreateUser({ telegramId });
     const lang = user.languageCode || 'uz';
     const t = getT(lang);
-    const summary = await UsageService.getUserUsageSummary(user.id, 'FREE');
-    await ctx.replyWithHTML(t.usage_info(summary.date, summary.imagesUsed, summary.imagesMax, summary.imagesRemaining, summary.videosUsed, summary.videosMax, summary.videosRemaining), getMainKeyboard(lang));
+    const summary = await UsageService.getUserUsageSummary(user.id, telegramId, user.plan);
+    const planName = PlanService.getPlanDisplayName(user.plan, lang);
+    UserService.updateActivity(telegramId, 'Checked usage');
+    await ctx.replyWithHTML(t.usage_info(summary.date, planName, summary.imagesUsed, summary.isUnlimitedImages ? 'Cheksiz / Unlimited' : summary.imagesMax, summary.isUnlimitedImages ? 'Cheksiz' : summary.imagesRemaining, summary.videosUsed, summary.isUnlimitedVideos ? 'Cheksiz / Unlimited' : summary.videosMax, summary.isUnlimitedVideos ? 'Cheksiz' : summary.videosRemaining), getMainKeyboard(lang));
 });
 // 📜 Processing History
 bot.hears(['📜 History', '📜 Tarix', '📜 История', '/history'], async (ctx) => {
@@ -193,10 +319,12 @@ bot.hears(['📜 History', '📜 Tarix', '📜 История', '/history'], asy
     }
     await ctx.replyWithHTML(historyText, getMainKeyboard(lang));
 });
-// ℹ️ Help
-bot.hears(['ℹ️ Help', 'ℹ️ Yordam', 'ℹ️ Помощь', '/help'], async (ctx) => {
+// ❓ / ℹ️ Help
+bot.hears(['❓ Yordam', '❓ Help', '❓ Помощь', 'ℹ️ Help', 'ℹ️ Yordam', 'ℹ️ Помощь', '/help'], async (ctx) => {
     const lang = (await UserService.getUserLanguage(ctx.from?.id)) || 'uz';
     const t = getT(lang);
+    if (ctx.from?.id)
+        UserService.updateActivity(ctx.from.id, 'Viewed help');
     await ctx.replyWithHTML(t.help_text, getMainKeyboard(lang));
 });
 // Photo & Image Document Upload Handlers
@@ -310,12 +438,13 @@ export async function registerBotCommands() {
             { command: 'start', description: 'Botni ishga tushirish va asosiy menyu' },
             { command: 'image', description: 'Rasm tiniqlashtirish (2x / 4x)' },
             { command: 'video', description: 'Video tiniqlashtirish (1080p / 4K)' },
-            { command: 'history', description: 'Oxirgi ishlar tarixi' },
             { command: 'account', description: 'Profil ma\'lumotlari' },
-            { command: 'usage', description: 'Bugungi foydalanish statistikasi' },
+            { command: 'usage', description: 'Bugungi limitlar statistikasi' },
+            { command: 'plans', description: 'Tarif rejalari (Free, Premium, Pro)' },
+            { command: 'settings', description: 'Sozlamalar va Maxsus Fon' },
+            { command: 'restart', description: 'Bot interfeysini yangilash' },
             { command: 'help', description: 'Bot haqida qisqacha ma\'lumot' },
         ]);
-        // Optimize Telegram Global Search SEO (rank for "t", "tiniq", "tiniqlashtirish")
         try {
             // @ts-ignore
             await bot.telegram.setMyName('Tiniq Rasm & Video HD | AI Upscaler');

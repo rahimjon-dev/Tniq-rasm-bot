@@ -1,32 +1,38 @@
 export const translations = {
     uz: {
-        choose_language: `🌐 <b>Assalomu alaykum! Iltimos, o'zingizga qulay tilni tanlang:</b>\n\n` +
+        choose_language: `🌐 <b>Assalomu alaykum! Iltimos, qulay tilni tanlang:</b>\n\n` +
             `🌐 <b>Hello! Please choose your preferred language:</b>\n\n` +
             `🌐 <b>Здравствуйте! Пожалуйста, выберите удобный язык:</b>`,
         language_selected: `✅ <b>O'zbek tili tanlandi!</b>`,
-        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER</b>\n\n` +
+        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER BOT</b>\n\n` +
             `Xush kelibsiz, <b>${name}</b>!\n` +
-            `Neyron tarmoq (Real-ESRGAN) orqali rasmlar va videolaringizni yuqori tiniqlikda qayta ishlang.\n\n` +
+            `Ilg'or chuqur neyron tarmoqlar (Real-ESRGAN & AI Engine) yordamida rasmlar va videolaringizni yuqori tiniqlikda (4K Ultra HD) qayta ishlang.\n\n` +
             `✨ <b>Asosiy imkoniyatlar:</b>\n` +
-            `• <b>Rasmlar:</b> 2x HD va 4x Ultra HD haqiqiy AI tiniqlashtirish.\n` +
-            `• <b>Videolar:</b> 720p, 1080p, 2K va 4K gacha AI tiniqlashtirish (ovoz saqlanadi).\n\n` +
+            `• <b>Rasmlar:</b> 2x HD va 4x Ultra HD yuz va tekstura tiklash.\n` +
+            `• <b>Videolar:</b> 720p, 1080p va 4K gacha AI tiniqlashtirish (ovoz 100% saqlanadi).\n` +
+            `• <b>Tezlik:</b> Rasmlar ~1 soniya, videolar ~5 soniya!\n\n` +
             `Pastdagi menyudan kerakli bo'limni tanlang yoki to'g'ridan-to'g'ri rasm/video yuboring:`,
-        btn_image: '🖼 Rasm Tiniqlashtirish',
+        btn_image: '🎨 Rasm Tiniqlashtirish',
         btn_video: '🎬 Video Tiniqlashtirish',
         btn_account: '👤 Profilim',
-        btn_history: '📜 Tarix',
-        btn_usage: '📊 Limitlar',
+        btn_usage: '📊 Limitlarim',
+        btn_plans: '💎 Tariflar',
+        btn_settings: '⚙️ Sozlamalar',
+        btn_restart: '🔄 Botni qayta ishga tushirish',
+        btn_help: '❓ Yordam',
         btn_language: '🌐 Tilni o\'zgartirish',
-        btn_help: 'ℹ️ Yordam',
-        image_mode: (maxMb) => `🖼 <b>Rasm Tiniqlashtirish Rejimi</b>\n\n` +
-            `Tiniqlashtirmoqchi bo'lgan rasmingizni yuboring (oddiy Rasm yoki sifatli Fayl sifatida).\n\n` +
+        btn_custom_bg: '🖼 Maxsus Fon (Pro)',
+        btn_reset_bg: '🗑 Fonni tozalash',
+        btn_back: '⬅️ Orqaga',
+        image_mode: (maxMb) => `🎨 <b>Rasm Tiniqlashtirish Rejimi</b>\n\n` +
+            `Tiniqlashtirmoqchi bo'lgan rasmingizni yuboring (oddiy Rasm yoki sifatli Hujjat sifatida).\n\n` +
             `⚡ <i>Qo'llab-quvvatlanadi: JPG, PNG, WEBP (Hajmi ${maxMb}MB gacha)</i>`,
         video_mode: (maxMb, maxSec) => `🎬 <b>Video Tiniqlashtirish Rejimi</b>\n\n` +
             `Tiniqlashtirmoqchi bo'lgan videongizni yuboring.\n\n` +
             `ℹ️ <i>Formatlar: MP4, MOV, MKV (Hajmi ${maxMb}MB gacha, davomiyligi ${maxSec}s gacha).</i>`,
         image_received: (w, h, rem, max) => `📸 <b>Rasm qabul qilindi!</b>\n\n` +
             `📐 <b>Asl o'lchami:</b> ${w} × ${h} px\n` +
-            `📊 <b>Bugungi qoldiq:</b> ${rem} / ${max}\n\n` +
+            `📊 <b>Bugungi limit:</b> ${rem} / ${max}\n\n` +
             `<b>AI kattalashtirish darajasini tanlang:</b>\n` +
             `• <b>2x HD:</b> ${w * 2} × ${h * 2} px (Juda tez)\n` +
             `• <b>4x Ultra HD:</b> ${w * 4} × ${h * 4} px (Maksimal tiniqlik)`,
@@ -36,38 +42,76 @@ export const translations = {
         queued_image: (jobId, scale, w, h) => `⏳ <b>AI navbatiga qo'shildi!</b>\n\n` +
             `• <b>Ish ID:</b> <code>${jobId.slice(0, 8)}</code>\n` +
             `• <b>Kattalashtirish:</b> ${scale}x (${w * scale} × ${h * scale} px)\n` +
-            `• <b>AI Model:</b> Real-ESRGAN Neyron Tarmog'i\n\n` +
+            `• <b>AI Model:</b> Real-ESRGAN Ultra-Clarity\n\n` +
             `<i>Bir necha soniya ichida tayyor bo'ladi...</i>`,
         queued_video: (jobId, res, scale, duration, fps) => `🎬 <b>Video AI navbatiga qo'shildi!</b>\n\n` +
             `• <b>Ish ID:</b> <code>${jobId.slice(0, 8)}</code>\n` +
             `• <b>Sifat darajasi:</b> ${res} (${scale}x AI)\n` +
             `• <b>Davomiyligi:</b> ${duration.toFixed(1)}s (${fps} FPS)\n` +
             `• <b>Ovoz:</b> 100% asl sifatda saqlanadi\n\n` +
-            `<i>Kadrlar qayta ishlanmoqda. Tayyor bo'lgach avtomatik yuboriladi!</i>`,
-        processing_image: (scale) => `🤖 <b>AI orqali rasm tiniqlashtirilmoqda (${scale}x)...</b> ⏳\n<i>(Neyron tarmoq piksellarni tiklamoqda, 3-5 soniya kuting)</i>`,
-        processing_video: (res) => `🎬 <b>Video kadrlari AI orqali tiniqlashtirilmoqda (${res})...</b> ⏳\n<i>(Har bir kadr neyron tarmoqdan o'tkazilmoqda)</i>`,
+            `<i>Kadrlar qayta ishlanmoqda. Tayyor bo'lgach yuboriladi!</i>`,
+        // Progressive Generation States
+        stage_preparing: '⏳ <b>Tayyorlanmoqda...</b>',
+        stage_generating: (scale) => `⚙️ <b>Tiniqlashtirilmoqda (${scale}x)...</b>`,
+        stage_enhancing: '✨ <b>Sifat oshirilmoqda...</b>',
+        stage_uploading: '📤 <b>Yuklanmoqda...</b>',
+        stage_done: '✅ <b>Tayyor!</b>',
         complete_image: (scale, inRes, outRes, time) => `✨ <b>AI Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
             `🔍 <b>Kattalashtirish:</b> ${scale}x Ultra HD\n` +
             `📏 <b>O'lchamlari:</b> ${inRes} ➔ <b>${outRes} px</b>\n` +
             `⚡ <b>Ishlov berish vaqti:</b> ${time.toFixed(1)} soniya\n` +
-            `🧠 <b>AI Neyron Tarmoq:</b> Real-ESRGAN (Vulkan GPU)\n\n` +
+            `🧠 <b>AI Neyron Tarmoq:</b> Real-ESRGAN Ultra-Fast\n\n` +
             `<i>Telegram sifatni buzmasligi uchun asl fayl quyida yuborildi 👇</i>`,
         complete_video: (res, time) => `✨ <b>Video Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
             `🎬 <b>Yangi format:</b> ${res} Ultra HD\n` +
             `⚡ <b>Ishlov berish vaqti:</b> ${time.toFixed(1)} soniya\n` +
             `🔊 <b>Ovoz:</b> 100% sinxron saqlangan`,
-        account_info: (id, name, username, total, date) => `👤 <b>Foydalanuvchi Profili</b>\n\n` +
+        account_info: (id, name, username, plan, total, date, hasCustomBg) => `👤 <b>Foydalanuvchi Profili</b>\n\n` +
             `• <b>Telegram ID:</b> <code>${id}</code>\n` +
             `• <b>Ism:</b> ${name}\n` +
             `• <b>Username:</b> ${username ? `@${username}` : 'Mavjud emas'}\n` +
-            `• <b>Holat:</b> Bepul va Cheksiz Foydalanish ✅\n` +
+            `• <b>Tarif:</b> <b>${plan}</b>\n` +
             `• <b>Jami qayta ishlangan:</b> ${total} ta media\n` +
+            `• <b>Maxsus Fon:</b> ${hasCustomBg ? 'O\'rnatilgan ✅' : 'Yo\'q'}\n` +
             `• <b>Ro'yxatdan o'tgan:</b> ${date}\n\n` +
-            `✨ <i>Barcha AI funksiyalari siz uchun to'liq ochiq va bepul!</i>`,
-        usage_info: (date, imgUsed, imgMax, imgRem, vidUsed, vidMax, vidRem) => `📊 <b>Bugungi foydalanish statistikasi (${date})</b>\n\n` +
-            `• <b>Rasmlar:</b> ${imgUsed} / ${imgMax} ishlatildi (${imgRem} qoldi)\n` +
-            `• <b>Videolar:</b> ${vidUsed} / ${vidMax} ishlatildi (${vidRem} qoldi)\n\n` +
-            `⚡ <i>Barcha xizmatlar to'liq bepul va yuqori tezlikda ishlamoqda!</i>`,
+            `✨ <i>Yuqori sifatli AI xizmatidan unumli foydalaning!</i>`,
+        usage_info: (date, plan, imgUsed, imgMax, imgRem, vidUsed, vidMax, vidRem) => `📊 <b>Bugungi foydalanish statistikasi (${date})</b>\n` +
+            `🕒 <i>Vaqt mintaqasi: Asia/Tashkent (Har kuni 00:00 da yangilanadi)</i>\n\n` +
+            `• <b>Joriy tarif:</b> <b>${plan}</b>\n` +
+            `• <b>Rasmlar:</b> ${imgUsed} / ${imgMax} (${imgRem} qoldi)\n` +
+            `• <b>Videolar:</b> ${vidUsed} / ${vidMax} (${vidRem} qoldi)\n\n` +
+            `⚡ <i>Limitlarni oshirish yoki cheksiz imkoniyat uchun "Tariflar" bo'limiga qarang!</i>`,
+        plans_info: `💎 <b>AI MEDIA UPSCALER — TARIF REJALARI</b>\n\n` +
+            `🎁 <b>1. FREE (Standart)</b>\n` +
+            `• 70 ta rasm tiniqlashtirish / kun\n` +
+            `• 20 ta video tiniqlashtirish / kun\n` +
+            `• 2x va 4x AI Ultra HD\n` +
+            `• Narxi: Bepul\n\n` +
+            `⭐ <b>2. PREMIUM</b>\n` +
+            `• 150 ta rasm tiniqlashtirish / kun\n` +
+            `• 50 ta video tiniqlashtirish / kun\n` +
+            `• 4K Video va ustuvor navbat\n` +
+            `• Katta hajmdagi fayllar (50MB gacha)\n\n` +
+            `👑 <b>3. PRO (Cheksiz)</b>\n` +
+            `• <b>CHEKSIZ</b> rasm tiniqlashtirish\n` +
+            `• <b>CHEKSIZ</b> video tiniqlashtirish\n` +
+            `• 🖼 <b>Maxsus Fon o'rnatish</b> (Personalization)\n` +
+            `• Maksimal tezlik va VIP yordam\n\n` +
+            `<i>Tarifni almashtirish uchun admin bilan bog'laning: @rahmonoov_19</i>`,
+        settings_menu: `⚙️ <b>Sozlamalar</b>\n\nKerakli parametrni tanlang:`,
+        pro_custom_bg_prompt: `🖼 <b>Pro Maxsus Fon O'rnatish</b>\n\n` +
+            `Iltimos, bot orqa foni sifatida foydalanmoqchi bo'lgan rasmingizni yuboring (JPG yoki PNG, 10MB gacha).\n\n` +
+            `<i>Rasm sizning profilingizga saqlanadi va bot tajribangizni yanada chiroyli qiladi!</i>`,
+        pro_only_feature: `🔒 <b>Ushbu funksiya faqat PRO foydalanuvchilar uchun!</b>\n\n` +
+            `Maxsus fon o'rnatish imkoniyatidan foydalanish uchun <b>PRO</b> tarifiga ega bo'lishingiz kerak.\n` +
+            `Tarifni olish uchun "💎 Tariflar" bo'limiga kiring!`,
+        bg_saved_success: `✅ <b>Maxsus fon muvaffaqiyatli o'rnatildi va saqlandi!</b>`,
+        bg_removed_success: `🗑 <b>Maxsus fon tozalandi va asl holatga qaytarildi.</b>`,
+        restart_success: `🔄 <b>Bot muvaffaqiyatli yangilandi va ishga tushirildi!</b>\n\n` +
+            `Hisobingiz, profilingiz, tilingiz va barcha statistikalaringiz xavfsiz saqlangan holda menyu yangilandi.`,
+        limit_reached: (type, max) => `⚠️ <b>Kunlik limitga yetildi!</b>\n\n` +
+            `Siz bugun uchun belgilangan barcha (<b>${max} ta</b>) ${type} limitidan foydalandingiz.\n\n` +
+            `Ertaga soat 00:00 da (Asia/Tashkent) limit avtomatik yangilanadi yoki <b>PRO</b> tarifiga o'tib cheksiz foydalaning!`,
         history_empty: `📜 <b>Ishlar Tarixi</b>\n\nSiz hali hech qanday media qayta ishlamagansiz.\nRasm yoki video yuborib sinab ko'ring! 🚀`,
         help_text: `ℹ️ <b>AI Media Upscaler Bot Haqida</b>\n\n` +
             `Ushbu bot eng ilg'or chuqur neyron tarmoqlar (Real-ESRGAN super-resolution) yordamida ` +
@@ -86,24 +130,30 @@ export const translations = {
         btn_res_4k: '👑 4K Ultra HD',
     },
     en: {
-        choose_language: `🌐 <b>Please choose your preferred language:</b>\n\n` +
+        choose_language: `🌐 <b>Hello! Please choose your preferred language:</b>\n\n` +
             `Tap one of the buttons below:`,
         language_selected: `✅ <b>English language selected!</b>`,
-        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER</b>\n\n` +
+        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER BOT</b>\n\n` +
             `Welcome, <b>${name}</b>!\n` +
-            `Enhance your images and videos using cutting-edge deep neural network AI (Real-ESRGAN).\n\n` +
-            `✨ <b>Key Features:</b>\n` +
-            `• <b>Images:</b> True 2x and 4x super-resolution with facial & texture restoration.\n` +
-            `• <b>Videos:</b> AI upscaling to 720p, 1080p, 2K, and 4K with audio preservation.\n\n` +
-            `Select an option below or send an image/video directly to begin:`,
-        btn_image: '🖼 Upscale Image',
+            `Enhance your images and videos up to 4K Ultra HD using cutting-edge deep neural network AI.\n\n` +
+            `✨ <b>Key Capabilities:</b>\n` +
+            `• <b>Images:</b> True 2x and 4x AI super-resolution with facial & texture restoration.\n` +
+            `• <b>Videos:</b> Upscale to 720p, 1080p, and 4K with 100% audio fidelity.\n` +
+            `• <b>Lightning Speed:</b> ~1s for images, ~5s for videos!\n\n` +
+            `Select an option from the menu below or send an image/video directly:`,
+        btn_image: '🎨 Upscale Image',
         btn_video: '🎬 Upscale Video',
-        btn_account: '👤 My Account',
-        btn_history: '📜 History',
+        btn_account: '👤 My Profile',
         btn_usage: '📊 My Usage',
+        btn_plans: '💎 Plans',
+        btn_settings: '⚙️ Settings',
+        btn_restart: '🔄 Restart Bot',
+        btn_help: '❓ Help',
         btn_language: '🌐 Change Language',
-        btn_help: 'ℹ️ Help',
-        image_mode: (maxMb) => `🖼 <b>Image Upscale Mode</b>\n\n` +
+        btn_custom_bg: '🖼 Custom Background (Pro)',
+        btn_reset_bg: '🗑 Reset Background',
+        btn_back: '⬅️ Back',
+        image_mode: (maxMb) => `🎨 <b>Image Upscale Mode</b>\n\n` +
             `Please send me the image you want to enhance (as a standard Photo or uncompressed Document).\n\n` +
             `⚡ <i>Supported: JPG, PNG, WEBP (Up to ${maxMb}MB)</i>`,
         video_mode: (maxMb, maxSec) => `🎬 <b>Video Upscale Mode</b>\n\n` +
@@ -113,8 +163,8 @@ export const translations = {
             `📐 <b>Current Dimensions:</b> ${w} × ${h} px\n` +
             `📊 <b>Remaining Today:</b> ${rem} / ${max}\n\n` +
             `<b>Select your AI upscale factor:</b>\n` +
-            `• <b>2x HD:</b> ${w * 2} × ${h * 2} px (Fast)\n` +
-            `• <b>4x Ultra HD:</b> ${w * 4} × ${h * 4} px (Maximum Detail)`,
+            `• <b>2x HD:</b> ${w * 2} × ${h * 2} px (Ultra Fast)\n` +
+            `• <b>4x Ultra HD:</b> ${w * 4} × ${h * 4} px (Maximum Crispness)`,
         document_received: (w, h) => `📁 <b>Uncompressed Document Received!</b>\n\n` +
             `📐 <b>Resolution:</b> ${w} × ${h} px\n\n` +
             `<b>Select your AI upscale factor:</b>`,
@@ -122,45 +172,82 @@ export const translations = {
             `• <b>Job ID:</b> <code>${jobId.slice(0, 8)}</code>\n` +
             `• <b>Target Scale:</b> ${scale}x (${w * scale} × ${h * scale} px)\n` +
             `• <b>Engine:</b> Real-ESRGAN Neural Network\n\n` +
-            `<i>Your enhanced image will be sent as soon as it completes.</i>`,
+            `<i>Your enhanced image will be sent in a few seconds...</i>`,
         queued_video: (jobId, res, scale, duration, fps) => `🎬 <b>Added Video to AI Processing Queue!</b>\n\n` +
             `• <b>Job ID:</b> <code>${jobId.slice(0, 8)}</code>\n` +
             `• <b>Target:</b> ${res} (${scale}x AI Super-Resolution)\n` +
             `• <b>Duration:</b> ${duration.toFixed(1)}s (${fps} FPS)\n` +
             `• <b>Audio:</b> 100% synchronized\n\n` +
-            `<i>Processing frames now. You will receive the final video automatically when done!</i>`,
-        processing_image: (scale) => `🤖 <b>AI Image Upscaling in Progress (${scale}x)...</b> ⏳\n<i>(Neural network is reconstructing details, please wait a few seconds)</i>`,
-        processing_video: (res) => `🎬 <b>AI Video Upscaling in Progress (${res})...</b> ⏳\n<i>(Deep neural network is processing frames)</i>`,
+            `<i>Processing frames now. You will receive the video automatically when done!</i>`,
+        stage_preparing: '⏳ <b>Preparing...</b>',
+        stage_generating: (scale) => `⚙️ <b>Generating (${scale}x)...</b>`,
+        stage_enhancing: '✨ <b>Enhancing details...</b>',
+        stage_uploading: '📤 <b>Uploading...</b>',
+        stage_done: '✅ <b>Done!</b>',
         complete_image: (scale, inRes, outRes, time) => `✨ <b>AI Super-Resolution Complete!</b>\n\n` +
             `🔍 <b>Scale:</b> ${scale}x Ultra HD\n` +
             `📏 <b>Dimensions:</b> ${inRes} ➔ <b>${outRes} px</b>\n` +
             `⚡ <b>Processing Time:</b> ${time.toFixed(1)}s\n` +
-            `🧠 <b>AI Model:</b> Real-ESRGAN (Vulkan GPU)\n\n` +
+            `🧠 <b>AI Model:</b> Real-ESRGAN Ultra-Fast\n\n` +
             `<i>Original quality document file sent below 👇</i>`,
         complete_video: (res, time) => `✨ <b>AI Video Upscaling Complete!</b>\n\n` +
             `🎬 <b>Output:</b> ${res} Ultra HD\n` +
             `⚡ <b>Processing Time:</b> ${time.toFixed(1)}s\n` +
             `🔊 <b>Audio:</b> 100% synchronized`,
-        account_info: (id, name, username, total, date) => `👤 <b>User Profile & Account</b>\n\n` +
+        account_info: (id, name, username, plan, total, date, hasCustomBg) => `👤 <b>User Profile & Account</b>\n\n` +
             `• <b>Telegram ID:</b> <code>${id}</code>\n` +
             `• <b>Name:</b> ${name}\n` +
             `• <b>Username:</b> ${username ? `@${username}` : 'Not set'}\n` +
-            `• <b>Status:</b> Free & Unlimited Access ✅\n` +
+            `• <b>Plan:</b> <b>${plan}</b>\n` +
             `• <b>Total Processed:</b> ${total} media jobs\n` +
+            `• <b>Custom Background:</b> ${hasCustomBg ? 'Active ✅' : 'None'}\n` +
             `• <b>Member Since:</b> ${date}\n\n` +
-            `✨ <i>All AI features are completely active and free for you!</i>`,
-        usage_info: (date, imgUsed, imgMax, imgRem, vidUsed, vidMax, vidRem) => `📊 <b>Today's Resource Usage (${date})</b>\n\n` +
-            `• <b>Image Upscales:</b> ${imgUsed} / ${imgMax} used (${imgRem} left)\n` +
-            `• <b>Video Upscales:</b> ${vidUsed} / ${vidMax} used (${vidRem} left)\n\n` +
-            `⚡ <i>All services are currently free at maximum speed!</i>`,
+            `✨ <i>Enjoy your AI media enhancement privileges!</i>`,
+        usage_info: (date, plan, imgUsed, imgMax, imgRem, vidUsed, vidMax, vidRem) => `📊 <b>Today's Resource Usage (${date})</b>\n` +
+            `🕒 <i>Timezone: Asia/Tashkent (Resets daily at 00:00)</i>\n\n` +
+            `• <b>Current Plan:</b> <b>${plan}</b>\n` +
+            `• <b>Image Upscales:</b> ${imgUsed} / ${imgMax} (${imgRem} remaining)\n` +
+            `• <b>Video Upscales:</b> ${vidUsed} / ${vidMax} (${vidRem} remaining)\n\n` +
+            `⚡ <i>Check out the "Plans" menu for unlimited access!</i>`,
+        plans_info: `💎 <b>AI MEDIA UPSCALER — SUBSCRIPTION PLANS</b>\n\n` +
+            `🎁 <b>1. FREE Plan</b>\n` +
+            `• 70 Image generations / day\n` +
+            `• 20 Video generations / day\n` +
+            `• 2x and 4x AI Ultra HD\n` +
+            `• Price: Free\n\n` +
+            `⭐ <b>2. PREMIUM Plan</b>\n` +
+            `• 150 Image generations / day\n` +
+            `• 50 Video generations / day\n` +
+            `• 4K Video & priority queue\n` +
+            `• File size up to 50MB\n\n` +
+            `👑 <b>3. PRO Plan (Unlimited)</b>\n` +
+            `• <b>UNLIMITED</b> Image generations\n` +
+            `• <b>UNLIMITED</b> Video generations\n` +
+            `• 🖼 <b>Custom Background image</b> personalization\n` +
+            `• Highest processing speed & VIP support\n\n` +
+            `<i>Contact the administrator to change plans: @rahmonoov_19</i>`,
+        settings_menu: `⚙️ <b>Settings</b>\n\nChoose an option to configure:`,
+        pro_custom_bg_prompt: `🖼 <b>Pro Custom Background</b>\n\n` +
+            `Please send the image you would like to set as your custom bot background (JPG or PNG, up to 10MB).\n\n` +
+            `<i>This image will be saved to your profile and personalise your bot experience!</i>`,
+        pro_only_feature: `🔒 <b>This feature is exclusive to PRO users!</b>\n\n` +
+            `To set a custom background, you need an active <b>PRO</b> plan.\n` +
+            `Check out the "💎 Plans" menu to learn more!`,
+        bg_saved_success: `✅ <b>Custom background successfully saved!</b>`,
+        bg_removed_success: `🗑 <b>Custom background reset to default.</b>`,
+        restart_success: `🔄 <b>Bot interface successfully restarted!</b>\n\n` +
+            `Your account, language, subscription plan, and usage statistics remain completely intact.`,
+        limit_reached: (type, max) => `⚠️ <b>Daily Limit Reached!</b>\n\n` +
+            `You have exhausted all (<b>${max}</b>) ${type} generations for today.\n\n` +
+            `Limits reset at 00:00 (Asia/Tashkent), or upgrade to <b>PRO</b> for unlimited access!`,
         history_empty: `📜 <b>Processing History</b>\n\nYou have not processed any media yet.\nSend an image or video to get started! 🚀`,
         help_text: `ℹ️ <b>About AI Media Upscaler</b>\n\n` +
             `Our bot utilizes state-of-the-art Deep Neural Networks (Real-ESRGAN) ` +
             `to mathematically reconstruct missing details, remove compression artifacts, and eliminate blur.\n\n` +
-            `💡 <b>Pro Tips for Best Results:</b>\n` +
+            `💡 <b>Pro Tips:</b>\n` +
             `1. For photos with faces, 4x Ultra HD yields crisp portrait features.\n` +
-            `2. Send files as <b>Document</b> to prevent Telegram's compression from softening input.\n` +
-            `3. Videos are processed frame-by-frame, keeping audio synchronized.\n\n` +
+            `2. Send files as <b>Document</b> to prevent lossy compression.\n` +
+            `3. Videos are processed frame-by-frame with full audio preservation.\n\n` +
             `Need help? Contact support: @rahmonoov_19`,
         btn_scale_2x: '⚡ 2x HD Upscale',
         btn_scale_4x: '✨ 4x Ultra HD',
@@ -174,21 +261,27 @@ export const translations = {
         choose_language: `🌐 <b>Пожалуйста, выберите удобный язык:</b>\n\n` +
             `Нажмите на одну из кнопок ниже:`,
         language_selected: `✅ <b>Выбран русский язык!</b>`,
-        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER</b>\n\n` +
+        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER BOT</b>\n\n` +
             `Добро пожаловать, <b>${name}</b>!\n` +
-            `Улучшайте качество фото и видео с помощью нейросети Real-ESRGAN.\n\n` +
+            `Улучшайте качество фото и видео до 4K Ultra HD с помощью передовых нейросетей.\n\n` +
             `✨ <b>Основные возможности:</b>\n` +
-            `• <b>Фото:</b> Настоящее ИИ-увеличение 2x HD и 4x Ultra HD с восстановлением деталей.\n` +
-            `• <b>Видео:</b> Улучшение до 720p, 1080p, 2K и 4K с сохранением звука.\n\n` +
+            `• <b>Фото:</b> ИИ-увеличение 2x HD и 4x Ultra HD с восстановлением лиц и текстур.\n` +
+            `• <b>Видео:</b> Улучшение до 720p, 1080p и 4K со 100% сохранением звука.\n` +
+            `• <b>Скорость:</b> Фото ~1 секунда, видео ~5 секунд!\n\n` +
             `Выберите нужный раздел в меню или просто отправьте фото/видео:`,
-        btn_image: '🖼 Улучшить фото',
+        btn_image: '🎨 Улучшить фото',
         btn_video: '🎬 Улучшить видео',
         btn_account: '👤 Мой профиль',
-        btn_history: '📜 История',
-        btn_usage: '📊 Лимиты',
+        btn_usage: '📊 Мои лимиты',
+        btn_plans: '💎 Тарифы',
+        btn_settings: '⚙️ Настройки',
+        btn_restart: '🔄 Перезапустить бота',
+        btn_help: '❓ Помощь',
         btn_language: '🌐 Сменить язык',
-        btn_help: 'ℹ️ Помощь',
-        image_mode: (maxMb) => `🖼 <b>Режим улучшения фото</b>\n\n` +
+        btn_custom_bg: '🖼 Свой фон (Pro)',
+        btn_reset_bg: '🗑 Сбросить фон',
+        btn_back: '⬅️ Назад',
+        image_mode: (maxMb) => `🎨 <b>Режим улучшения фото</b>\n\n` +
             `Отправьте фото, которое хотите улучшить (как фото или файл без сжатия).\n\n` +
             `⚡ <i>Форматы: JPG, PNG, WEBP (до ${maxMb}МБ)</i>`,
         video_mode: (maxMb, maxSec) => `🎬 <b>Режим улучшения видео</b>\n\n` +
@@ -198,7 +291,7 @@ export const translations = {
             `📐 <b>Исходный размер:</b> ${w} × ${h} px\n` +
             `📊 <b>Остаток на сегодня:</b> ${rem} / ${max}\n\n` +
             `<b>Выберите коэффициент увеличения ИИ:</b>\n` +
-            `• <b>2x HD:</b> ${w * 2} × ${h * 2} px (Быстро)\n` +
+            `• <b>2x HD:</b> ${w * 2} × ${h * 2} px (Очень быстро)\n` +
             `• <b>4x Ultra HD:</b> ${w * 4} × ${h * 4} px (Максимальная чёткость)`,
         document_received: (w, h) => `📁 <b>Файл без сжатия получен!</b>\n\n` +
             `📐 <b>Разрешение:</b> ${w} × ${h} px\n\n` +
@@ -214,30 +307,67 @@ export const translations = {
             `• <b>Длина:</b> ${duration.toFixed(1)}с (${fps} FPS)\n` +
             `• <b>Звук:</b> 100% синхронизирован\n\n` +
             `<i>Кадры обрабатываются. Готовое видео будет отправлено автоматически!</i>`,
-        processing_image: (scale) => `🤖 <b>ИИ улучшает фото (${scale}x)...</b> ⏳\n<i>(Нейросеть восстанавливает пиксели, подождите несколько секунд)</i>`,
-        processing_video: (res) => `🎬 <b>ИИ улучшает видео (${res})...</b> ⏳\n<i>(Кадры обрабатываются нейросетью)</i>`,
+        stage_preparing: '⏳ <b>Подготовка...</b>',
+        stage_generating: (scale) => `⚙️ <b>Обработка (${scale}x)...</b>`,
+        stage_enhancing: '✨ <b>Улучшение деталей...</b>',
+        stage_uploading: '📤 <b>Загрузка...</b>',
+        stage_done: '✅ <b>Готово!</b>',
         complete_image: (scale, inRes, outRes, time) => `✨ <b>ИИ-увеличение успешно завершено!</b>\n\n` +
             `🔍 <b>Масштаб:</b> ${scale}x Ultra HD\n` +
             `📏 <b>Разрешение:</b> ${inRes} ➔ <b>${outRes} px</b>\n` +
             `⚡ <b>Время обработки:</b> ${time.toFixed(1)} сек\n` +
-            `🧠 <b>Нейросеть:</b> Real-ESRGAN (Vulkan GPU)\n\n` +
+            `🧠 <b>Нейросеть:</b> Real-ESRGAN Ultra-Fast\n\n` +
             `<i>Файл в исходном качестве отправлен ниже 👇</i>`,
         complete_video: (res, time) => `✨ <b>Улучшение видео успешно завершено!</b>\n\n` +
             `🎬 <b>Новый формат:</b> ${res} Ultra HD\n` +
             `⚡ <b>Время обработки:</b> ${time.toFixed(1)} сек\n` +
             `🔊 <b>Звук:</b> 100% сохранён`,
-        account_info: (id, name, username, total, date) => `👤 <b>Профиль пользователя</b>\n\n` +
+        account_info: (id, name, username, plan, total, date, hasCustomBg) => `👤 <b>Профиль пользователя</b>\n\n` +
             `• <b>Telegram ID:</b> <code>${id}</code>\n` +
             `• <b>Имя:</b> ${name}\n` +
             `• <b>Username:</b> ${username ? `@${username}` : 'Не указан'}\n` +
-            `• <b>Статус:</b> Бесплатный неограниченный доступ ✅\n` +
+            `• <b>Тариф:</b> <b>${plan}</b>\n` +
             `• <b>Всего обработано:</b> ${total} медиа\n` +
+            `• <b>Свой фон:</b> ${hasCustomBg ? 'Установлен ✅' : 'Нет'}\n` +
             `• <b>Дата регистрации:</b> ${date}\n\n` +
-            `✨ <i>Все ИИ-функции полностью открыты и бесплатны для вас!</i>`,
-        usage_info: (date, imgUsed, imgMax, imgRem, vidUsed, vidMax, vidRem) => `📊 <b>Статистика использования за сегодня (${date})</b>\n\n` +
-            `• <b>Фото:</b> ${imgUsed} / ${imgMax} использовано (${imgRem} осталось)\n` +
-            `• <b>Видео:</b> ${vidUsed} / ${vidMax} использовано (${vidRem} осталось)\n\n` +
-            `⚡ <i>Все сервисы работают на максимальной скорости и бесплатно!</i>`,
+            `✨ <i>Наслаждайтесь всеми возможностями нейросети!</i>`,
+        usage_info: (date, plan, imgUsed, imgMax, imgRem, vidUsed, vidMax, vidRem) => `📊 <b>Статистика использования (${date})</b>\n` +
+            `🕒 <i>Часовой пояс: Asia/Tashkent (Сброс каждый день в 00:00)</i>\n\n` +
+            `• <b>Текущий тариф:</b> <b>${plan}</b>\n` +
+            `• <b>Фото:</b> ${imgUsed} / ${imgMax} (${imgRem} осталось)\n` +
+            `• <b>Видео:</b> ${vidUsed} / ${vidMax} (${vidRem} осталось)\n\n` +
+            `⚡ <i>Для безлимитного доступа ознакомьтесь с разделом «Тарифы»!</i>`,
+        plans_info: `💎 <b>AI MEDIA UPSCALER — ТАРИФНЫЕ ПЛАНЫ</b>\n\n` +
+            `🎁 <b>1. FREE (Базовый)</b>\n` +
+            `• 70 генераций фото / день\n` +
+            `• 20 генераций видео / день\n` +
+            `• 2x и 4x AI Ultra HD\n` +
+            `• Цена: Бесплатно\n\n` +
+            `⭐ <b>2. PREMIUM</b>\n` +
+            `• 150 генераций фото / день\n` +
+            `• 50 генераций видео / день\n` +
+            `• 4K Видео и приоритет в очереди\n` +
+            `• Файлы до 50МБ\n\n` +
+            `👑 <b>3. PRO (Безлимит)</b>\n` +
+            `• <b>БЕЗЛИМИТНОЕ</b> улучшение фото\n` +
+            `• <b>БЕЗЛИМИТНОЕ</b> улучшение видео\n` +
+            `• 🖼 <b>Персонализация: установка своего фона</b>\n` +
+            `• Максимальная скорость и VIP поддержка\n\n` +
+            `<i>Для смены тарифа свяжитесь с администратором: @rahmonoov_19</i>`,
+        settings_menu: `⚙️ <b>Настройки</b>\n\nВыберите нужный параметр:`,
+        pro_custom_bg_prompt: `🖼 <b>Установка персонального фона (PRO)</b>\n\n` +
+            `Пожалуйста, отправьте изображение, которое вы хотите установить в качестве фона (JPG или PNG, до 10МБ).\n\n` +
+            `<i>Изображение будет сохранено в вашем профиле!</i>`,
+        pro_only_feature: `🔒 <b>Эта функция доступна только для пользователей PRO!</b>\n\n` +
+            `Чтобы установить свой фон, необходим тариф <b>PRO</b>.\n` +
+            `Подробнее в разделе «💎 Тарифы»!`,
+        bg_saved_success: `✅ <b>Персональный фон успешно сохранён!</b>`,
+        bg_removed_success: `🗑 <b>Фон сброшен до стандартного.</b>`,
+        restart_success: `🔄 <b>Бот успешно перезапущен!</b>\n\n` +
+            `Ваш аккаунт, выбранный язык, тарифный план и статистика использования сохранены.`,
+        limit_reached: (type, max) => `⚠️ <b>Достигнут дневной лимит!</b>\n\n` +
+            `Вы использовали все (<b>${max}</b>) генераций ${type} на сегодня.\n\n` +
+            `Лимиты обновятся в 00:00 (Asia/Tashkent), или перейдите на <b>PRO</b> для безлимита!`,
         history_empty: `📜 <b>История обработки</b>\n\nВы ещё ничего не обрабатывали.\nОтправьте фото или видео, чтобы начать! 🚀`,
         help_text: `ℹ️ <b>О боте AI Media Upscaler</b>\n\n` +
             `Бот использует передовые нейросети (Real-ESRGAN) ` +

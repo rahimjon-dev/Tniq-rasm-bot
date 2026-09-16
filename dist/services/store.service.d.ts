@@ -1,15 +1,28 @@
 import { UserPlan } from '../types/user.types.js';
+export interface UserDailyUsage {
+    date: string;
+    images: number;
+    videos: number;
+}
 export interface StoredUser {
     id: string;
     telegramId: string;
     username: string | null;
     firstName: string | null;
+    lastName: string | null;
     languageCode: string | null;
     plan: UserPlan;
     isBanned: boolean;
     createdAt: string;
     updatedAt: string;
+    lastActivityDate: string;
+    lastAction: string | null;
+    dailyUsage: UserDailyUsage;
+    totalImages: number;
+    totalVideos: number;
     totalJobs: number;
+    customBackground: string | null;
+    metadata?: Record<string, any>;
 }
 export interface StoredJob {
     id: string;
@@ -30,10 +43,16 @@ declare class StoreService {
     private saveTimeout;
     private isShuttingDown;
     constructor();
+    /**
+     * Current date formatted in Asia/Tashkent timezone (YYYY-MM-DD)
+     */
+    getTodayTashkent(): string;
     private loadData;
     /**
-     * Synchronously and atomically flushes all current in-memory state to disk
-     * Writes to temporary files first, then atomically renames to prevent corruption.
+     * Synchronously and atomically flushes state across all storage locations:
+     * 1. storage/db.json
+     * 2. storage/db.backup.json
+     * 3. db.json (root fallback)
      */
     flushSync(): void;
     private saveToDisk;
@@ -43,32 +62,49 @@ declare class StoreService {
         telegramId: number | bigint | string;
         username?: string | null;
         firstName?: string | null;
+        lastName?: string | null;
         languageCode?: string | null;
         plan?: UserPlan;
+        lastAction?: string | null;
     }): StoredUser;
+    updateUserActivity(telegramId: number | bigint | string, action: string): void;
     getUser(telegramId: number | bigint | string): StoredUser | null;
-    getAllUsers(query?: string, page?: number, limit?: number): {
+    getAllUsers(query?: string, page?: number, limit?: number, planFilter?: string): {
         users: {
             subscription: {
                 plan: UserPlan;
                 status: string;
             };
+            remainingImages: string | number;
+            remainingVideos: string | number;
             id: string;
             telegramId: string;
             username: string | null;
             firstName: string | null;
+            lastName: string | null;
             languageCode: string | null;
             plan: UserPlan;
             isBanned: boolean;
             createdAt: string;
             updatedAt: string;
+            lastActivityDate: string;
+            lastAction: string | null;
+            dailyUsage: UserDailyUsage;
+            totalImages: number;
+            totalVideos: number;
             totalJobs: number;
+            customBackground: string | null;
+            metadata?: Record<string, any>;
         }[];
         total: number;
         page: number;
         totalPages: number;
     };
     setUserPlan(telegramId: number | bigint | string, plan: UserPlan): boolean;
+    resetUserDailyUsage(telegramId: number | bigint | string): boolean;
+    setUserCustomBackground(telegramId: number | bigint | string, backgroundPath: string | null): boolean;
+    getUserCustomBackground(telegramId: number | bigint | string): string | null;
+    incrementUsage(telegramId: number | bigint | string, type: 'IMAGE' | 'VIDEO'): void;
     getAllActiveTelegramIds(): number[];
     syncFromDatabase(dbUsers: any[]): void;
     recordJob(job: {
@@ -98,11 +134,21 @@ declare class StoreService {
         processingTime?: number;
         createdAt: string;
     }[];
-    getStats(): {
+    /**
+     * Detailed metrics for Admin Dashboard
+     */
+    getDetailedStats(): {
         totalUsers: number;
+        activeUsers: number;
+        newUsersToday: number;
+        imagesToday: number;
+        videosToday: number;
+        freeUsers: number;
+        premiumUsers: number;
+        proUsers: number;
+        totalImages: number;
+        totalVideos: number;
         totalJobs: number;
-        imageJobs: number;
-        videoJobs: number;
         failedJobs: number;
         successRatePercent: number;
     };

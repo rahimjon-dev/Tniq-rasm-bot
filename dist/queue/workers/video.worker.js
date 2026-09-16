@@ -1,8 +1,8 @@
 import fs from 'fs';
 import { Worker } from 'bullmq';
+import { redisConnection } from '../queue.client.js';
 import { getVideoUpscalerProvider } from '../../ai/providers/video/index.js';
 import UsageService from '../../services/usage.service.js';
-import ImageService from '../../services/media/image.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
 import { getT } from '../../i18n/index.js';
@@ -12,22 +12,25 @@ export async function processVideoJob(payload) {
     let statusMsgId;
     const t = getT(payload.language);
     try {
-        // 1. Notify user in Telegram
-        const sent = await bot.telegram.sendMessage(telegramChatId, t.processing_video(targetResolution), { parse_mode: 'HTML' });
+        // 1. Stage 1: Preparing
+        const sent = await bot.telegram.sendMessage(telegramChatId, t.stage_preparing, { parse_mode: 'HTML' });
         statusMsgId = sent.message_id;
-        // 2. Execute AI Video Pipeline
+        // 2. Stage 2: Generating
+        try {
+            await bot.telegram.editMessageText(telegramChatId, statusMsgId, undefined, t.stage_generating(targetResolution), { parse_mode: 'HTML' });
+        }
+        catch { }
+        // Execute AI Video Pipeline
         const provider = getVideoUpscalerProvider();
         const result = await provider.upscaleVideo(inputFilePath, outputFilePath, {
             targetResolution,
             scale,
         });
-        // 3. Clean up status message
-        if (statusMsgId) {
-            try {
-                await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
-            }
-            catch { }
+        // 3. Stage 3: Uploading
+        try {
+            await bot.telegram.editMessageText(telegramChatId, statusMsgId, undefined, t.stage_uploading, { parse_mode: 'HTML' });
         }
+        catch { }
         // 4. Deliver Enhanced Video
         const inputSize = fs.existsSync(inputFilePath) ? (await fs.promises.stat(inputFilePath)).size : 0;
         const duration = (Date.now() - startTime) / 1000;
@@ -40,9 +43,16 @@ export async function processVideoJob(payload) {
         });
         // Send as uncompressed document
         await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${targetResolution}_${result.outputResolution}.mp4` }, { caption: `📁 <i>Asl sifatdagi video fayl (Document)</i>`, parse_mode: 'HTML' });
+        // Clean up status message
+        if (statusMsgId) {
+            try {
+                await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
+            }
+            catch { }
+        }
         // 5. Update Database Records
         await Promise.all([
-            UsageService.incrementVideoUsage(userId),
+            UsageService.incrementVideoUsage(userId, telegramChatId),
             UsageService.recordJob({
                 userId,
                 telegramId: telegramChatId,
@@ -61,61 +71,47 @@ export async function processVideoJob(payload) {
     catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error(`[VIDEO_JOB_FAILED] Job=${jobId}:`, { error: errorMsg });
+        UsageService.releaseVideoReservation(telegramChatId);
         if (statusMsgId) {
             try {
                 await bot.telegram.deleteMessage(telegramChatId, statusMsgId);
             }
             catch { }
         }
-        await bot.telegram.sendMessage(telegramChatId, `❌ <b>Video processing encountered an issue:</b>\n<code>${errorMsg}</code>\n\nPlease try again with a shorter clip or contact support.`, { parse_mode: 'HTML' });
+        await bot.telegram.sendMessage(telegramChatId, `❌ <b>Video tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${errorMsg}</code>\n\nIltimos qisqaroq video bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`, { parse_mode: 'HTML' });
         await UsageService.recordJob({
             userId,
             telegramId: telegramChatId,
             type: 'VIDEO',
             scale,
             status: 'FAILED',
-            errorMessage: errorMsg,
         });
     }
     finally {
-        // 6. Strict Cleanup
-        await ImageService.safeDelete(inputFilePath);
-        await ImageService.safeDelete(outputFilePath);
-    }
-}
-// BullMQ Video Worker lifecycle
-let videoWorkerInstance = null;
-export function startVideoWorker(redis) {
-    if (videoWorkerInstance)
-        return videoWorkerInstance;
-    videoWorkerInstance = new Worker('video-upscale', async (job) => {
-        logger.info(`[VIDEO_WORKER] Processing video job #${job.id} for user ${job.data.userId}`);
-        await processVideoJob(job.data);
-    }, {
-        connection: redis,
-        concurrency: 1, // Process 1 video at a time to prevent GPU/CPU thrashing
-    });
-    videoWorkerInstance.on('failed', (job, err) => {
-        logger.error(`[VIDEO_WORKER_FAILED] Job #${job?.id} failed:`, err);
-    });
-    videoWorkerInstance.on('error', (err) => {
-        logger.warn('BullMQ video worker Redis error:', err.message);
-    });
-    return videoWorkerInstance;
-}
-export async function stopVideoWorker() {
-    if (videoWorkerInstance) {
+        // Strict Cleanup
         try {
-            await videoWorkerInstance.close();
+            if (fs.existsSync(inputFilePath))
+                fs.unlinkSync(inputFilePath);
         }
         catch { }
-        videoWorkerInstance = null;
     }
 }
-export const videoWorker = {
-    async close() {
-        await stopVideoWorker();
-    },
-};
-export default videoWorker;
+export let videoWorker;
+export function startVideoWorker(connection = redisConnection) {
+    videoWorker = new Worker('video-upscale-queue', async (job) => {
+        logger.info(`[VIDEO_WORKER] Processing job: ${job.id}`);
+        await processVideoJob(job.data);
+    }, {
+        connection,
+        concurrency: 2,
+    });
+    videoWorker.on('completed', (job) => {
+        logger.debug(`[VIDEO_WORKER] Job completed successfully: ${job.id}`);
+    });
+    videoWorker.on('failed', (job, err) => {
+        logger.error(`[VIDEO_WORKER] Job failed: ${job?.id}`, { error: err.message });
+    });
+    return videoWorker;
+}
+export default startVideoWorker;
 //# sourceMappingURL=video.worker.js.map

@@ -5,6 +5,7 @@ import logger from '../utils/logger.js';
 import { imageQueue, videoQueue, checkRedisConnection } from '../queue/queue.client.js';
 import { bot } from '../bot/bot.instance.js';
 import store from './store.service.js';
+import PlanService from './plan.service.js';
 export class AdminService {
     /**
      * Check if a Telegram ID is an authorized administrator
@@ -17,45 +18,11 @@ export class AdminService {
      * Gather comprehensive system analytics and health metrics
      */
     static async getSystemStats() {
-        let totalUsers = 0;
-        let totalJobs = 0;
-        let imageJobs = 0;
-        let videoJobs = 0;
-        let failedJobs = 0;
         const [dbConnected, redisConnected] = await Promise.all([
             checkDatabaseConnection(),
             checkRedisConnection(),
         ]);
-        if (dbConnected) {
-            try {
-                const [usersCount, allJobs, failed] = await Promise.all([
-                    prisma.user.count(),
-                    prisma.mediaJob.count(),
-                    prisma.mediaJob.count({ where: { status: 'FAILED' } }),
-                ]);
-                totalUsers = usersCount;
-                totalJobs = allJobs;
-                failedJobs = failed;
-                const imgCount = await prisma.mediaJob.count({ where: { type: 'IMAGE' } });
-                imageJobs = imgCount;
-                videoJobs = Math.max(0, totalJobs - imageJobs);
-            }
-            catch (e) {
-                logger.warn('Failed to query database for admin stats:', e);
-            }
-        }
-        // Fallback to local persistent store if DB is offline or returned 0
-        if (!dbConnected || totalUsers === 0) {
-            const fallback = store.getStats();
-            if (totalUsers === 0)
-                totalUsers = fallback.totalUsers;
-            if (totalJobs === 0) {
-                totalJobs = fallback.totalJobs;
-                imageJobs = fallback.imageJobs;
-                videoJobs = fallback.videoJobs;
-                failedJobs = fallback.failedJobs;
-            }
-        }
+        const detailed = store.getDetailedStats();
         // Queue counts from BullMQ
         let imageWaiting = 0;
         let imageActive = 0;
@@ -74,19 +41,27 @@ export class AdminService {
                 videoWaiting = vidWait;
                 videoActive = vidAct;
             }
-            catch { }
+            catch (e) {
+                logger.warn('Failed to retrieve queue counts:', e);
+            }
         }
-        const successRatePercent = totalJobs > 0
-            ? Math.round(((totalJobs - failedJobs) / totalJobs) * 100)
-            : 100;
         const memoryUsage = process.memoryUsage();
         return {
-            totalUsers,
-            totalJobs,
-            imageJobs,
-            videoJobs,
-            failedJobs,
-            successRatePercent,
+            totalUsers: detailed.totalUsers,
+            activeUsers: detailed.activeUsers,
+            newUsersToday: detailed.newUsersToday,
+            imagesToday: detailed.imagesToday,
+            videosToday: detailed.videosToday,
+            imageJobs: detailed.totalImages,
+            videoJobs: detailed.totalVideos,
+            freeUsers: detailed.freeUsers,
+            premiumUsers: detailed.premiumUsers,
+            proUsers: detailed.proUsers,
+            totalImages: detailed.totalImages,
+            totalVideos: detailed.totalVideos,
+            totalJobs: detailed.totalJobs,
+            failedJobs: detailed.failedJobs,
+            successRatePercent: detailed.successRatePercent,
             queueStatus: {
                 redisConnected,
                 databaseConnected: dbConnected,
@@ -103,288 +78,186 @@ export class AdminService {
             },
         };
     }
+    static async banUser(telegramId) {
+        return this.setUserBanStatus(telegramId, true);
+    }
+    static async unbanUser(telegramId) {
+        return this.setUserBanStatus(telegramId, false);
+    }
+    static async setPlan(telegramId, plan, durationDays = 30) {
+        return this.updateUserPlan(telegramId, plan);
+    }
     /**
-     * Search users with query, pagination, and total count
+     * Search users with query, pagination, plan filter, and total count
      */
-    static async searchUsers(query = '', page = 1, limit = 20) {
+    static async searchUsers(query = '', page = 1, limit = 20, planFilter = '') {
+        return store.getAllUsers(query, page, limit, planFilter);
+    }
+    /**
+     * Get single user full details
+     */
+    static async getUserDetails(telegramId) {
+        const key = telegramId.toString();
+        const user = store.getUser(key);
+        if (!user)
+            return null;
+        const limits = PlanService.getLimits(user.plan);
+        return {
+            ...user,
+            limits,
+            remainingImages: limits.isUnlimitedImages ? 'Unlimited' : Math.max(0, limits.dailyImages - (user.dailyUsage?.images || 0)),
+            remainingVideos: limits.isUnlimitedVideos ? 'Unlimited' : Math.max(0, limits.dailyVideos - (user.dailyUsage?.videos || 0)),
+        };
+    }
+    /**
+     * Reset user's daily usage counters
+     */
+    static async resetUserDailyUsage(telegramId) {
+        const key = telegramId.toString();
+        return store.resetUserDailyUsage(key);
+    }
+    /**
+     * Update a user's subscription plan directly (FREE | PREMIUM | PRO)
+     */
+    static async updateUserPlan(telegramId, plan) {
+        const key = telegramId.toString();
+        const normalized = PlanService.normalizePlan(plan);
+        const storeUpdated = store.setUserPlan(key, normalized);
         const isDbOk = await checkDatabaseConnection();
-        if (!isDbOk) {
-            return store.getAllUsers(query, page, limit);
-        }
-        const skip = (page - 1) * limit;
-        const trimmed = query.trim();
-        try {
-            const whereClause = {};
-            if (trimmed) {
-                const isNumeric = !isNaN(Number(trimmed));
-                if (isNumeric) {
-                    whereClause.OR = [
-                        { telegramId: BigInt(trimmed) },
-                        { username: { contains: trimmed, mode: 'insensitive' } },
-                        { firstName: { contains: trimmed, mode: 'insensitive' } },
-                    ];
-                }
-                else {
-                    whereClause.OR = [
-                        { username: { contains: trimmed, mode: 'insensitive' } },
-                        { firstName: { contains: trimmed, mode: 'insensitive' } },
-                    ];
-                }
-            }
-            const [users, total] = await Promise.all([
-                prisma.user.findMany({
-                    where: whereClause,
-                    orderBy: { createdAt: 'desc' },
-                    skip,
-                    take: limit,
-                    include: {
-                        subscription: true,
-                        _count: {
-                            select: { jobs: true },
+        if (isDbOk) {
+            try {
+                const idBig = BigInt(telegramId);
+                const user = await prisma.user.findUnique({ where: { telegramId: idBig } });
+                if (user) {
+                    await prisma.subscription.upsert({
+                        where: { userId: user.id },
+                        update: { plan: normalized === 'PREMIUM' ? 'PRO' : normalized },
+                        create: {
+                            userId: user.id,
+                            plan: normalized === 'PREMIUM' ? 'PRO' : normalized,
+                            status: 'ACTIVE',
                         },
-                    },
-                }),
-                prisma.user.count({ where: whereClause }),
-            ]);
-            if (total === 0 || store.getStats().totalUsers > total) {
-                return store.getAllUsers(query, page, limit);
+                    });
+                }
             }
-            return {
-                users: users.map((u) => ({
-                    ...u,
-                    telegramId: u.telegramId.toString(),
-                    totalJobs: u._count.jobs,
-                })),
-                total,
-                page,
-                totalPages: Math.ceil(total / limit) || 1,
-            };
+            catch (err) {
+                logger.debug('Prisma updateUserPlan notice:', err);
+            }
         }
-        catch (e) {
-            return store.getAllUsers(query, page, limit);
+        return storeUpdated;
+    }
+    /**
+     * Set ban status for user
+     */
+    static async setUserBanStatus(telegramId, isBanned) {
+        const key = telegramId.toString();
+        const storeUpdated = store.setUserBan(key, isBanned);
+        const isDbOk = await checkDatabaseConnection();
+        if (isDbOk) {
+            try {
+                const idBig = BigInt(telegramId);
+                await prisma.user.updateMany({
+                    where: { telegramId: idBig },
+                    data: { isBanned },
+                });
+            }
+            catch (err) {
+                logger.debug('Prisma setUserBanStatus notice:', err);
+            }
         }
+        return storeUpdated;
     }
     /**
      * Get list of recent users
      */
     static async getRecentUsers(limit = 10) {
-        const isDbOk = await checkDatabaseConnection();
-        if (!isDbOk) {
-            return store.getAllUsers('', 1, limit).users;
-        }
-        try {
-            const users = await prisma.user.findMany({
-                orderBy: { createdAt: 'desc' },
-                take: limit,
-                include: { subscription: true },
-            });
-            if (users.length === 0) {
-                return store.getAllUsers('', 1, limit).users;
-            }
-            return users.map((u) => ({
-                ...u,
-                telegramId: u.telegramId.toString(),
-            }));
-        }
-        catch {
-            return store.getAllUsers('', 1, limit).users;
-        }
+        return store.getAllUsers('', 1, limit).users;
     }
     /**
      * Get list of recent media processing jobs
      */
     static async getRecentJobs(limit = 10) {
-        const isDbOk = await checkDatabaseConnection();
-        if (!isDbOk) {
-            return store.getRecentJobs(limit);
-        }
-        try {
-            const jobs = await prisma.mediaJob.findMany({
-                orderBy: { createdAt: 'desc' },
-                take: limit,
-                include: { user: true },
-            });
-            if (jobs.length === 0) {
-                return store.getRecentJobs(limit);
-            }
-            return jobs.map((j) => ({
-                ...j,
-                inputSize: j.inputSize ? j.inputSize.toString() : null,
-                outputSize: j.outputSize ? j.outputSize.toString() : null,
-                user: j.user
-                    ? {
-                        ...j.user,
-                        telegramId: j.user.telegramId.toString(),
-                    }
-                    : null,
-            }));
-        }
-        catch {
-            return store.getRecentJobs(limit);
-        }
+        return store.getRecentJobs(limit);
     }
     /**
-     * Broadcast rich message (text, photo, video, button) to all registered bot users
+     * Broadcast message to all active users with support for Text, Photo, Video, and Inline URLs
      */
-    static async broadcastMessage(payload) {
-        const data = typeof payload === 'string' ? { text: payload } : payload;
-        const text = (data.text || '').trim();
-        const mediaType = data.mediaType || 'text';
-        const mediaUrl = data.mediaUrl ? data.mediaUrl.trim() : '';
-        const buttonText = data.buttonText ? data.buttonText.trim() : '';
-        const buttonUrl = data.buttonUrl ? data.buttonUrl.trim() : '';
-        const reply_markup = (buttonText && buttonUrl)
-            ? { inline_keyboard: [[{ text: buttonText, url: buttonUrl }]] }
-            : undefined;
-        let targetIds = [];
-        const dbConnected = await checkDatabaseConnection();
-        if (dbConnected) {
-            try {
-                const users = await prisma.user.findMany({
-                    where: { isBanned: false },
-                    select: { telegramId: true },
-                });
-                targetIds = users.map((u) => Number(u.telegramId));
-            }
-            catch { }
-        }
-        // If DB is offline or empty, use store
-        if (targetIds.length === 0) {
-            targetIds = store.getAllActiveTelegramIds();
-        }
-        if (targetIds.length === 0) {
-            return { total: 0, sent: 0, failed: 0 };
-        }
+    static async broadcastMessage(messageText, options = {}) {
+        const activeTelegramIds = store.getAllActiveTelegramIds();
         let sent = 0;
         let failed = 0;
-        logger.info(`[BROADCAST] Initiating ${mediaType} broadcast to ${targetIds.length} users...`);
-        for (const tid of targetIds) {
+        const total = activeTelegramIds.length;
+        // Construct optional inline button
+        let replyMarkup = undefined;
+        if (options.buttonText && options.buttonUrl) {
+            replyMarkup = {
+                inline_keyboard: [
+                    [{ text: options.buttonText, url: options.buttonUrl }],
+                ],
+            };
+        }
+        const hasMedia = options.mediaType && options.mediaType !== 'none' && options.mediaUrl;
+        logger.info(`[BROADCAST] Starting broadcast to ${total} users. Type=${options.mediaType || 'text'}`);
+        for (const id of activeTelegramIds) {
             try {
-                if (mediaType === 'photo' && mediaUrl) {
+                if (hasMedia && options.mediaType === 'photo') {
                     try {
-                        await bot.telegram.sendPhoto(tid, mediaUrl, {
-                            caption: text || undefined,
+                        await bot.telegram.sendPhoto(id, options.mediaUrl, {
+                            caption: messageText,
                             parse_mode: 'HTML',
-                            reply_markup,
+                            reply_markup: replyMarkup,
                         });
-                        sent++;
                     }
                     catch {
-                        // Fallback without HTML parse_mode
-                        await bot.telegram.sendPhoto(tid, mediaUrl, {
-                            caption: text || undefined,
-                            reply_markup,
+                        // Fallback plain text caption if HTML entity error
+                        await bot.telegram.sendPhoto(id, options.mediaUrl, {
+                            caption: messageText,
+                            reply_markup: replyMarkup,
                         });
-                        sent++;
                     }
                 }
-                else if (mediaType === 'video' && mediaUrl) {
+                else if (hasMedia && options.mediaType === 'video') {
                     try {
-                        await bot.telegram.sendVideo(tid, mediaUrl, {
-                            caption: text || undefined,
+                        await bot.telegram.sendVideo(id, options.mediaUrl, {
+                            caption: messageText,
                             parse_mode: 'HTML',
-                            reply_markup,
+                            reply_markup: replyMarkup,
+                            supports_streaming: true,
                         });
-                        sent++;
                     }
                     catch {
-                        // Fallback without HTML parse_mode
-                        await bot.telegram.sendVideo(tid, mediaUrl, {
-                            caption: text || undefined,
-                            reply_markup,
+                        await bot.telegram.sendVideo(id, options.mediaUrl, {
+                            caption: messageText,
+                            reply_markup: replyMarkup,
+                            supports_streaming: true,
                         });
-                        sent++;
                     }
                 }
                 else {
-                    // Plain Text with resilient HTML fallback
+                    // Standard text message
                     try {
-                        await bot.telegram.sendMessage(tid, text, {
+                        await bot.telegram.sendMessage(id, messageText, {
                             parse_mode: 'HTML',
-                            reply_markup,
+                            reply_markup: replyMarkup,
                         });
-                        sent++;
                     }
                     catch {
-                        // Fallback to plain text if HTML contains unclosed tags or syntax errors
-                        await bot.telegram.sendMessage(tid, text, {
-                            reply_markup,
+                        await bot.telegram.sendMessage(id, messageText, {
+                            reply_markup: replyMarkup,
                         });
-                        sent++;
                     }
                 }
+                sent++;
             }
             catch (err) {
                 failed++;
+                logger.warn(`Failed to broadcast to user ${id}:`, err);
             }
-            // Anti-flood pause: 35ms between messages (~28 messages/sec)
-            await new Promise((res) => setTimeout(res, 35));
+            // Safe rate-limiting for Telegram API
+            await new Promise((resolve) => setTimeout(resolve, 35));
         }
-        logger.info(`[BROADCAST_COMPLETE] Type: ${mediaType}, Total: ${targetIds.length}, Sent: ${sent}, Failed: ${failed}`);
-        return { total: targetIds.length, sent, failed };
-    }
-    /**
-     * Ban a user by Telegram ID
-     */
-    static async banUser(telegramId) {
-        const idStr = telegramId.toString();
-        const ok = store.setUserBan(idStr, true);
-        try {
-            await prisma.user.update({
-                where: { telegramId: BigInt(idStr) },
-                data: { isBanned: true },
-            });
-        }
-        catch { }
-        return ok;
-    }
-    /**
-     * Unban a user by Telegram ID
-     */
-    static async unbanUser(telegramId) {
-        const idStr = telegramId.toString();
-        const ok = store.setUserBan(idStr, false);
-        try {
-            await prisma.user.update({
-                where: { telegramId: BigInt(idStr) },
-                data: { isBanned: false },
-            });
-        }
-        catch { }
-        return ok;
-    }
-    /**
-     * Manually grant a subscription plan to any user
-     */
-    static async setPlan(telegramId, plan, durationDays = 30) {
-        store.setUserPlan(telegramId, plan);
-        try {
-            const user = await prisma.user.findUnique({
-                where: { telegramId: BigInt(telegramId) },
-            });
-            if (user) {
-                const endDate = new Date();
-                endDate.setDate(endDate.getDate() + durationDays);
-                await prisma.subscription.upsert({
-                    where: { userId: user.id },
-                    update: {
-                        plan,
-                        status: 'ACTIVE',
-                        startDate: new Date(),
-                        endDate,
-                    },
-                    create: {
-                        userId: user.id,
-                        plan,
-                        status: 'ACTIVE',
-                        startDate: new Date(),
-                        endDate,
-                    },
-                });
-            }
-        }
-        catch { }
-        return true;
+        logger.info(`[BROADCAST] Completed: Sent=${sent}, Failed=${failed}, Total=${total}`);
+        return { sent, failed, total };
     }
 }
 export default AdminService;

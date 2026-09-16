@@ -5,48 +5,96 @@
       "telegramId": "5392129023",
       "username": "Batirov_09",
       "firstName": "..",
+      "lastName": null,
       "languageCode": "uz",
       "plan": "FREE",
       "isBanned": false,
       "createdAt": "2026-09-15T17:32:00.000Z",
       "updatedAt": "2026-09-15T17:32:00.000Z",
-      "totalJobs": 0
+      "lastActivityDate": "2026-09-15T17:32:00.000Z",
+      "lastAction": "Active",
+      "dailyUsage": {
+        "date": "2026-09-16",
+        "images": 0,
+        "videos": 0
+      },
+      "totalImages": 0,
+      "totalVideos": 0,
+      "totalJobs": 0,
+      "customBackground": null,
+      "metadata": {}
     },
     "7534175269": {
       "id": "usr_7534175269",
       "telegramId": "7534175269",
       "username": "rahmonoov_19",
       "firstName": "Rahimjon",
+      "lastName": null,
       "languageCode": "en",
-      "plan": "BUSINESS",
+      "plan": "PRO",
       "isBanned": false,
       "createdAt": "2026-09-15T07:16:15.035Z",
       "updatedAt": "2026-09-15T07:56:15.536Z",
-      "totalJobs": 0
+      "lastActivityDate": "2026-09-15T07:56:15.536Z",
+      "lastAction": "Active",
+      "dailyUsage": {
+        "date": "2026-09-16",
+        "images": 0,
+        "videos": 0
+      },
+      "totalImages": 0,
+      "totalVideos": 0,
+      "totalJobs": 0,
+      "customBackground": null,
+      "metadata": {}
     },
     "8065428763": {
       "id": "usr_8065428763",
       "telegramId": "8065428763",
       "username": "Bilolbek520",
       "firstName": "Bilolbek",
+      "lastName": null,
       "languageCode": "uz",
       "plan": "FREE",
       "isBanned": false,
       "createdAt": "2026-09-16T06:27:21.601Z",
       "updatedAt": "2026-09-16T06:27:30.091Z",
-      "totalJobs": 0
+      "lastActivityDate": "2026-09-16T06:27:30.091Z",
+      "lastAction": "Active",
+      "dailyUsage": {
+        "date": "2026-09-16",
+        "images": 0,
+        "videos": 0
+      },
+      "totalImages": 0,
+      "totalVideos": 0,
+      "totalJobs": 0,
+      "customBackground": null,
+      "metadata": {}
     },
     "6504326848": {
       "id": "usr_6504326848",
       "telegramId": "6504326848",
       "username": "Muniskhon63",
       "firstName": "Мунисхон",
+      "lastName": null,
       "languageCode": "ru",
       "plan": "FREE",
       "isBanned": false,
       "createdAt": "2026-09-16T06:26:26.180Z",
       "updatedAt": "2026-09-16T06:28:48.660Z",
-      "totalJobs": 1
+      "lastActivityDate": "2026-09-16T06:28:48.660Z",
+      "lastAction": "Active",
+      "dailyUsage": {
+        "date": "2026-09-16",
+        "images": 0,
+        "videos": 0
+      },
+      "totalImages": 0,
+      "totalVideos": 0,
+      "totalJobs": 1,
+      "customBackground": null,
+      "metadata": {}
     }
   },
   "jobs": [
@@ -61,7 +109,7 @@
     }
   ],
   "stats": {
-    "totalImages": 1,
+    "totalImages": 2,
     "totalVideos": 0,
     "failedJobs": 0
   }

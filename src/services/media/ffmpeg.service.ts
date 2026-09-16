@@ -80,6 +80,10 @@ export class FFmpegService {
     };
   }
 
+  static async probeVideo(filePath: string): Promise<VideoMetadata> {
+    return this.getMetadata(filePath);
+  }
+
   /**
    * Extract audio stream without re-encoding to guarantee 100% audio fidelity
    */

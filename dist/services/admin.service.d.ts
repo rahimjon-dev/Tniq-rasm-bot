@@ -1,9 +1,18 @@
 import { UserPlan } from '../types/user.types.js';
 export interface SystemStats {
     totalUsers: number;
-    totalJobs: number;
+    activeUsers: number;
+    newUsersToday: number;
+    imagesToday: number;
+    videosToday: number;
     imageJobs: number;
     videoJobs: number;
+    freeUsers: number;
+    premiumUsers: number;
+    proUsers: number;
+    totalImages: number;
+    totalVideos: number;
+    totalJobs: number;
     failedJobs: number;
     successRatePercent: number;
     queueStatus: {
@@ -30,58 +39,81 @@ export declare class AdminService {
      * Gather comprehensive system analytics and health metrics
      */
     static getSystemStats(): Promise<SystemStats>;
+    static banUser(telegramId: number | bigint | string): Promise<boolean>;
+    static unbanUser(telegramId: number | bigint | string): Promise<boolean>;
+    static setPlan(telegramId: number | bigint | string, plan: UserPlan, durationDays?: number): Promise<boolean>;
     /**
-     * Search users with query, pagination, and total count
+     * Search users with query, pagination, plan filter, and total count
      */
-    static searchUsers(query?: string, page?: number, limit?: number): Promise<{
+    static searchUsers(query?: string, page?: number, limit?: number, planFilter?: string): Promise<{
         users: {
             subscription: {
                 plan: UserPlan;
                 status: string;
             };
+            remainingImages: string | number;
+            remainingVideos: string | number;
             id: string;
             telegramId: string;
             username: string | null;
             firstName: string | null;
+            lastName: string | null;
             languageCode: string | null;
             plan: UserPlan;
             isBanned: boolean;
             createdAt: string;
             updatedAt: string;
+            lastActivityDate: string;
+            lastAction: string | null;
+            dailyUsage: import("./store.service.js").UserDailyUsage;
+            totalImages: number;
+            totalVideos: number;
             totalJobs: number;
-        }[];
-        total: number;
-        page: number;
-        totalPages: number;
-    } | {
-        users: {
-            telegramId: string;
-            totalJobs: number;
-            subscription: {
-                id: string;
-                createdAt: Date;
-                updatedAt: Date;
-                userId: string;
-                status: import(".prisma/client").$Enums.SubscriptionStatus;
-                plan: import(".prisma/client").$Enums.PlanType;
-                startDate: Date;
-                endDate: Date | null;
-            } | null;
-            _count: {
-                jobs: number;
-            };
-            id: string;
-            username: string | null;
-            firstName: string | null;
-            languageCode: string | null;
-            isBanned: boolean;
-            createdAt: Date;
-            updatedAt: Date;
+            customBackground: string | null;
+            metadata?: Record<string, any>;
         }[];
         total: number;
         page: number;
         totalPages: number;
     }>;
+    /**
+     * Get single user full details
+     */
+    static getUserDetails(telegramId: string | number | bigint): Promise<{
+        limits: import("../types/user.types.js").PlanLimits;
+        remainingImages: string | number;
+        remainingVideos: string | number;
+        id: string;
+        telegramId: string;
+        username: string | null;
+        firstName: string | null;
+        lastName: string | null;
+        languageCode: string | null;
+        plan: UserPlan;
+        isBanned: boolean;
+        createdAt: string;
+        updatedAt: string;
+        lastActivityDate: string;
+        lastAction: string | null;
+        dailyUsage: import("./store.service.js").UserDailyUsage;
+        totalImages: number;
+        totalVideos: number;
+        totalJobs: number;
+        customBackground: string | null;
+        metadata?: Record<string, any>;
+    } | null>;
+    /**
+     * Reset user's daily usage counters
+     */
+    static resetUserDailyUsage(telegramId: string | number | bigint): Promise<boolean>;
+    /**
+     * Update a user's subscription plan directly (FREE | PREMIUM | PRO)
+     */
+    static updateUserPlan(telegramId: number | bigint | string, plan: UserPlan): Promise<boolean>;
+    /**
+     * Set ban status for user
+     */
+    static setUserBanStatus(telegramId: number | bigint | string, isBanned: boolean): Promise<boolean>;
     /**
      * Get list of recent users
      */
@@ -90,35 +122,26 @@ export declare class AdminService {
             plan: UserPlan;
             status: string;
         };
+        remainingImages: string | number;
+        remainingVideos: string | number;
         id: string;
         telegramId: string;
         username: string | null;
         firstName: string | null;
+        lastName: string | null;
         languageCode: string | null;
         plan: UserPlan;
         isBanned: boolean;
         createdAt: string;
         updatedAt: string;
+        lastActivityDate: string;
+        lastAction: string | null;
+        dailyUsage: import("./store.service.js").UserDailyUsage;
+        totalImages: number;
+        totalVideos: number;
         totalJobs: number;
-    }[] | {
-        telegramId: string;
-        subscription: {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            userId: string;
-            status: import(".prisma/client").$Enums.SubscriptionStatus;
-            plan: import(".prisma/client").$Enums.PlanType;
-            startDate: Date;
-            endDate: Date | null;
-        } | null;
-        id: string;
-        username: string | null;
-        firstName: string | null;
-        languageCode: string | null;
-        isBanned: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        customBackground: string | null;
+        metadata?: Record<string, any>;
     }[]>;
     /**
      * Get list of recent media processing jobs
@@ -139,57 +162,19 @@ export declare class AdminService {
         outputResolution?: string;
         processingTime?: number;
         createdAt: string;
-    }[] | {
-        inputSize: string | null;
-        outputSize: string | null;
-        user: {
-            telegramId: string;
-            id: string;
-            username: string | null;
-            firstName: string | null;
-            languageCode: string | null;
-            isBanned: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-        } | null;
-        type: import(".prisma/client").$Enums.JobType;
-        id: string;
-        createdAt: Date;
-        userId: string;
-        status: import(".prisma/client").$Enums.JobStatus;
-        scale: number;
-        targetResolution: string | null;
-        inputResolution: string | null;
-        outputResolution: string | null;
-        processingTime: number | null;
-        errorMessage: string | null;
-        completedAt: Date | null;
     }[]>;
     /**
-     * Broadcast rich message (text, photo, video, button) to all registered bot users
+     * Broadcast message to all active users with support for Text, Photo, Video, and Inline URLs
      */
-    static broadcastMessage(payload: string | {
-        text: string;
-        mediaType?: 'text' | 'photo' | 'video';
+    static broadcastMessage(messageText: string, options?: {
+        mediaType?: 'none' | 'photo' | 'video';
         mediaUrl?: string;
         buttonText?: string;
         buttonUrl?: string;
     }): Promise<{
-        total: number;
         sent: number;
         failed: number;
+        total: number;
     }>;
-    /**
-     * Ban a user by Telegram ID
-     */
-    static banUser(telegramId: number | bigint | string): Promise<boolean>;
-    /**
-     * Unban a user by Telegram ID
-     */
-    static unbanUser(telegramId: number | bigint | string): Promise<boolean>;
-    /**
-     * Manually grant a subscription plan to any user
-     */
-    static setPlan(telegramId: number, plan: UserPlan, durationDays?: number): Promise<boolean>;
 }
 export default AdminService;

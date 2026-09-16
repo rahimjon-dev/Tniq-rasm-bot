@@ -62,6 +62,9 @@ export class FFmpegService {
             bitrateKbps,
         };
     }
+    static async probeVideo(filePath) {
+        return this.getMetadata(filePath);
+    }
     /**
      * Extract audio stream without re-encoding to guarantee 100% audio fidelity
      */

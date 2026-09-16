@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * ADMIN DASHBOARD — CORE JAVASCRIPT CLIENT
+ * ADMIN DASHBOARD — CORE JAVASCRIPT CLIENT (PRODUCTION GRADE)
  * ==============================================================================
  */
 
@@ -12,7 +12,9 @@
   let refreshTimer = null;
   let currentUserPage = 1;
   let currentUserQuery = '';
+  let currentUserPlanFilter = '';
   let selectedTelegramIdForPlan = null;
+  let activeUserForDetails = null;
 
   // DOM Elements
   const authModal = document.getElementById('authModal');
@@ -22,6 +24,8 @@
   const appLayout = document.getElementById('appLayout');
   const logoutBtn = document.getElementById('logoutBtn');
   const refreshBtn = document.getElementById('refreshBtn');
+  const refreshSvg = document.getElementById('refreshSvg');
+  const refreshBtnText = document.getElementById('refreshBtnText');
   const lastUpdatedText = document.getElementById('lastUpdatedText');
 
   // Tab Navigation
@@ -37,6 +41,33 @@
     'tab-jobs': { title: "Media Ishlari Navbati", subtitle: "AI orqali tiniqlashtirilgan rasmlar va videolarning jonli jurnali" },
     'tab-system': { title: "Server Salomatligi", subtitle: "Infratuzilma, xotira va bot konfiguratsiyasi" },
   };
+
+  // ----------------------------------------------------------------------------
+  // Helper: Toast Notifications
+  // ----------------------------------------------------------------------------
+  function showToast(msg, duration = 3000) {
+    const toast = document.getElementById('adminToast');
+    if (!toast) return;
+    toast.innerText = msg;
+    toast.style.display = 'block';
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 300);
+    }, duration);
+  }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
   // ----------------------------------------------------------------------------
   // API Fetch Helper
@@ -62,7 +93,7 @@
     appLayout.style.display = 'none';
     authModal.style.display = 'flex';
     authError.style.display = 'block';
-    authError.innerText = "Xavfsizlik kaliti noto'g'ri yoki sessiya muddati tugadi!";
+    authError.innerText = "Xavfsizlik paroli noto'g'ri yoki sessiya muddati tugadi!";
   }
 
   // ----------------------------------------------------------------------------
@@ -98,48 +129,65 @@
       initDashboard();
     } else {
       authError.style.display = 'block';
-      authError.innerText = "Noto'g'ri maxfiy kalit. Iltimos, qayta urinib ko'ring!";
+      authError.innerText = "Noto'g'ri parol! Iltimos qaytadan kiriting (0603).";
     }
   });
 
   logoutBtn.addEventListener('click', () => {
-    if (confirm('Admin paneldan chiqmoqchimisiz?')) {
-      localStorage.removeItem('ai_bot_admin_key');
-      currentAdminKey = '';
-      location.reload();
-    }
+    if (!confirm('Haqiqatan ham chiqmoqchimisiz?')) return;
+    localStorage.removeItem('ai_bot_admin_key');
+    currentAdminKey = '';
+    window.location.reload();
   });
 
   // ----------------------------------------------------------------------------
-  // Tab Switching
+  // Navigation Tabs & Card Linking
   // ----------------------------------------------------------------------------
-  navItems.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const targetTab = btn.getAttribute('data-tab');
-      switchTab(targetTab);
-    });
-  });
-
-  function switchTab(targetTabId) {
-    activeTab = targetTabId;
+  function switchTab(tabId) {
+    activeTab = tabId;
     navItems.forEach((btn) => {
-      btn.classList.toggle('active', btn.getAttribute('data-tab') === targetTabId);
+      btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
     tabPanes.forEach((pane) => {
-      pane.classList.toggle('active', pane.id === targetTabId);
+      pane.classList.toggle('active', pane.id === tabId);
     });
 
-    const meta = tabTitles[targetTabId] || { title: 'Dashboard', subtitle: '' };
-    pageTitle.innerText = meta.title;
-    pageSubtitle.innerText = meta.subtitle;
+    if (tabTitles[tabId]) {
+      pageTitle.innerText = tabTitles[tabId].title;
+      pageSubtitle.innerText = tabTitles[tabId].subtitle;
+    }
 
-    if (targetTabId === 'tab-users') loadUsers();
-    if (targetTabId === 'tab-jobs') loadJobs();
-    if (targetTabId === 'tab-overview') loadStats();
+    if (tabId === 'tab-users') loadUsers();
+    if (tabId === 'tab-jobs') loadJobs();
+    if (tabId === 'tab-overview') loadStats();
   }
 
+  navItems.forEach((btn) => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Overview Clickable Cards
+  document.getElementById('cardUsers')?.addEventListener('click', () => switchTab('tab-users'));
+  document.getElementById('cardActiveUsers')?.addEventListener('click', () => switchTab('tab-users'));
+  document.getElementById('cardFreeUsers')?.addEventListener('click', () => {
+    const pf = document.getElementById('userPlanFilter');
+    if (pf) pf.value = 'FREE';
+    currentUserPlanFilter = 'FREE';
+    switchTab('tab-users');
+  });
+  document.getElementById('cardProUsers')?.addEventListener('click', () => {
+    const pf = document.getElementById('userPlanFilter');
+    if (pf) pf.value = 'PRO';
+    currentUserPlanFilter = 'PRO';
+    switchTab('tab-users');
+  });
+  document.getElementById('cardImages')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardVideos')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardQueue')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardSystem')?.addEventListener('click', () => switchTab('tab-system'));
+
   // ----------------------------------------------------------------------------
-  // Overview & Stats
+  // Overview & 8 Stats Cards
   // ----------------------------------------------------------------------------
   async function loadStats() {
     try {
@@ -147,28 +195,44 @@
       if (!data.success) return;
 
       const s = data.stats;
-      document.getElementById('statUsers').innerText = s.totalUsers.toLocaleString();
-      document.getElementById('badgeUserCount').innerText = s.totalUsers;
-      document.getElementById('statImages').innerText = s.imageJobs.toLocaleString();
-      document.getElementById('statVideos').innerText = s.videoJobs.toLocaleString();
-      document.getElementById('statSuccessRate').innerText = `${s.successRatePercent}%`;
 
-      // BullMQ
-      document.getElementById('queueImgWaiting').innerText = s.queueStatus.imageWaiting;
-      document.getElementById('queueImgActive').innerText = s.queueStatus.imageActive;
-      document.getElementById('queueVidWaiting').innerText = s.queueStatus.videoWaiting;
-      document.getElementById('queueVidActive').innerText = s.queueStatus.videoActive;
+      // 8 Cards
+      document.getElementById('statUsers').innerText = (s.totalUsers || 0).toLocaleString();
+      document.getElementById('badgeUserCount').innerText = s.totalUsers || 0;
+      document.getElementById('statActiveUsers').innerText = (s.activeUsers || 0).toLocaleString();
+      document.getElementById('statNewUsers').innerText = (s.newUsersToday || 0).toLocaleString();
+      document.getElementById('statSuccessRate').innerText = `${s.successRatePercent || 100}%`;
 
-      // Server
-      const uptimeHrs = (s.server.uptimeSeconds / 3600).toFixed(1);
-      document.getElementById('statusUptime').innerText = `${uptimeHrs} soat`;
-      document.getElementById('statusRam').innerText = `${s.server.memoryUsedMB} MB`;
-      document.getElementById('statusDb').innerText = s.queueStatus.databaseConnected ? 'Ulangan' : 'Kutilmoqda';
-      document.getElementById('statusRedis').innerText = s.queueStatus.redisConnected ? 'Ulangan' : 'Kutilmoqda';
+      document.getElementById('statImagesToday').innerText = (s.imagesToday || 0).toLocaleString();
+      document.getElementById('statImages').innerText = (s.totalImages || 0).toLocaleString();
 
-      // System tab
-      document.getElementById('sysNodeVer').innerText = s.server.nodeVersion;
-      document.getElementById('sysCpuCores').innerText = `${s.server.cpuCores} ta yadro`;
+      document.getElementById('statVideosToday').innerText = (s.videosToday || 0).toLocaleString();
+      document.getElementById('statVideos').innerText = (s.totalVideos || 0).toLocaleString();
+
+      document.getElementById('statFreeUsers').innerText = (s.freeUsers || 0).toLocaleString();
+      document.getElementById('statProUsers').innerText = `${(s.proUsers || 0) + (s.premiumUsers || 0)} ta`;
+
+      // BullMQ Queue
+      if (s.queueStatus) {
+        document.getElementById('queueImgWaiting').innerText = s.queueStatus.imageWaiting || 0;
+        document.getElementById('queueImgActive').innerText = s.queueStatus.imageActive || 0;
+        document.getElementById('queueVidWaiting').innerText = s.queueStatus.videoWaiting || 0;
+        document.getElementById('queueVidActive').innerText = s.queueStatus.videoActive || 0;
+
+        document.getElementById('statusDb').innerText = s.queueStatus.databaseConnected ? 'Ulangan (PostgreSQL)' : 'Ulangan (Triple-Storage)';
+        document.getElementById('statusRedis').innerText = s.queueStatus.redisConnected ? 'Ulangan (BullMQ)' : 'In-Memory Async Mode';
+      }
+
+      // Server Info
+      if (s.server) {
+        const uptimeHrs = (s.server.uptimeSeconds / 3600).toFixed(1);
+        document.getElementById('statusUptime').innerText = `${uptimeHrs} soat`;
+        document.getElementById('statusRam').innerText = `${s.server.memoryUsedMB} MB`;
+        const sysNode = document.getElementById('sysNode');
+        if (sysNode) sysNode.innerText = s.server.nodeVersion;
+        const sysCpu = document.getElementById('sysCpu');
+        if (sysCpu) sysCpu.innerText = `${s.server.cpuCores} ta yadro`;
+      }
 
       lastUpdatedText.innerText = `Yangilandi: ${new Date().toLocaleTimeString()}`;
     } catch (e) {
@@ -180,6 +244,7 @@
   // Users Management
   // ----------------------------------------------------------------------------
   const userSearchInput = document.getElementById('userSearchInput');
+  const userPlanFilter = document.getElementById('userPlanFilter');
   const usersTableBody = document.getElementById('usersTableBody');
   const userTableSummary = document.getElementById('userTableSummary');
   const btnPrevPage = document.getElementById('btnPrevPage');
@@ -187,73 +252,77 @@
   const pageIndicator = document.getElementById('pageIndicator');
 
   let searchTimeout = null;
-  userSearchInput.addEventListener('input', (e) => {
+  userSearchInput?.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
       currentUserQuery = e.target.value.trim();
       currentUserPage = 1;
       loadUsers();
-    }, 350);
+    }, 300);
   });
 
-  btnPrevPage.addEventListener('click', () => {
+  userPlanFilter?.addEventListener('change', (e) => {
+    currentUserPlanFilter = e.target.value;
+    currentUserPage = 1;
+    loadUsers();
+  });
+
+  btnPrevPage?.addEventListener('click', () => {
     if (currentUserPage > 1) {
       currentUserPage--;
       loadUsers();
     }
   });
 
-  btnNextPage.addEventListener('click', () => {
+  btnNextPage?.addEventListener('click', () => {
     currentUserPage++;
     loadUsers();
   });
 
-  // Cached users fallback renderer
-  function renderCachedUsers() {
-    try {
-      const cached = localStorage.getItem('admin_cached_users');
-      if (!cached) return false;
-      const parsed = JSON.parse(cached);
-      if (parsed && Array.isArray(parsed.users) && parsed.users.length > 0) {
-        userTableSummary.innerText = `Jami saqlangan: ${parsed.total || parsed.users.length} ta`;
-        usersTableBody.innerHTML = renderUsersHtml(parsed.users);
-        return true;
-      }
-    } catch {}
-    return false;
-  }
-
   function renderUsersHtml(usersList) {
     return usersList.map((u) => {
       const plan = u.subscription?.plan || u.plan || 'FREE';
-      const planPill = plan === 'PRO' ? 'plan-pro' : (plan === 'BUSINESS' ? 'plan-business' : '');
+      const planClass = plan === 'PRO' ? 'plan-pro' : (plan === 'PREMIUM' ? 'plan-business' : '');
       const isBanned = !!u.isBanned;
       const userPayload = encodeURIComponent(JSON.stringify(u));
+
+      const remImg = u.remainingImages !== undefined ? u.remainingImages : '70';
+      const remVid = u.remainingVideos !== undefined ? u.remainingVideos : '20';
+
+      const lastAct = u.lastAction || 'Active';
+      const timeAgo = u.lastActivityDate ? new Date(u.lastActivityDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
       return `
         <tr class="user-table-row" style="cursor: pointer;" onclick="window.openUserDetails('${userPayload}')" title="Batafsil ma'lumotni ko'rish">
           <td><code>${u.telegramId}</code></td>
           <td>
-            <strong>${escapeHtml(u.firstName || 'Foydalanuvchi')}</strong>
+            <strong>${escapeHtml(u.firstName || 'Foydalanuvchi')} ${escapeHtml(u.lastName || '')}</strong>
             <div class="input-hint">${u.username ? '@' + u.username : 'username yo\'q'}</div>
           </td>
-          <td><code>${u.languageCode || 'uz'}</code></td>
-          <td><span class="status-pill ${planPill}">${plan}</span></td>
+          <td><code>${(u.languageCode || 'uz').toUpperCase()}</code></td>
+          <td><span class="status-pill ${planClass}">${plan}</span></td>
+          <td>
+            <span class="badge-number">${remImg} rasm / ${remVid} vid</span>
+          </td>
           <td><strong>${u.totalJobs || 0} ta</strong></td>
+          <td>
+            <div style="font-size: 13px;">${escapeHtml(lastAct)}</div>
+            <div class="input-hint">${timeAgo}</div>
+          </td>
           <td>
             <span class="status-pill ${isBanned ? 'banned' : 'active'}">
               ${isBanned ? 'Bloklangan' : 'Faol'}
             </span>
           </td>
           <td onclick="event.stopPropagation()">
-            <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
-              ${isBanned ? 'Ochish' : 'Bloklash'}
+            <button class="btn-action-sm" onclick="window.openUserDetails('${userPayload}')">
+              👁 Ko'rish
             </button>
             <button class="btn-action-sm" onclick="window.openPlanModal('${u.telegramId}', '${escapeHtml(u.firstName || '')}')">
               ⭐ Tarif
             </button>
-            <button class="btn-action-sm" onclick="window.openUserDetails('${userPayload}')">
-              👤 Profil
+            <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
+              ${isBanned ? 'Ochish' : 'Bloklash'}
             </button>
           </td>
         </tr>
@@ -263,25 +332,19 @@
 
   async function loadUsers() {
     try {
-      const hasCached = renderCachedUsers();
-      if (!hasCached) {
-        usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Foydalanuvchilar yuklanmoqda...</td></tr>`;
-      }
+      usersTableBody.innerHTML = `<tr><td colspan="9" class="text-center py-4">Foydalanuvchilar yuklanmoqda...</td></tr>`;
 
-      const url = `/api/admin/users?q=${encodeURIComponent(currentUserQuery)}&page=${currentUserPage}&limit=15`;
+      const params = new URLSearchParams({
+        q: currentUserQuery,
+        page: String(currentUserPage),
+        limit: '15',
+      });
+      if (currentUserPlanFilter) params.append('plan', currentUserPlanFilter);
+
+      const url = `/api/admin/users?${params.toString()}`;
       const data = await apiFetch(url);
 
       if (!data.success) return;
-
-      if (data.users && data.users.length > 0) {
-        // Cache to localStorage so users persist on screen across refreshes or sleeps
-        localStorage.setItem('admin_cached_users', JSON.stringify({
-          users: data.users,
-          total: data.total,
-          page: data.page,
-          totalPages: data.totalPages,
-        }));
-      }
 
       userTableSummary.innerText = `Jami topildi: ${data.total} ta`;
       pageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages}`;
@@ -289,30 +352,28 @@
       btnNextPage.disabled = data.page >= data.totalPages;
 
       if (!data.users || data.users.length === 0) {
-        if (!hasCached) {
-          usersTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Foydalanuvchi topilmadi.</td></tr>`;
-        }
+        usersTableBody.innerHTML = `<tr><td colspan="9" class="text-center py-4">Foydalanuvchi topilmadi.</td></tr>`;
         return;
       }
 
       usersTableBody.innerHTML = renderUsersHtml(data.users);
     } catch (e) {
-      console.warn('Failed to load users, keeping cached:', e);
-      renderCachedUsers();
+      console.warn('Failed to load users:', e);
     }
   }
 
-  // Global user actions
+  // Global User Actions
   window.toggleUserBan = async function (telegramId, ban) {
     const action = ban ? 'bloklamoqchimisiz' : 'blokdan chiqarmoqchimisiz';
     if (!confirm(`Foydalanuvchini (${telegramId}) ${action}?`)) return;
 
     try {
-      const res = await apiFetch(`/api/admin/users/${telegramId}/ban`, {
+      const res = await apiFetch('/api/admin/users/ban', {
         method: 'POST',
-        body: JSON.stringify({ isBanned: ban }),
+        body: JSON.stringify({ telegramId, isBanned: ban }),
       });
       if (res.success) {
+        showToast(res.message);
         if (activeUserForDetails && activeUserForDetails.telegramId === telegramId) {
           activeUserForDetails.isBanned = ban;
           window.openUserDetails(activeUserForDetails);
@@ -321,47 +382,67 @@
       } else {
         alert('Xatolik: ' + res.message);
       }
-    } catch (e) {
+    } catch {
       alert('Tarmoq xatosi');
     }
   };
 
-  // User Details Modal Elements
+  // User Details Modal
   const userDetailsModal = document.getElementById('userDetailsModal');
   const udId = document.getElementById('udId');
   const udUsername = document.getElementById('udUsername');
-  const udFirstName = document.getElementById('udFirstName');
+  const udFullName = document.getElementById('udFullName');
   const udLang = document.getElementById('udLang');
   const udPlan = document.getElementById('udPlan');
   const udStatus = document.getElementById('udStatus');
+  const udDailyImages = document.getElementById('udDailyImages');
+  const udDailyVideos = document.getElementById('udDailyVideos');
   const udJobs = document.getElementById('udJobs');
+  const udCustomBg = document.getElementById('udCustomBg');
+  const udLastAction = document.getElementById('udLastAction');
+  const udLastActive = document.getElementById('udLastActive');
   const udDate = document.getElementById('udDate');
+
   const udBtnPlan = document.getElementById('udBtnPlan');
+  const udBtnResetUsage = document.getElementById('udBtnResetUsage');
   const udBtnBan = document.getElementById('udBtnBan');
   const udBtnClose = document.getElementById('udBtnClose');
 
-  let activeUserForDetails = null;
-
-  window.openUserDetails = function (userPayload) {
+  window.openUserDetails = async function (userPayload) {
     try {
-      const u = typeof userPayload === 'string' ? JSON.parse(decodeURIComponent(userPayload)) : userPayload;
+      let u = typeof userPayload === 'string' ? JSON.parse(decodeURIComponent(userPayload)) : userPayload;
       if (!u) return;
+
+      // Fetch latest detail from server
+      try {
+        const detailRes = await apiFetch(`/api/admin/users/detail?id=${u.telegramId}`);
+        if (detailRes && detailRes.user) {
+          u = detailRes.user;
+        }
+      } catch {}
+
       activeUserForDetails = u;
 
       udId.innerText = u.telegramId;
       udUsername.innerText = u.username ? `@${u.username}` : 'Mavjud emas';
-      udFirstName.innerText = u.firstName || 'Foydalanuvchi';
+      udFullName.innerText = `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Foydalanuvchi';
       udLang.innerText = (u.languageCode || 'uz').toUpperCase();
 
       const plan = u.subscription?.plan || u.plan || 'FREE';
       udPlan.innerText = plan;
-      udPlan.className = `status-pill ${plan === 'PRO' ? 'plan-pro' : (plan === 'BUSINESS' ? 'plan-business' : '')}`;
+      udPlan.className = `status-pill ${plan === 'PRO' ? 'plan-pro' : (plan === 'PREMIUM' ? 'plan-business' : '')}`;
 
       const isBanned = !!u.isBanned;
       udStatus.innerText = isBanned ? 'Bloklangan' : 'Faol';
       udStatus.className = `status-pill ${isBanned ? 'banned' : 'active'}`;
 
-      udJobs.innerText = `${u.totalJobs || 0} ta vazifa`;
+      const daily = u.dailyUsage || { images: 0, videos: 0 };
+      udDailyImages.innerText = `${daily.images || 0} ta ishlatildi`;
+      udDailyVideos.innerText = `${daily.videos || 0} ta ishlatildi`;
+      udJobs.innerText = `${u.totalJobs || 0} ta (Jami: ${u.totalImages || 0} rasm, ${u.totalVideos || 0} video)`;
+      udCustomBg.innerText = u.customBackground ? 'O\'rnatilgan ✅' : 'Yo\'q';
+      udLastAction.innerText = u.lastAction || 'Active';
+      udLastActive.innerText = u.lastActivityDate ? new Date(u.lastActivityDate).toLocaleString() : 'Hozirgina';
       udDate.innerText = u.createdAt ? new Date(u.createdAt).toLocaleString() : 'Noma\'lum';
 
       udBtnBan.innerText = isBanned ? '✅ Blokdan Chiqarish' : '⛔ Bloklash';
@@ -369,7 +450,7 @@
 
       userDetailsModal.style.display = 'flex';
     } catch (err) {
-      console.error('Error displaying user details:', err);
+      console.error('Error opening user details:', err);
     }
   };
 
@@ -384,6 +465,27 @@
     }
   });
 
+  udBtnResetUsage?.addEventListener('click', async () => {
+    if (!activeUserForDetails) return;
+    if (!confirm(`Foydalanuvchi (${activeUserForDetails.telegramId}) kunlik limitlarini qayta tiklamoqchimisiz?`)) return;
+
+    try {
+      const res = await apiFetch('/api/admin/users/reset-usage', {
+        method: 'POST',
+        body: JSON.stringify({ telegramId: activeUserForDetails.telegramId }),
+      });
+      if (res.success) {
+        showToast('Kunlik limitlar 0 ga tiklandi! ✅');
+        window.openUserDetails(activeUserForDetails);
+        loadUsers();
+      } else {
+        alert(res.message || 'Xatolik');
+      }
+    } catch {
+      alert('Tarmoq xatosi');
+    }
+  });
+
   udBtnBan?.addEventListener('click', () => {
     if (activeUserForDetails) {
       window.toggleUserBan(activeUserForDetails.telegramId, !activeUserForDetails.isBanned);
@@ -394,7 +496,6 @@
   const planModal = document.getElementById('planModal');
   const planModalUserText = document.getElementById('planModalUserText');
   const modalPlanSelect = document.getElementById('modalPlanSelect');
-  const modalPlanDays = document.getElementById('modalPlanDays');
   const btnCancelPlanModal = document.getElementById('btnCancelPlanModal');
   const btnSavePlanModal = document.getElementById('btnSavePlanModal');
 
@@ -404,23 +505,24 @@
     planModal.style.display = 'flex';
   };
 
-  btnCancelPlanModal.addEventListener('click', () => {
+  btnCancelPlanModal?.addEventListener('click', () => {
     planModal.style.display = 'none';
   });
 
-  btnSavePlanModal.addEventListener('click', async () => {
+  btnSavePlanModal?.addEventListener('click', async () => {
     if (!selectedTelegramIdForPlan) return;
     const plan = modalPlanSelect.value;
-    const durationDays = parseInt(modalPlanDays.value, 10) || 30;
 
     try {
-      const res = await apiFetch(`/api/admin/users/${selectedTelegramIdForPlan}/plan`, {
+      const res = await apiFetch('/api/admin/users/plan', {
         method: 'POST',
-        body: JSON.stringify({ plan, durationDays }),
+        body: JSON.stringify({ telegramId: selectedTelegramIdForPlan, plan }),
       });
       if (res.success) {
+        showToast(`Foydalanuvchi ${selectedTelegramIdForPlan} tarifi ${plan} ga yangilandi! ⭐`);
         planModal.style.display = 'none';
         loadUsers();
+        loadStats();
       } else {
         alert('Tarif berishda xatolik yuz berdi.');
       }
@@ -432,7 +534,7 @@
   // ----------------------------------------------------------------------------
   // Broadcast Studio (Rich Format: Text, Photo, Video, Buttons)
   // ----------------------------------------------------------------------------
-  let broadcastType = 'text'; // 'text' | 'photo' | 'video'
+  let broadcastType = 'text';
   const broadcastMessage = document.getElementById('broadcastMessage');
   const broadcastMediaUrl = document.getElementById('broadcastMediaUrl');
   const mediaUrlGroup = document.getElementById('mediaUrlGroup');
@@ -443,107 +545,104 @@
   const typeBtnPhoto = document.getElementById('typeBtnPhoto');
   const typeBtnVideo = document.getElementById('typeBtnVideo');
 
-  const tgPreviewContent = document.getElementById('tgPreviewContent');
-  const tgPreviewMedia = document.getElementById('tgPreviewMedia');
-  const tgPreviewBtnWrap = document.getElementById('tgPreviewBtnWrap');
-  const tgPreviewBtn = document.getElementById('tgPreviewBtn');
+  const previewText = document.getElementById('previewText');
+  const previewMediaWrapper = document.getElementById('previewMediaWrapper');
+  const previewImage = document.getElementById('previewImage');
+  const previewVideo = document.getElementById('previewVideo');
+  const previewButtonContainer = document.getElementById('previewButtonContainer');
+  const previewButtonLink = document.getElementById('previewButtonLink');
+
+  function updateBroadcastPreview() {
+    const txt = broadcastMessage.value.trim();
+    previewText.innerHTML = txt
+      ? txt.replace(/\n/g, '<br>')
+      : 'Xabar matni bu yerda ko\'rinadi...';
+
+    const url = broadcastMediaUrl.value.trim();
+    if (broadcastType === 'photo' && url) {
+      previewMediaWrapper.style.display = 'block';
+      previewImage.style.display = 'block';
+      previewImage.src = url;
+      previewVideo.style.display = 'none';
+    } else if (broadcastType === 'video' && url) {
+      previewMediaWrapper.style.display = 'block';
+      previewVideo.style.display = 'block';
+      previewVideo.src = url;
+      previewImage.style.display = 'none';
+    } else {
+      previewMediaWrapper.style.display = 'none';
+      previewImage.style.display = 'none';
+      previewVideo.style.display = 'none';
+    }
+
+    const bText = broadcastBtnText.value.trim();
+    const bUrl = broadcastBtnUrl.value.trim();
+    if (bText && bUrl) {
+      previewButtonContainer.style.display = 'block';
+      previewButtonLink.innerText = bText;
+      previewButtonLink.href = bUrl;
+    } else {
+      previewButtonContainer.style.display = 'none';
+    }
+  }
+
+  [broadcastMessage, broadcastMediaUrl, broadcastBtnText, broadcastBtnUrl].forEach((el) => {
+    el?.addEventListener('input', updateBroadcastPreview);
+  });
+
+  typeBtnText?.addEventListener('click', () => {
+    broadcastType = 'text';
+    typeBtnText.classList.add('active');
+    typeBtnPhoto.classList.remove('active');
+    typeBtnVideo.classList.remove('active');
+    mediaUrlGroup.style.display = 'none';
+    updateBroadcastPreview();
+  });
+
+  typeBtnPhoto?.addEventListener('click', () => {
+    broadcastType = 'photo';
+    typeBtnPhoto.classList.add('active');
+    typeBtnText.classList.remove('active');
+    typeBtnVideo.classList.remove('active');
+    mediaUrlGroup.style.display = 'block';
+    mediaUrlLabel.innerText = 'Rasm Havolasi (URL):';
+    broadcastMediaUrl.placeholder = 'https://example.com/rasm.jpg';
+    updateBroadcastPreview();
+  });
+
+  typeBtnVideo?.addEventListener('click', () => {
+    broadcastType = 'video';
+    typeBtnVideo.classList.add('active');
+    typeBtnText.classList.remove('active');
+    typeBtnPhoto.classList.remove('active');
+    mediaUrlGroup.style.display = 'block';
+    mediaUrlLabel.innerText = 'Video Havolasi (URL):';
+    broadcastMediaUrl.placeholder = 'https://example.com/video.mp4';
+    updateBroadcastPreview();
+  });
 
   const btnSendBroadcast = document.getElementById('btnSendBroadcast');
   const broadcastProgress = document.getElementById('broadcastProgress');
   const broadcastProgressBar = document.getElementById('broadcastProgressBar');
   const broadcastProgressText = document.getElementById('broadcastProgressText');
 
-  // Media Type Switching
-  function setBroadcastType(type) {
-    broadcastType = type;
-    [typeBtnText, typeBtnPhoto, typeBtnVideo].forEach((btn) => btn?.classList.remove('active'));
-
-    if (type === 'text') {
-      typeBtnText?.classList.add('active');
-      mediaUrlGroup.style.display = 'none';
-    } else if (type === 'photo') {
-      typeBtnPhoto?.classList.add('active');
-      mediaUrlGroup.style.display = 'block';
-      mediaUrlLabel.innerText = "Rasm Havolasi (URL yoki Telegram file_id):";
-      broadcastMediaUrl.placeholder = "https://example.com/rasm.jpg";
-    } else if (type === 'video') {
-      typeBtnVideo?.classList.add('active');
-      mediaUrlGroup.style.display = 'block';
-      mediaUrlLabel.innerText = "Video Havolasi (URL yoki Telegram file_id):";
-      broadcastMediaUrl.placeholder = "https://example.com/video.mp4";
-    }
-    updateTgPreview();
-  }
-
-  typeBtnText?.addEventListener('click', () => setBroadcastType('text'));
-  typeBtnPhoto?.addEventListener('click', () => setBroadcastType('photo'));
-  typeBtnVideo?.addEventListener('click', () => setBroadcastType('video'));
-
-  function updateTgPreview() {
-    const rawText = broadcastMessage.value.trim();
-    const mediaUrl = broadcastMediaUrl?.value.trim() || '';
-    const btnText = broadcastBtnText?.value.trim() || '';
-    const btnUrl = broadcastBtnUrl?.value.trim() || '';
-
-    // 1. Text caption
-    if (!rawText && !mediaUrl) {
-      tgPreviewContent.innerText = 'Xabar matnini chap tomonda yozing...';
-    } else {
-      tgPreviewContent.innerHTML = rawText
-        ? rawText.replace(/\n/g, '<br>').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        : (broadcastType === 'photo' ? '<i>(Faqat rasm yuboriladi)</i>' : '<i>(Faqat video yuboriladi)</i>');
-    }
-
-    // 2. Media Preview
-    if (broadcastType === 'photo' && mediaUrl) {
-      tgPreviewMedia.style.display = 'block';
-      tgPreviewMedia.innerHTML = `<img src="${escapeHtml(mediaUrl)}" alt="Rasm" style="width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px;" onerror="this.onerror=null;this.parentElement.innerHTML='<div style=\'padding:20px;background:rgba(255,255,255,0.06);text-align:center;border-radius:6px;\'>🖼️ Rasm havolasi kiritildi</div>';">`;
-    } else if (broadcastType === 'video' && mediaUrl) {
-      tgPreviewMedia.style.display = 'block';
-      tgPreviewMedia.innerHTML = `<div style="padding: 24px; background: rgba(0,242,254,0.08); border: 1px dashed rgba(0,242,254,0.3); text-align: center; border-radius: 6px;">🎬 <strong>Video Havolasi Biriktirildi</strong><br><small style="color:var(--text-muted);">${escapeHtml(mediaUrl)}</small></div>`;
-    } else {
-      tgPreviewMedia.style.display = 'none';
-      tgPreviewMedia.innerHTML = '';
-    }
-
-    // 3. Inline Button Preview
-    if (btnText) {
-      tgPreviewBtnWrap.style.display = 'block';
-      tgPreviewBtn.innerText = btnText;
-      tgPreviewBtn.href = btnUrl || '#';
-    } else {
-      tgPreviewBtnWrap.style.display = 'none';
-    }
-  }
-
-  [broadcastMessage, broadcastMediaUrl, broadcastBtnText, broadcastBtnUrl].forEach((el) => {
-    el?.addEventListener('input', updateTgPreview);
-  });
-
-  btnSendBroadcast.addEventListener('click', async () => {
+  btnSendBroadcast?.addEventListener('click', async () => {
     const text = broadcastMessage.value.trim();
-    const mediaUrl = broadcastMediaUrl?.value.trim() || '';
-    const buttonText = broadcastBtnText?.value.trim() || '';
-    const buttonUrl = broadcastBtnUrl?.value.trim() || '';
+    const mediaUrl = broadcastMediaUrl.value.trim();
+    const buttonText = broadcastBtnText.value.trim();
+    const buttonUrl = broadcastBtnUrl.value.trim();
 
     if (!text && !mediaUrl) {
-      alert('Iltimos, xabar matnini yoki media havolasini kiriting!');
+      alert('Iltimos, xabar matni yoki media havolasini kiriting!');
       return;
     }
 
-    if (buttonText && !buttonUrl) {
-      alert('Tugma matnini kiritdingiz, endi tugma havolasini (URL) ham kiriting!');
-      return;
-    }
-
-    if (!confirm("Haqiqatan ham barcha foydalanuvchilarga ushbu xabarni tarqatmoqchimisiz?")) {
-      return;
-    }
+    if (!confirm('Haqiqatan ham ushbu xabarni botdagi BARCHA foydalanuvchilarga yubormoqchimisiz?')) return;
 
     btnSendBroadcast.disabled = true;
     broadcastProgress.style.display = 'block';
     broadcastProgressBar.style.width = '30%';
-    broadcastProgressText.innerText = 'Telegram foydalanuvchilariga xabar yetkazilmoqda...';
+    broadcastProgressText.innerText = 'Xabar yuborilmoqda...';
 
     try {
       const res = await apiFetch('/api/admin/broadcast', {
@@ -551,307 +650,211 @@
         body: JSON.stringify({
           text,
           mediaType: broadcastType,
-          mediaUrl: mediaUrl || undefined,
-          buttonText: buttonText || undefined,
-          buttonUrl: buttonUrl || undefined,
+          mediaUrl,
+          buttonText,
+          buttonUrl,
         }),
       });
 
       broadcastProgressBar.style.width = '100%';
       if (res.success) {
-        const r = res.result;
-        broadcastProgressText.innerHTML = `✅ <b>Tugatildi!</b> Jami: ${r.total} ta, Yetkazildi: <b>${r.sent} ta</b>, Bloklaganlar: ${r.failed} ta.`;
-        showToast(`Xabar muvaffaqiyatli tarqatildi: ${r.sent} ta yetkazildi!`);
+        broadcastProgressText.innerText = `Yetkazildi: ${res.result.sent} ta foydalanuvchiga muvaffaqiyatli!`;
+        showToast(`✅ Xabar ${res.result.sent} ta foydalanuvchiga yetkazildi!`);
         broadcastMessage.value = '';
-        if (broadcastMediaUrl) broadcastMediaUrl.value = '';
-        if (broadcastBtnText) broadcastBtnText.value = '';
-        if (broadcastBtnUrl) broadcastBtnUrl.value = '';
-        updateTgPreview();
+        broadcastMediaUrl.value = '';
+        broadcastBtnText.value = '';
+        broadcastBtnUrl.value = '';
+        updateBroadcastPreview();
       } else {
-        broadcastProgressText.innerText = '❌ Xatolik yuz berdi: ' + (res.error || 'Noma\'lum xato');
+        broadcastProgressText.innerText = 'Xatolik yuz berdi.';
       }
-    } catch (e) {
-      broadcastProgressText.innerText = '❌ Tarmoq xatoligi yuz berdi.';
+    } catch {
+      broadcastProgressText.innerText = 'Tarmoq xatosi.';
     } finally {
       btnSendBroadcast.disabled = false;
+      setTimeout(() => {
+        broadcastProgress.style.display = 'none';
+      }, 5000);
     }
   });
 
   // ----------------------------------------------------------------------------
-  // Jobs List with Persistence Caching
+  // Jobs Queue Tab
   // ----------------------------------------------------------------------------
   const jobsTableBody = document.getElementById('jobsTableBody');
 
-  function renderCachedJobs() {
-    try {
-      const cached = localStorage.getItem('admin_cached_jobs');
-      if (!cached) return false;
-      const jobs = JSON.parse(cached);
-      if (Array.isArray(jobs) && jobs.length > 0) {
-        jobsTableBody.innerHTML = renderJobsHtml(jobs);
-        return true;
-      }
-    } catch {}
-    return false;
-  }
-
-  function renderJobsHtml(jobs) {
-    return jobs.map((j) => {
-      const isImg = j.type === 'IMAGE';
-      const typeIcon = isImg ? '🖼️ Rasm' : '🎬 Video';
-      const userDisplay = j.user
-        ? `${escapeHtml(j.user.firstName || 'User')} (<code>${j.user.telegramId}</code>)`
-        : 'Noma\'lum';
-      const timeSec = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
-      const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-pro');
-      const dateStr = j.createdAt ? new Date(j.createdAt).toLocaleTimeString() : '-';
-
-      return `
-        <tr>
-          <td><strong>${typeIcon}</strong></td>
-          <td>${userDisplay}</td>
-          <td><span class="badge-number">${j.scale}x (${j.targetResolution || 'HD'})</span></td>
-          <td>${j.inputResolution || '-'}</td>
-          <td><code>${timeSec}</code></td>
-          <td><span class="status-pill ${statusClass}">${j.status}</span></td>
-          <td>${dateStr}</td>
-        </tr>
-      `;
-    }).join('');
-  }
-
   async function loadJobs() {
     try {
-      const hasCached = renderCachedJobs();
-      if (!hasCached) {
-        jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Yuklanmoqda...</td></tr>`;
-      }
-      const data = await apiFetch('/api/admin/jobs?limit=50');
+      jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Ishlar navbati yuklanmoqda...</td></tr>`;
+      const data = await apiFetch('/api/admin/jobs?limit=25');
+      if (!data.success || !data.jobs) return;
 
-      if (!data.success || !data.jobs || data.jobs.length === 0) {
-        if (!hasCached) {
-          jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Hozircha birorta ham ish mavjud emas.</td></tr>`;
-        }
+      if (data.jobs.length === 0) {
+        jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Hozircha ishlar jurnali bo'sh.</td></tr>`;
         return;
       }
 
-      localStorage.setItem('admin_cached_jobs', JSON.stringify(data.jobs));
-      jobsTableBody.innerHTML = renderJobsHtml(data.jobs);
+      jobsTableBody.innerHTML = data.jobs.map((j) => {
+        const u = j.user;
+        const icon = j.type === 'IMAGE' ? '🖼️' : '🎬';
+        const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-business');
+        const duration = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
+        const date = j.createdAt ? new Date(j.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-';
+
+        return `
+          <tr>
+            <td><code>${j.id.slice(0, 10)}</code></td>
+            <td>${u ? escapeHtml(u.firstName || u.username || u.telegramId) : 'Noma\'lum'}</td>
+            <td>${icon} ${j.type}</td>
+            <td><strong>${j.scale}x (${j.outputResolution || j.targetResolution || 'HD'})</strong></td>
+            <td><span class="status-pill ${statusClass}">${j.status}</span></td>
+            <td>${duration}</td>
+            <td>${date}</td>
+          </tr>
+        `;
+      }).join('');
     } catch (e) {
       console.warn('Failed to load jobs:', e);
-      renderCachedJobs();
     }
   }
 
   // ----------------------------------------------------------------------------
-  // Toast Notifications & Helpers
+  // Topbar Refresh Button Action
   // ----------------------------------------------------------------------------
-  let toastTimeout = null;
-  function showToast(message, isSuccess = true) {
-    const toast = document.getElementById('adminToast');
-    if (!toast) return;
-    toast.innerHTML = `${isSuccess ? '✅' : '⚠️'} <span>${escapeHtml(message)}</span>`;
-    toast.style.display = 'flex';
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => {
-      toast.style.display = 'none';
-    }, 3200);
-  }
+  refreshBtn?.addEventListener('click', async () => {
+    refreshSvg?.classList.add('spin-anim');
+    if (refreshBtnText) refreshBtnText.innerText = 'Yangilanmoqda...';
 
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+    await Promise.all([loadStats(), loadUsers(), loadJobs()]);
 
-  // Top-Right Yangilash Button with Spin & Notification
-  refreshBtn.addEventListener('click', async () => {
-    refreshBtn.classList.add('refreshing');
-    const refreshText = document.getElementById('refreshBtnText');
-    if (refreshText) refreshText.innerText = 'Yangilanmoqda...';
-
-    try {
-      if (activeTab === 'tab-overview') await loadStats();
-      if (activeTab === 'tab-users') await loadUsers();
-      if (activeTab === 'tab-jobs') await loadJobs();
-      if (activeTab === 'tab-system') await loadStats();
-      showToast('Barcha ko\'rsatkichlar yangilandi!');
-    } catch {
-      showToast('Yangilashda xatolik yuz berdi', false);
-    } finally {
-      setTimeout(() => {
-        refreshBtn.classList.remove('refreshing');
-        if (refreshText) refreshText.innerText = 'Yangilash';
-      }, 500);
-    }
+    setTimeout(() => {
+      refreshSvg?.classList.remove('spin-anim');
+      if (refreshBtnText) refreshBtnText.innerText = 'Yangilash';
+      showToast('✅ Barcha ko\'rsatkichlar yangilandi!');
+    }, 400);
   });
 
-  // Interactive Overview Cards navigation
-  document.getElementById('cardUsers')?.addEventListener('click', () => switchTab('tab-users'));
-  document.getElementById('cardImages')?.addEventListener('click', () => switchTab('tab-jobs'));
-  document.getElementById('cardVideos')?.addEventListener('click', () => switchTab('tab-jobs'));
-  document.getElementById('cardSuccessRate')?.addEventListener('click', () => switchTab('tab-system'));
-  document.getElementById('cardQueue')?.addEventListener('click', () => switchTab('tab-jobs'));
-  document.getElementById('cardSystem')?.addEventListener('click', () => switchTab('tab-system'));
-
-  async function initDashboard() {
-    await loadStats();
-    if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(() => {
-      if (activeTab === 'tab-overview') loadStats();
-    }, 5000);
-  }
-
-  // Auto-login if key is already stored
-  if (currentAdminKey) {
-    verifyKey(currentAdminKey).then((valid) => {
-      if (valid) {
-        authModal.style.display = 'none';
-        appLayout.style.display = 'flex';
-        initDashboard();
-      } else {
-        localStorage.removeItem('ai_bot_admin_key');
-        authModal.style.display = 'flex';
-      }
-    });
-  } else {
-    authModal.style.display = 'flex';
-  }
-
   // ----------------------------------------------------------------------------
-  // Clean Bandit ft. Zara Larsson — Symphony Engine (Audio Player & Synth)
+  // Beethoven Classical Piano Soundtrack & Volume Engine (Web Audio Royalty-Free)
   // ----------------------------------------------------------------------------
   let audioCtx = null;
+  let masterGainNode = null;
   let isMusicPlaying = false;
-  let symphonyMelodyTimeout = null;
+  let beethovenTimeout = null;
+
   const musicToggleBtn = document.getElementById('musicToggleBtn');
   const musicIcon = document.getElementById('musicIcon');
   const musicLabel = document.getElementById('musicLabel');
   const musicWave = document.getElementById('musicWave');
   const symphonyAudio = document.getElementById('symphonyAudio');
+  const musicVolumeSlider = document.getElementById('musicVolumeSlider');
 
-  // Symphony (Clean Bandit) Notes & Frequencies (Eb Major / C Minor)
-  const NOTE_FREQ = {
-    C3: 130.81, Eb3: 155.56, F3: 174.61, G3: 196.00, Ab2: 103.83, Bb2: 116.54,
-    C4: 261.63, D4: 293.66, Eb4: 311.13, F4: 349.23, G4: 392.00, Ab4: 415.30, Bb4: 466.16,
-    C5: 523.25, D5: 587.33, Eb5: 622.25
+  // Load saved volume
+  const savedVol = parseFloat(localStorage.getItem('ai_admin_music_vol') || '0.6');
+  if (musicVolumeSlider) musicVolumeSlider.value = savedVol;
+
+  musicVolumeSlider?.addEventListener('input', (e) => {
+    const vol = parseFloat(e.target.value);
+    localStorage.setItem('ai_admin_music_vol', String(vol));
+    if (masterGainNode && audioCtx) {
+      masterGainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+    }
+    if (symphonyAudio) symphonyAudio.volume = vol;
+  });
+
+  // Note Frequencies
+  const FREQS = {
+    E4: 329.63, F4: 349.23, G4: 392.00, Gs4: 415.30, A4: 440.00, B4: 493.88,
+    C5: 523.25, D5: 587.33, Ds5: 622.25, E5: 659.25,
+    A2: 110.00, E3: 164.81, A3: 220.00, C4: 261.63,
+    E2: 82.41,  B2: 123.47, Gs3: 207.65,
   };
 
-  // Chorus Chord Progression: Eb -> Ab -> Cm -> Bb
-  const symphonyChords = [
-    { bass: NOTE_FREQ.Eb3, notes: [NOTE_FREQ.G3, NOTE_FREQ.Bb3, NOTE_FREQ.Eb4] },
-    { bass: NOTE_FREQ.Ab2, notes: [NOTE_FREQ.Eb3, NOTE_FREQ.C4, NOTE_FREQ.Eb4] },
-    { bass: NOTE_FREQ.C3,  notes: [NOTE_FREQ.G3, NOTE_FREQ.C4, NOTE_FREQ.Eb4] },
-    { bass: NOTE_FREQ.Bb2, notes: [NOTE_FREQ.F3, NOTE_FREQ.D4, NOTE_FREQ.F4]  },
+  // Beethoven's Für Elise Theme
+  const beethovenMelody = [
+    { note: FREQS.E5,  dur: 0.30, bass: [FREQS.A2, FREQS.E3, FREQS.A3, FREQS.C4] },
+    { note: FREQS.Ds5, dur: 0.30 },
+    { note: FREQS.E5,  dur: 0.30 },
+    { note: FREQS.Ds5, dur: 0.30 },
+    { note: FREQS.E5,  dur: 0.30 },
+    { note: FREQS.B4,  dur: 0.30 },
+    { note: FREQS.D5,  dur: 0.30 },
+    { note: FREQS.C5,  dur: 0.30 },
+    { note: FREQS.A4,  dur: 0.65, bass: [FREQS.A2, FREQS.C4, FREQS.E4] },
+
+    { note: FREQS.C4,  dur: 0.28 },
+    { note: FREQS.E4,  dur: 0.28 },
+    { note: FREQS.A4,  dur: 0.28 },
+    { note: FREQS.B4,  dur: 0.65, bass: [FREQS.E2, FREQS.B2, FREQS.E3, FREQS.Gs3] },
+
+    { note: FREQS.E4,  dur: 0.28 },
+    { note: FREQS.Gs4, dur: 0.28 },
+    { note: FREQS.B4,  dur: 0.28 },
+    { note: FREQS.C5,  dur: 0.65, bass: [FREQS.A2, FREQS.E3, FREQS.A3] },
+
+    { note: FREQS.E4,  dur: 0.28 },
+    { note: FREQS.E5,  dur: 0.30 },
+    { note: FREQS.Ds5, dur: 0.30 },
+    { note: FREQS.E5,  dur: 0.30 },
+    { note: FREQS.Ds5, dur: 0.30 },
+    { note: FREQS.E5,  dur: 0.30 },
+    { note: FREQS.B4,  dur: 0.30 },
+    { note: FREQS.D5,  dur: 0.30 },
+    { note: FREQS.C5,  dur: 0.30 },
+    { note: FREQS.A4,  dur: 0.80, bass: [FREQS.A2, FREQS.E3, FREQS.A3] },
   ];
 
-  // Signature Chorus Melody: "I just wanna be part of your symphony..."
-  const symphonyMelody = [
-    // "I just wanna be"
-    { note: NOTE_FREQ.Eb4, dur: 0.28 },
-    { note: NOTE_FREQ.F4,  dur: 0.28 },
-    { note: NOTE_FREQ.G4,  dur: 0.36 },
-    { note: NOTE_FREQ.Bb4, dur: 0.36 },
-    // "part of your sym-pho-ny"
-    { note: NOTE_FREQ.C5,  dur: 0.44 },
-    { note: NOTE_FREQ.Bb4, dur: 0.32 },
-    { note: NOTE_FREQ.G4,  dur: 0.32 },
-    { note: NOTE_FREQ.F4,  dur: 0.32 },
-    { note: NOTE_FREQ.Eb4, dur: 0.32 },
-    { note: NOTE_FREQ.F4,  dur: 0.32 },
-    { note: NOTE_FREQ.G4,  dur: 0.72 },
-    // "Will you hold me tight and not let go?"
-    { note: NOTE_FREQ.G4,  dur: 0.32 },
-    { note: NOTE_FREQ.F4,  dur: 0.32 },
-    { note: NOTE_FREQ.Eb4, dur: 0.32 },
-    { note: NOTE_FREQ.C4,  dur: 0.32 },
-    { note: NOTE_FREQ.Eb4, dur: 0.32 },
-    { note: NOTE_FREQ.F4,  dur: 0.36 },
-    { note: NOTE_FREQ.G4,  dur: 0.85 },
-    // "Sym-pho-ny"
-    { note: NOTE_FREQ.C5,  dur: 0.55 },
-    { note: NOTE_FREQ.Bb4, dur: 0.45 },
-    { note: NOTE_FREQ.G4,  dur: 0.85 },
-    // "Like a love song on the radio"
-    { note: NOTE_FREQ.F4,  dur: 0.32 },
-    { note: NOTE_FREQ.G4,  dur: 0.32 },
-    { note: NOTE_FREQ.Ab4, dur: 0.36 },
-    { note: NOTE_FREQ.G4,  dur: 0.36 },
-    { note: NOTE_FREQ.F4,  dur: 0.32 },
-    { note: NOTE_FREQ.Eb4, dur: 0.32 },
-    { note: NOTE_FREQ.F4,  dur: 0.75 },
-    // "Will you hold me tight and not let go?"
-    { note: NOTE_FREQ.G4,  dur: 0.32 },
-    { note: NOTE_FREQ.F4,  dur: 0.32 },
-    { note: NOTE_FREQ.Eb4, dur: 0.32 },
-    { note: NOTE_FREQ.C4,  dur: 0.32 },
-    { note: NOTE_FREQ.Eb4, dur: 0.36 },
-    { note: NOTE_FREQ.F4,  dur: 0.36 },
-    { note: NOTE_FREQ.Eb4, dur: 1.40 },
-  ];
+  let melodyStep = 0;
 
-  let melodyIdx = 0;
-  let chordIdx = 0;
-
-  function playSymphonyStep() {
-    if (!audioCtx || !isMusicPlaying) return;
-
-    // Trigger chord progression every few melody notes
-    if (melodyIdx === 0 || melodyIdx % 8 === 0) {
-      const ch = symphonyChords[chordIdx % symphonyChords.length];
-      chordIdx++;
-
-      const now = audioCtx.currentTime;
-      const padGain = audioCtx.createGain();
-      padGain.gain.setValueAtTime(0.001, now);
-      padGain.gain.exponentialRampToValueAtTime(0.04, now + 0.5);
-      padGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.8);
-
-      const padFilter = audioCtx.createBiquadFilter();
-      padFilter.type = 'lowpass';
-      padFilter.frequency.setValueAtTime(650, now);
-
-      padGain.connect(padFilter);
-      padFilter.connect(audioCtx.destination);
-
-      [ch.bass, ...ch.notes].forEach((freq) => {
-        const osc = audioCtx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now);
-        osc.connect(padGain);
-        osc.start(now);
-        osc.stop(now + 4.0);
-      });
-    }
-
-    // Play current melody note (Lead Violin / Piano synth)
-    const item = symphonyMelody[melodyIdx % symphonyMelody.length];
-    melodyIdx++;
-
+  function playPianoNote(freq, dur) {
+    if (!audioCtx || !masterGainNode) return;
     const now = audioCtx.currentTime;
+
     const noteGain = audioCtx.createGain();
     noteGain.gain.setValueAtTime(0.001, now);
-    noteGain.gain.exponentialRampToValueAtTime(0.07, now + 0.04);
-    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + item.dur * 0.95);
+    noteGain.gain.exponentialRampToValueAtTime(0.18, now + 0.015);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + dur * 1.6);
 
-    const leadFilter = audioCtx.createBiquadFilter();
-    leadFilter.type = 'lowpass';
-    leadFilter.frequency.setValueAtTime(1400, now);
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2400, now);
+    filter.frequency.exponentialRampToValueAtTime(600, now + dur * 1.5);
 
-    noteGain.connect(leadFilter);
-    leadFilter.connect(audioCtx.destination);
+    noteGain.connect(filter);
+    filter.connect(masterGainNode);
 
-    const osc = audioCtx.createOscillator();
-    osc.type = 'triangle'; // Rich, soft string/violin sound
-    osc.frequency.setValueAtTime(item.note, now);
-    osc.connect(noteGain);
-    osc.start(now);
-    osc.stop(now + item.dur);
+    // Primary hammer oscillator
+    const osc1 = audioCtx.createOscillator();
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(freq, now);
+    osc1.connect(noteGain);
+    osc1.start(now);
+    osc1.stop(now + dur * 1.7);
 
-    symphonyMelodyTimeout = setTimeout(playSymphonyStep, item.dur * 1000);
+    // Warm body harmonic oscillator
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(freq * 2, now);
+    osc2.connect(noteGain);
+    osc2.start(now);
+    osc2.stop(now + dur * 1.2);
+  }
+
+  function playPianoStep() {
+    if (!audioCtx || !isMusicPlaying) return;
+
+    const item = beethovenMelody[melodyStep % beethovenMelody.length];
+    melodyStep++;
+
+    // Play bass chord if present
+    if (item.bass && item.bass.length > 0) {
+      item.bass.forEach((bFreq) => playPianoNote(bFreq, item.dur * 2.2));
+    }
+
+    // Play melodic lead
+    playPianoNote(item.note, item.dur);
+
+    beethovenTimeout = setTimeout(playPianoStep, item.dur * 1000);
   }
 
   async function toggleMusic() {
@@ -860,14 +863,14 @@
     if (isMusicPlaying) {
       musicToggleBtn?.classList.add('playing');
       if (musicIcon) musicIcon.innerText = '🔊';
-      if (musicLabel) musicLabel.innerText = 'Symphony: Yangramoqda';
+      if (musicLabel) musicLabel.innerText = 'Pianino: Yangramoqda';
       if (musicWave) musicWave.style.display = 'inline-flex';
 
-      // Try playing audio element first if mp3 is present
       let playedAudio = false;
       if (symphonyAudio) {
         try {
-          symphonyAudio.volume = 0.65;
+          const vol = musicVolumeSlider ? parseFloat(musicVolumeSlider.value) : 0.6;
+          symphonyAudio.volume = vol;
           await symphonyAudio.play();
           playedAudio = true;
         } catch {
@@ -875,7 +878,6 @@
         }
       }
 
-      // Fallback to high-fidelity procedural Web Audio synth of Symphony
       if (!playedAudio) {
         if (!audioCtx) {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -884,24 +886,30 @@
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume();
         }
-        melodyIdx = 0;
-        chordIdx = 0;
-        playSymphonyStep();
+        if (!masterGainNode && audioCtx) {
+          masterGainNode = audioCtx.createGain();
+          const vol = musicVolumeSlider ? parseFloat(musicVolumeSlider.value) : 0.6;
+          masterGainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+          masterGainNode.connect(audioCtx.destination);
+        }
+
+        melodyStep = 0;
+        playPianoStep();
       }
 
-      showToast('Clean Bandit — Symphony qo\'shig\'i yangramoqda 🎻');
+      showToast('Beethoven — Für Elise (Klassik Pianino) yangramoqda 🎹');
     } else {
       musicToggleBtn?.classList.remove('playing');
-      if (musicIcon) musicIcon.innerText = '🎵';
-      if (musicLabel) musicLabel.innerText = 'Symphony: Yoqish';
+      if (musicIcon) musicIcon.innerText = '🎹';
+      if (musicLabel) musicLabel.innerText = 'Pianino: Yoqish';
       if (musicWave) musicWave.style.display = 'none';
 
       if (symphonyAudio) {
         try { symphonyAudio.pause(); } catch {}
       }
-      if (symphonyMelodyTimeout) {
-        clearTimeout(symphonyMelodyTimeout);
-        symphonyMelodyTimeout = null;
+      if (beethovenTimeout) {
+        clearTimeout(beethovenTimeout);
+        beethovenTimeout = null;
       }
       showToast('Musiqa to\'xtatildi');
     }
@@ -910,7 +918,7 @@
   musicToggleBtn?.addEventListener('click', toggleMusic);
 
   // ----------------------------------------------------------------------------
-  // Gentle Falling Snowflakes Animation Engine (Mayda-Mayda Qor Yog'ishi)
+  // Gentle Falling Snowflakes Animation Engine (Prompt Requirement 8)
   // ----------------------------------------------------------------------------
   function initFallingSnowEngine() {
     const canvas = document.getElementById('ambientCanvas');
@@ -933,8 +941,8 @@
       flakes.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        radius: Math.random() * 2.2 + 0.8, // delicate small snowflakes
-        speedY: Math.random() * 0.9 + 0.45, // gentle falling speed
+        radius: Math.random() * 2.2 + 0.8,
+        speedY: Math.random() * 0.9 + 0.45,
         speedX: (Math.random() - 0.5) * 0.3,
         driftAngle: Math.random() * Math.PI * 2,
         driftSpeed: Math.random() * 0.02 + 0.008,
@@ -951,7 +959,6 @@
         f.y += f.speedY;
         f.x += f.speedX + Math.sin(f.driftAngle) * 0.4;
 
-        // Wrap around smoothly
         if (f.y > height) {
           f.y = -5;
           f.x = Math.random() * width;
@@ -972,6 +979,36 @@
     animateSnow();
   }
 
+  // ----------------------------------------------------------------------------
+  // Dashboard Initialization
+  // ----------------------------------------------------------------------------
+  function initDashboard() {
+    loadStats();
+    loadUsers();
+    loadJobs();
+
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      loadStats();
+      if (activeTab === 'tab-jobs') loadJobs();
+    }, 25000);
+  }
+
+  // Auto-login if key is already stored
+  if (currentAdminKey) {
+    verifyKey(currentAdminKey).then((valid) => {
+      if (valid) {
+        authModal.style.display = 'none';
+        appLayout.style.display = 'flex';
+        initDashboard();
+      } else {
+        localStorage.removeItem('ai_bot_admin_key');
+        authModal.style.display = 'flex';
+      }
+    });
+  } else {
+    authModal.style.display = 'flex';
+  }
+
   initFallingSnowEngine();
 })();
-

@@ -14,7 +14,6 @@ export class AdminApiService {
       req.on('data', (chunk) => {
         body += chunk;
         if (body.length > 1e6) {
-          // 1MB flood protection
           req.destroy();
           reject(new Error('Payload too large'));
         }
@@ -22,8 +21,8 @@ export class AdminApiService {
       req.on('end', () => {
         try {
           resolve(body ? JSON.parse(body) : {});
-        } catch (e) {
-          reject(new Error('Invalid JSON format'));
+        } catch {
+          resolve({} as T);
         }
       });
       req.on('error', reject);
@@ -39,7 +38,7 @@ export class AdminApiService {
     const authHeader = req.headers['authorization'];
 
     const expected = config.ADMIN_SECRET_KEY;
-    if (!expected) return true; // Open if no key set
+    if (!expected) return true;
 
     if (headerKey === expected) return true;
     if (queryKey === expected) return true;
@@ -67,7 +66,7 @@ export class AdminApiService {
     const pathname = parsedUrl.pathname;
 
     if (!pathname.startsWith('/api/admin')) {
-      return false; // Not an admin API route
+      return false;
     }
 
     // Handle CORS preflight
@@ -116,52 +115,94 @@ export class AdminApiService {
         const query = parsedUrl.searchParams.get('q') || '';
         const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
         const limit = parseInt(parsedUrl.searchParams.get('limit') || '15', 10);
+        const planFilter = parsedUrl.searchParams.get('plan') || '';
 
-        const result = await AdminService.searchUsers(query, page, limit);
+        const result = await AdminService.searchUsers(query, page, limit, planFilter);
         this.sendJson(res, 200, { success: true, ...result });
         return true;
       }
 
-      // 4. Ban / Unban user
+      // 4. User detail
+      if (pathname === '/api/admin/users/detail' && req.method === 'GET') {
+        const id = parsedUrl.searchParams.get('id');
+        if (!id) {
+          this.sendJson(res, 400, { error: 'User ID is required' });
+          return true;
+        }
+        const user = await AdminService.getUserDetails(id);
+        if (!user) {
+          this.sendJson(res, 404, { error: 'User not found' });
+          return true;
+        }
+        this.sendJson(res, 200, { success: true, user });
+        return true;
+      }
+
+      // 5. Ban / Unban user
       const banMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/ban$/);
-      if (banMatch && req.method === 'POST') {
-        const telegramId = banMatch[1];
+      if ((banMatch || pathname === '/api/admin/users/ban') && req.method === 'POST') {
         const body = await this.parseBody(req);
+        const telegramId = banMatch ? banMatch[1] : body.telegramId;
         const isBanned = body.isBanned !== undefined ? body.isBanned : true;
 
-        const success = isBanned
-          ? await AdminService.banUser(telegramId)
-          : await AdminService.unbanUser(telegramId);
+        if (!telegramId) {
+          this.sendJson(res, 400, { error: 'Telegram ID is required' });
+          return true;
+        }
 
+        const success = await AdminService.setUserBanStatus(telegramId, isBanned);
         this.sendJson(res, success ? 200 : 400, {
           success,
           message: success
-            ? `User ${telegramId} ${isBanned ? 'banned' : 'unbanned'}`
-            : 'Action failed',
+            ? `Foydalanuvchi ${telegramId} ${isBanned ? 'bloklandi' : 'blokdan chiqarildi'}`
+            : 'Amal bajarilmadi',
         });
         return true;
       }
 
-      // 5. Update user plan
+      // 6. Update user plan
       const planMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/plan$/);
-      if (planMatch && req.method === 'POST') {
-        const telegramId = planMatch[1];
+      if ((planMatch || pathname === '/api/admin/users/plan') && req.method === 'POST') {
         const body = await this.parseBody(req);
+        const telegramId = planMatch ? planMatch[1] : body.telegramId;
         const plan = (body.plan || 'PRO').toUpperCase() as UserPlan;
-        const durationDays = body.durationDays || 30;
 
-        const success = await AdminService.setPlan(parseInt(telegramId, 10), plan, durationDays);
+        if (!telegramId) {
+          this.sendJson(res, 400, { error: 'Telegram ID is required' });
+          return true;
+        }
+
+        const success = await AdminService.updateUserPlan(telegramId, plan);
         this.sendJson(res, success ? 200 : 400, {
           success,
-          message: success ? `Plan updated to ${plan}` : 'Failed to update plan',
+          message: success ? `Tarif ${plan} ga yangilandi` : 'Tarifni yangilab bo\'lmadi',
         });
         return true;
       }
 
-      // 6. Broadcast message
+      // 7. Reset user daily usage
+      const resetMatch = pathname.match(/^\/api\/admin\/users\/(\d+)\/reset-usage$/);
+      if ((resetMatch || pathname === '/api/admin/users/reset-usage') && req.method === 'POST') {
+        const body = await this.parseBody(req);
+        const telegramId = resetMatch ? resetMatch[1] : body.telegramId;
+
+        if (!telegramId) {
+          this.sendJson(res, 400, { error: 'Telegram ID is required' });
+          return true;
+        }
+
+        const success = await AdminService.resetUserDailyUsage(telegramId);
+        this.sendJson(res, success ? 200 : 400, {
+          success,
+          message: success ? `Foydalanuvchi ${telegramId} kunlik limiti yangilandi` : 'Limitni yangilab bo\'lmadi',
+        });
+        return true;
+      }
+
+      // 8. Broadcast message
       if (pathname === '/api/admin/broadcast' && req.method === 'POST') {
         const body = await this.parseBody(req);
-        const text = (body.text || '').trim();
+        const text = (body.text || body.message || '').trim();
         const mediaUrl = (body.mediaUrl || '').trim();
 
         if (!text && !mediaUrl) {
@@ -169,9 +210,8 @@ export class AdminApiService {
           return true;
         }
 
-        const result = await AdminService.broadcastMessage({
-          text,
-          mediaType: body.mediaType || 'text',
+        const result = await AdminService.broadcastMessage(text, {
+          mediaType: body.mediaType || 'none',
           mediaUrl: mediaUrl || undefined,
           buttonText: body.buttonText || undefined,
           buttonUrl: body.buttonUrl || undefined,
@@ -180,7 +220,7 @@ export class AdminApiService {
         return true;
       }
 
-      // 7. Recent jobs
+      // 9. Recent jobs
       if (pathname === '/api/admin/jobs' && req.method === 'GET') {
         const limit = parseInt(parsedUrl.searchParams.get('limit') || '20', 10);
         const jobs = await AdminService.getRecentJobs(limit);

@@ -1190,8 +1190,59 @@ body {
   animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ------------------------------------------------------------------------------
+   Audio Controls & Equalizer & Sliders
+   ------------------------------------------------------------------------------ */
+.audio-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 2px 8px;
+  backdrop-filter: blur(8px);
+}
+
+.music-volume-slider {
+  width: 65px;
+  height: 4px;
+  cursor: pointer;
+  accent-color: #34d399;
+  border-radius: 4px;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+.music-volume-slider:hover {
+  opacity: 1;
+}
+
+.plan-filter-box {
+  display: flex;
+  align-items: center;
+}
+
+.filter-select {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.filter-select:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 8px rgba(0, 242, 254, 0.25);
+}
+
 @keyframes toastSlideUp {
   from { opacity: 0; transform: translateY(16px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
 

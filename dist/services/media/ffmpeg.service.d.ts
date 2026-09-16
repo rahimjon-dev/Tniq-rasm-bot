@@ -6,6 +6,7 @@ export declare class FFmpegService {
      * Run FFprobe to extract deep metadata from video file
      */
     static getMetadata(filePath: string): Promise<VideoMetadata>;
+    static probeVideo(filePath: string): Promise<VideoMetadata>;
     /**
      * Extract audio stream without re-encoding to guarantee 100% audio fidelity
      */

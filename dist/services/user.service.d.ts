@@ -6,36 +6,20 @@ export declare class UserService {
         telegramId: number | bigint;
         username?: string | null;
         firstName?: string | null;
+        lastName?: string | null;
         languageCode?: string | null;
-    }): Promise<({
-        subscription: {
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
-            userId: string;
-            status: import(".prisma/client").$Enums.SubscriptionStatus;
-            plan: import(".prisma/client").$Enums.PlanType;
-            startDate: Date;
-            endDate: Date | null;
-        } | null;
-    } & {
+        lastAction?: string | null;
+    }): Promise<{
         id: string;
         telegramId: bigint;
         username: string | null;
         firstName: string | null;
+        lastName: string | null;
         languageCode: string | null;
         isBanned: boolean;
         createdAt: Date;
         updatedAt: Date;
-    }) | {
-        id: string;
-        telegramId: bigint;
-        username: string | null;
-        firstName: string | null;
-        languageCode: string | null;
-        isBanned: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+        plan: UserPlan;
         subscription: {
             id: string;
             userId: string;
@@ -46,24 +30,32 @@ export declare class UserService {
             createdAt: Date;
             updatedAt: Date;
         };
-    }>;
-    static getUserPlan(telegramId: number | bigint): Promise<UserPlan>;
-    static getUserHistory(userId: string, limit?: number): Promise<{
-        type: import(".prisma/client").$Enums.JobType;
+    } | {
+        plan: UserPlan;
+        subscription: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string;
+            status: import(".prisma/client").$Enums.SubscriptionStatus;
+            plan: import(".prisma/client").$Enums.PlanType;
+            startDate: Date;
+            endDate: Date | null;
+        } | null;
         id: string;
+        telegramId: bigint;
+        username: string | null;
+        firstName: string | null;
+        languageCode: string | null;
+        isBanned: boolean;
         createdAt: Date;
-        userId: string;
-        status: import(".prisma/client").$Enums.JobStatus;
-        scale: number;
-        targetResolution: string | null;
-        inputResolution: string | null;
-        outputResolution: string | null;
-        inputSize: bigint | null;
-        outputSize: bigint | null;
-        processingTime: number | null;
-        errorMessage: string | null;
-        completedAt: Date | null;
-    }[] | {
+        updatedAt: Date;
+        lastName?: undefined;
+    }>;
+    static setUserPlan(telegramId: number | bigint | string, plan: UserPlan): Promise<boolean>;
+    static upgradeUserSubscription(telegramId: number | bigint | string, plan: UserPlan, durationDays?: number): Promise<boolean>;
+    static getUserTotalJobsCount(userId: string): Promise<number>;
+    static getUserHistory(userId: string, limit?: number): Promise<{
         user: {
             telegramId: string;
             firstName: string | null;
@@ -79,8 +71,24 @@ export declare class UserService {
         outputResolution?: string;
         processingTime?: number;
         createdAt: string;
+    }[] | {
+        type: import(".prisma/client").$Enums.JobType;
+        id: string;
+        createdAt: Date;
+        userId: string;
+        status: import(".prisma/client").$Enums.JobStatus;
+        scale: number;
+        targetResolution: string | null;
+        inputResolution: string | null;
+        outputResolution: string | null;
+        inputSize: bigint | null;
+        outputSize: bigint | null;
+        processingTime: number | null;
+        errorMessage: string | null;
+        completedAt: Date | null;
     }[]>;
-    static getUserTotalJobsCount(userId: string): Promise<number>;
-    static upgradeUserSubscription(userId: string, plan: UserPlan, durationDays?: number): Promise<void>;
+    static updateActivity(telegramId: number | bigint | string, action: string): void;
+    static setUserCustomBackground(telegramId: number | bigint | string, backgroundPath: string | null): boolean;
+    static getUserCustomBackground(telegramId: number | bigint | string): string | null;
 }
 export default UserService;

@@ -8,6 +8,7 @@ import ImageService from '../../services/media/image.service.js';
 import { getScaleSelectionKeyboard } from '../keyboards/main.keyboard.js';
 import { getT } from '../../i18n/index.js';
 import logger from '../../utils/logger.js';
+import { checkAndProcessProBackgroundUpload } from './pro-background.handler.js';
 
 // Pending media waiting for user to select 2x or 4x scale
 export const pendingImageUploads = new Map<number, {
@@ -23,31 +24,33 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
   const telegramId = ctx.from?.id;
   if (!telegramId) return;
 
+  // 1. Check if user is uploading a Pro Custom Background
+  const handledAsProBg = await checkAndProcessProBackgroundUpload(ctx);
+  if (handledAsProBg) return;
+
   try {
-    // 1. Authenticate / Register User & Check Quota
+    // 2. Authenticate / Register User & Check Quota
     const user = await UserService.findOrCreateUser({
       telegramId,
       username: ctx.from?.username,
       firstName: ctx.from?.first_name,
+      lastName: ctx.from?.last_name,
       languageCode: ctx.from?.language_code,
+      lastAction: 'Sent Photo',
     });
 
     const lang = user.languageCode || 'uz';
     const t = getT(lang);
 
-    const plan = (user.subscription?.plan as any) || 'FREE';
-    const quota = await UsageService.canProcessImage(user.id, plan);
+    const quota = await UsageService.canProcessImage(user.id, telegramId, user.plan);
 
     if (!quota.allowed) {
-      await ctx.replyWithHTML(
-        `⚠️ <b>Kunlik limitga yetildi!</b>\n\n` +
-        `Siz bugun uchun belgilangan barcha (<b>${quota.maxLimit} ta</b>) bepul rasm tiniqlashtirish limitidan foydalandingiz.\n\n` +
-        `Ertaga soat 00:00 da limit avtomatik yangilanadi!`
-      );
+      const typeStr = lang === 'ru' ? 'фото' : lang === 'en' ? 'image' : 'rasm';
+      await ctx.replyWithHTML(t.limit_reached(typeStr, quota.maxLimit));
       return;
     }
 
-    // 2. Identify highest resolution photo
+    // 3. Identify highest resolution photo
     // @ts-ignore
     const photos = ctx.message?.photo;
     if (!photos || photos.length === 0) return;
@@ -56,17 +59,17 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
 
     const statusMsg = await ctx.reply('⏳ <i>...</i>', { parse_mode: 'HTML' });
 
-    // 3. Download to storage/temp
+    // 4. Download to storage/temp
     const uniqueId = crypto.randomBytes(8).toString('hex');
     const tempInputPath = path.join(config.paths.tempStorage, `input_${uniqueId}.jpg`);
 
     const fileLink = await ctx.telegram.getFileLink(bestPhoto.file_id);
     await ImageService.downloadTelegramFile(fileLink.href || String(fileLink), tempInputPath);
 
-    // 4. Validate file integrity & dimensions
+    // 5. Validate file integrity & dimensions
     const inspected = await ImageService.inspectAndValidate(tempInputPath);
 
-    // 5. Save in pending map (expires after 10 mins)
+    // 6. Save in pending map (expires after 10 mins)
     pendingImageUploads.set(telegramId, {
       userId: user.id,
       filePath: tempInputPath,
@@ -81,7 +84,7 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
       await ctx.deleteMessage(statusMsg.message_id);
     } catch {}
 
-    // 6. Present Scale Selection in user's language
+    // 7. Present Scale Selection in user's language
     await ctx.replyWithHTML(
       t.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit),
       getScaleSelectionKeyboard(lang)
@@ -99,6 +102,10 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
   const doc = ctx.message?.document;
   if (!telegramId || !doc) return;
 
+  // 1. Check if user is uploading a Pro Custom Background
+  const handledAsProBg = await checkAndProcessProBackgroundUpload(ctx);
+  if (handledAsProBg) return;
+
   // Check if document is an image
   if (!doc.mime_type || !doc.mime_type.startsWith('image/')) {
     await ctx.reply('⚠️ Iltimos, rasm formatidagi fayl yuboring (JPG, PNG, WebP).');
@@ -110,20 +117,19 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
       telegramId,
       username: ctx.from?.username,
       firstName: ctx.from?.first_name,
+      lastName: ctx.from?.last_name,
       languageCode: ctx.from?.language_code,
+      lastAction: 'Sent Document Image',
     });
 
     const lang = user.languageCode || 'uz';
     const t = getT(lang);
 
-    const plan = (user.subscription?.plan as any) || 'FREE';
-    const quota = await UsageService.canProcessImage(user.id, plan);
+    const quota = await UsageService.canProcessImage(user.id, telegramId, user.plan);
 
     if (!quota.allowed) {
-      await ctx.replyWithHTML(
-        `⚠️ <b>Kunlik limitga yetildi!</b>\n` +
-        `Siz bugun uchun barcha (${quota.maxLimit} ta) rasm limitidan foydalandingiz.`
-      );
+      const typeStr = lang === 'ru' ? 'фото' : lang === 'en' ? 'image' : 'rasm';
+      await ctx.replyWithHTML(t.limit_reached(typeStr, quota.maxLimit));
       return;
     }
 
@@ -152,7 +158,7 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
     } catch {}
 
     await ctx.replyWithHTML(
-      t.document_received(inspected.width, inspected.height),
+      t.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit),
       getScaleSelectionKeyboard(lang)
     );
   } catch (error) {
