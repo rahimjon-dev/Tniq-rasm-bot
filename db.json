@@ -23,11 +23,45 @@
       "createdAt": "2026-09-15T07:16:15.035Z",
       "updatedAt": "2026-09-15T07:56:15.536Z",
       "totalJobs": 0
+    },
+    "8065428763": {
+      "id": "usr_8065428763",
+      "telegramId": "8065428763",
+      "username": "Bilolbek520",
+      "firstName": "Bilolbek",
+      "languageCode": "uz",
+      "plan": "FREE",
+      "isBanned": false,
+      "createdAt": "2026-09-16T06:27:21.601Z",
+      "updatedAt": "2026-09-16T06:27:30.091Z",
+      "totalJobs": 0
+    },
+    "6504326848": {
+      "id": "usr_6504326848",
+      "telegramId": "6504326848",
+      "username": "Muniskhon63",
+      "firstName": "Мунисхон",
+      "languageCode": "ru",
+      "plan": "FREE",
+      "isBanned": false,
+      "createdAt": "2026-09-16T06:26:26.180Z",
+      "updatedAt": "2026-09-16T06:28:48.660Z",
+      "totalJobs": 1
     }
   },
-  "jobs": [],
+  "jobs": [
+    {
+      "id": "job_img_6504326848_1",
+      "telegramId": "6504326848",
+      "type": "IMAGE",
+      "status": "COMPLETED",
+      "scale": 4,
+      "processingTime": 1.1,
+      "createdAt": "2026-09-16T06:28:48.660Z"
+    }
+  ],
   "stats": {
-    "totalImages": 0,
+    "totalImages": 1,
     "totalVideos": 0,
     "failedJobs": 0
   }
