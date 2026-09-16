@@ -95,6 +95,30 @@
       "totalJobs": 1,
       "customBackground": null,
       "metadata": {}
+    },
+    "9999999999": {
+      "id": "usr_9999999999",
+      "telegramId": "9999999999",
+      "username": "test_user",
+      "firstName": "Test",
+      "lastName": "User",
+      "languageCode": "uz",
+      "plan": "PRO",
+      "isBanned": false,
+      "createdAt": "2026-09-16T08:00:48.601Z",
+      "updatedAt": "2026-09-16T08:00:48.652Z",
+      "lastActivityDate": "2026-09-16T08:00:48.607Z",
+      "lastAction": "Custom background removed",
+      "dailyUsage": {
+        "date": "2026-09-16",
+        "images": 0,
+        "videos": 0
+      },
+      "totalImages": 1,
+      "totalVideos": 0,
+      "totalJobs": 1,
+      "customBackground": null,
+      "metadata": {}
     }
   },
   "jobs": [
@@ -109,7 +133,7 @@
     }
   ],
   "stats": {
-    "totalImages": 2,
+    "totalImages": 3,
     "totalVideos": 0,
     "failedJobs": 0
   }

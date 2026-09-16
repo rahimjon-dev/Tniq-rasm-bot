@@ -77,7 +77,7 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
     await bot.telegram.sendDocument(
       telegramChatId,
       { source: outputFilePath, filename: `upscaled_${scale}x_${result.outputWidth}x${result.outputHeight}.jpg` },
-      { caption: `📁 <i>Asl sifatdagi fayl (100% Full Fidelity)</i>`, parse_mode: 'HTML' }
+      { caption: t.doc_image_caption, parse_mode: 'HTML' }
     );
 
     // Clean up status message
@@ -119,7 +119,7 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
 
     await bot.telegram.sendMessage(
       telegramChatId,
-      `❌ <b>AI Tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${errorMsg}</code>\n\nIltimos boshqa rasm bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`,
+      t.process_image_error(errorMsg),
       { parse_mode: 'HTML' }
     );
 

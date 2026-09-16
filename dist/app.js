@@ -27,16 +27,28 @@ export async function bootstrap() {
         checkRedisConnection(),
     ]);
     logger.info(`Infrastructure Status: Database=${dbOk ? 'ONLINE (PostgreSQL)' : 'IN-MEMORY MODE'}, Redis=${redisOk ? 'ONLINE (BullMQ)' : 'IN-MEMORY ASYNC'}`);
-    // Sync users from PostgreSQL into store on startup if database is online
+    // Sync users and historical media jobs from PostgreSQL into store on startup if database is online
     if (dbOk) {
         try {
-            const dbUsers = await prisma.user.findMany({
-                include: {
-                    subscription: true,
-                    _count: { select: { jobs: true } },
-                },
-            });
+            const [dbUsers, dbJobs] = await Promise.all([
+                prisma.user.findMany({
+                    include: {
+                        subscription: true,
+                        _count: { select: { jobs: true } },
+                    },
+                }),
+                prisma.mediaJob.findMany({
+                    take: 300,
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        user: { select: { telegramId: true, firstName: true, username: true } },
+                    },
+                }),
+            ]);
             store.syncFromDatabase(dbUsers);
+            if (dbJobs && dbJobs.length > 0) {
+                store.syncJobsFromDatabase(dbJobs);
+            }
         }
         catch (err) {
             logger.warn('Initial database sync error:', err);

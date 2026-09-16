@@ -9,6 +9,7 @@ export declare class UserService {
         lastName?: string | null;
         languageCode?: string | null;
         lastAction?: string | null;
+        isExplicitLanguageChange?: boolean;
     }): Promise<{
         id: string;
         telegramId: bigint;
@@ -58,8 +59,8 @@ export declare class UserService {
     static getUserHistory(userId: string, limit?: number): Promise<{
         user: {
             telegramId: string;
-            firstName: string | null;
-            username: string | null;
+            firstName?: string | null;
+            username?: string | null;
         } | null;
         id: string;
         telegramId: string;
@@ -69,6 +70,8 @@ export declare class UserService {
         targetResolution?: string;
         inputResolution?: string;
         outputResolution?: string;
+        inputSize?: number;
+        outputSize?: number;
         processingTime?: number;
         createdAt: string;
     }[] | {

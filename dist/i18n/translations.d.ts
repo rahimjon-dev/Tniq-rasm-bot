@@ -48,6 +48,16 @@ export declare const translations: {
         btn_res_1080: string;
         btn_res_2k: string;
         btn_res_4k: string;
+        doc_invalid_format: string;
+        doc_image_caption: string;
+        doc_video_caption: string;
+        process_image_error: (err: string) => string;
+        process_video_error: (err: string) => string;
+        video_size_error: (maxMb: number) => string;
+        video_duration_error: (maxSec: number) => string;
+        video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
+        callback_processing: string;
+        callback_cancelled: string;
     };
     en: {
         choose_language: string;
@@ -97,6 +107,16 @@ export declare const translations: {
         btn_res_1080: string;
         btn_res_2k: string;
         btn_res_4k: string;
+        doc_invalid_format: string;
+        doc_image_caption: string;
+        doc_video_caption: string;
+        process_image_error: (err: string) => string;
+        process_video_error: (err: string) => string;
+        video_size_error: (maxMb: number) => string;
+        video_duration_error: (maxSec: number) => string;
+        video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
+        callback_processing: string;
+        callback_cancelled: string;
     };
     ru: {
         choose_language: string;
@@ -146,6 +166,16 @@ export declare const translations: {
         btn_res_1080: string;
         btn_res_2k: string;
         btn_res_4k: string;
+        doc_invalid_format: string;
+        doc_image_caption: string;
+        doc_video_caption: string;
+        process_image_error: (err: string) => string;
+        process_video_error: (err: string) => string;
+        video_size_error: (maxMb: number) => string;
+        video_duration_error: (maxSec: number) => string;
+        video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
+        callback_processing: string;
+        callback_cancelled: string;
     };
 };
 export declare function getT(lang?: string | null): {
@@ -196,6 +226,16 @@ export declare function getT(lang?: string | null): {
     btn_res_1080: string;
     btn_res_2k: string;
     btn_res_4k: string;
+    doc_invalid_format: string;
+    doc_image_caption: string;
+    doc_video_caption: string;
+    process_image_error: (err: string) => string;
+    process_video_error: (err: string) => string;
+    video_size_error: (maxMb: number) => string;
+    video_duration_error: (maxSec: number) => string;
+    video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
+    callback_processing: string;
+    callback_cancelled: string;
 } | {
     choose_language: string;
     language_selected: string;
@@ -244,6 +284,16 @@ export declare function getT(lang?: string | null): {
     btn_res_1080: string;
     btn_res_2k: string;
     btn_res_4k: string;
+    doc_invalid_format: string;
+    doc_image_caption: string;
+    doc_video_caption: string;
+    process_image_error: (err: string) => string;
+    process_video_error: (err: string) => string;
+    video_size_error: (maxMb: number) => string;
+    video_duration_error: (maxSec: number) => string;
+    video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
+    callback_processing: string;
+    callback_cancelled: string;
 } | {
     choose_language: string;
     language_selected: string;
@@ -292,4 +342,14 @@ export declare function getT(lang?: string | null): {
     btn_res_1080: string;
     btn_res_2k: string;
     btn_res_4k: string;
+    doc_invalid_format: string;
+    doc_image_caption: string;
+    doc_video_caption: string;
+    process_image_error: (err: string) => string;
+    process_video_error: (err: string) => string;
+    video_size_error: (maxMb: number) => string;
+    video_duration_error: (maxSec: number) => string;
+    video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
+    callback_processing: string;
+    callback_cancelled: string;
 };

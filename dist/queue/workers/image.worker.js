@@ -39,7 +39,7 @@ export async function processImageJob(payload) {
         // Send as compressed photo for instant viewing
         await bot.telegram.sendPhoto(telegramChatId, { source: outputFilePath }, { caption, parse_mode: 'HTML' });
         // Send as uncompressed document to prevent Telegram lossy re-compression
-        await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${scale}x_${result.outputWidth}x${result.outputHeight}.jpg` }, { caption: `📁 <i>Asl sifatdagi fayl (100% Full Fidelity)</i>`, parse_mode: 'HTML' });
+        await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${scale}x_${result.outputWidth}x${result.outputHeight}.jpg` }, { caption: t.doc_image_caption, parse_mode: 'HTML' });
         // Clean up status message
         if (statusMsgId) {
             try {
@@ -75,7 +75,7 @@ export async function processImageJob(payload) {
             }
             catch { }
         }
-        await bot.telegram.sendMessage(telegramChatId, `❌ <b>AI Tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${errorMsg}</code>\n\nIltimos boshqa rasm bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`, { parse_mode: 'HTML' });
+        await bot.telegram.sendMessage(telegramChatId, t.process_image_error(errorMsg), { parse_mode: 'HTML' });
         await UsageService.recordJob({
             userId,
             telegramId: telegramChatId,

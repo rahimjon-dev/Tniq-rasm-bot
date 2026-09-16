@@ -6,18 +6,20 @@ import { pendingVideoUploads } from './video.handler.js';
 import { enqueueImageJob } from '../../queue/queues/image.queue.js';
 import { enqueueVideoJob } from '../../queue/queues/video.queue.js';
 import ImageService from '../../services/media/image.service.js';
+import UserService from '../../services/user.service.js';
 import { getT } from '../../i18n/index.js';
 export async function handleScaleSelection(ctx, scale) {
     const telegramId = ctx.from?.id;
     if (!telegramId)
         return;
+    const userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
     const pending = pendingImageUploads.get(telegramId);
     if (!pending) {
-        await ctx.answerCbQuery('⏳ Qabul qilingan, ishlanmoqda...');
+        await ctx.answerCbQuery(getT(userLang).callback_processing);
         return;
     }
     await ctx.answerCbQuery();
-    const lang = pending.language || 'uz';
+    const lang = pending.language || userLang;
     const t = getT(lang);
     // Remove from pending map
     pendingImageUploads.delete(telegramId);
@@ -41,13 +43,14 @@ export async function handleVideoResolutionSelection(ctx, resolution) {
     const telegramId = ctx.from?.id;
     if (!telegramId)
         return;
+    const userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
     const pending = pendingVideoUploads.get(telegramId);
     if (!pending) {
-        await ctx.answerCbQuery('⏳ Qabul qilingan, ishlanmoqda...');
+        await ctx.answerCbQuery(getT(userLang).callback_processing);
         return;
     }
     await ctx.answerCbQuery();
-    const lang = pending.language || 'uz';
+    const lang = pending.language || userLang;
     const t = getT(lang);
     pendingVideoUploads.delete(telegramId);
     const jobId = crypto.randomUUID();
@@ -73,7 +76,9 @@ export async function handleVideoResolutionSelection(ctx, resolution) {
 }
 export async function handleCancelAction(ctx) {
     const telegramId = ctx.from?.id;
+    let userLang = 'uz';
     if (telegramId) {
+        userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
         const pendingImg = pendingImageUploads.get(telegramId);
         if (pendingImg) {
             await ImageService.safeDelete(pendingImg.filePath);
@@ -85,7 +90,7 @@ export async function handleCancelAction(ctx) {
             pendingVideoUploads.delete(telegramId);
         }
     }
-    await ctx.answerCbQuery('Bekor qilindi');
+    await ctx.answerCbQuery(getT(userLang).callback_cancelled);
     try {
         await ctx.deleteMessage();
     }

@@ -252,6 +252,8 @@ export class UsageService {
       processingTime: params.processingTimeSeconds || 0,
       inputResolution: params.inputResolution,
       outputResolution: params.outputResolution,
+      inputSize: params.inputSize,
+      outputSize: params.outputSize,
     });
 
     if (isDatabaseAvailable()) {

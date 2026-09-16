@@ -75,7 +75,7 @@ export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
     await bot.telegram.sendDocument(
       telegramChatId,
       { source: outputFilePath, filename: `upscaled_${targetResolution}_${result.outputResolution}.mp4` },
-      { caption: `📁 <i>Asl sifatdagi video fayl (Document)</i>`, parse_mode: 'HTML' }
+      { caption: t.doc_video_caption, parse_mode: 'HTML' }
     );
 
     // Clean up status message
@@ -117,7 +117,7 @@ export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
 
     await bot.telegram.sendMessage(
       telegramChatId,
-      `❌ <b>Video tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${errorMsg}</code>\n\nIltimos qisqaroq video bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`,
+      t.process_video_error(errorMsg),
       { parse_mode: 'HTML' }
     );
 

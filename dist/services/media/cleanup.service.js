@@ -9,7 +9,9 @@ export class CleanupService {
      */
     static async cleanOldFiles(maxAgeMinutes = 60) {
         const cutoff = Date.now() - maxAgeMinutes * 60 * 1000;
-        const targets = [config.paths.tempStorage, config.paths.outputStorage];
+        // Critical Retention: NEVER delete outputStorage! Keep completed user media permanent!
+        // Only sweep temporary workdirs and scratch files in tempStorage.
+        const targets = [config.paths.tempStorage];
         let deletedCount = 0;
         let freedBytes = 0;
         for (const dir of targets) {

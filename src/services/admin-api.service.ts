@@ -220,11 +220,22 @@ export class AdminApiService {
         return true;
       }
 
-      // 9. Recent jobs
+      // 9. Search, filter, and paginate media jobs
       if (pathname === '/api/admin/jobs' && req.method === 'GET') {
+        const query = parsedUrl.searchParams.get('q') || '';
+        const type = parsedUrl.searchParams.get('type') || '';
+        const status = parsedUrl.searchParams.get('status') || '';
+        const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
         const limit = parseInt(parsedUrl.searchParams.get('limit') || '20', 10);
-        const jobs = await AdminService.getRecentJobs(limit);
-        this.sendJson(res, 200, { success: true, jobs });
+
+        const result = await AdminService.getJobs({
+          query,
+          type,
+          status,
+          page,
+          limit,
+        });
+        this.sendJson(res, 200, { success: true, ...result });
         return true;
       }
 

@@ -158,12 +158,16 @@ export class FFmpegService {
      * without exploding into individual disk frames
      */
     static async upscaleDirect(params) {
-        const { inputPath, outputPath, scale, crf = 20 } = params;
+        const { inputPath, outputPath, scale, crf = 18 } = params;
         const outputDir = path.dirname(outputPath);
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
-        const filter = `scale=iw*${scale}:ih*${scale}:flags=lanczos,unsharp=5:5:0.8:5:5:0.4`;
+        // Advanced video filter chain:
+        // 1. hqdn3d: Removes input sensor/compression noise before upscaling
+        // 2. scale: Lanczos + accurate rounding + full chroma interpolation
+        // 3. cas: AMD Contrast Adaptive Sharpening recovers fine textures and edge contrast
+        const filter = `hqdn3d=1.2:1.2:3:3,scale=iw*${scale}:ih*${scale}:flags=lanczos+accurate_rnd+full_chroma_int+full_chroma_inp,cas=0.6`;
         const args = [
             '-y',
             '-i', inputPath,

@@ -128,6 +128,20 @@ export const translations = {
         btn_res_1080: '🎬 1080p Full HD',
         btn_res_2k: '💎 2K Quad HD',
         btn_res_4k: '👑 4K Ultra HD',
+        doc_invalid_format: '⚠️ Iltimos, rasm formatidagi fayl yuboring (JPG, PNG, WebP).',
+        doc_image_caption: '📁 <i>Asl sifatdagi fayl (100% Full Fidelity)</i>',
+        doc_video_caption: '📁 <i>Asl sifatdagi video fayl (Document)</i>',
+        process_image_error: (err) => `❌ <b>AI Tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${err}</code>\n\nIltimos boshqa rasm bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`,
+        process_video_error: (err) => `❌ <b>Video tiniqlashtirishda xatolik yuz berdi:</b>\n<code>${err}</code>\n\nIltimos qisqaroq video bilan qaytadan urinib ko'ring yoki adminga murojaat qiling.`,
+        video_size_error: (maxMb) => `⚠️ <b>Video hajmi juda katta!</b>\n\nBot hozirda maksimal <b>${maxMb}MB</b> gacha bo'lgan videolarni qabul qiladi.`,
+        video_duration_error: (maxSec) => `⚠️ <b>Video davomiyligi juda uzun!</b>\n\nMaksimal ruxsat etilgan davomiylik: <b>${maxSec} soniya</b>.`,
+        video_received: (w, h, fps, dur, rem, max) => `🎬 <b>Video qabul qilindi!</b>\n\n` +
+            `📐 <b>Asl o'lchami:</b> ${w} × ${h} px (${fps} FPS)\n` +
+            `⏱ <b>Davomiyligi:</b> ${dur.toFixed(1)} soniya\n` +
+            `📊 <b>Bugungi qoldiq:</b> ${rem} / ${max}\n\n` +
+            `<b>AI orqali qaysi sifat darajasiga ko'tarmoqchisiz?</b>`,
+        callback_processing: '⏳ Qabul qilingan, ishlanmoqda...',
+        callback_cancelled: '❌ Bekor qilindi',
     },
     en: {
         choose_language: `🌐 <b>Hello! Please choose your preferred language:</b>\n\n` +
@@ -256,6 +270,20 @@ export const translations = {
         btn_res_1080: '🎬 1080p Full HD',
         btn_res_2k: '💎 2K Quad HD',
         btn_res_4k: '👑 4K Ultra HD',
+        doc_invalid_format: '⚠️ Please send an image file (JPG, PNG, WebP).',
+        doc_image_caption: '📁 <i>Original quality uncompressed file (100% Full Fidelity)</i>',
+        doc_video_caption: '📁 <i>Original quality video file (Document)</i>',
+        process_image_error: (err) => `❌ <b>Error during AI upscaling:</b>\n<code>${err}</code>\n\nPlease try again with another image or contact admin.`,
+        process_video_error: (err) => `❌ <b>Error during video upscaling:</b>\n<code>${err}</code>\n\nPlease try again with a shorter video or contact admin.`,
+        video_size_error: (maxMb) => `⚠️ <b>Video file size is too large!</b>\n\nThe bot supports videos up to <b>${maxMb}MB</b>.`,
+        video_duration_error: (maxSec) => `⚠️ <b>Video duration is too long!</b>\n\nMaximum allowed duration is <b>${maxSec} seconds</b>.`,
+        video_received: (w, h, fps, dur, rem, max) => `🎬 <b>Video received!</b>\n\n` +
+            `📐 <b>Source resolution:</b> ${w} × ${h} px (${fps} FPS)\n` +
+            `⏱ <b>Duration:</b> ${dur.toFixed(1)}s\n` +
+            `📊 <b>Today's remaining:</b> ${rem} / ${max}\n\n` +
+            `<b>Select your target AI quality:</b>`,
+        callback_processing: '⏳ Processing your request...',
+        callback_cancelled: '❌ Cancelled',
     },
     ru: {
         choose_language: `🌐 <b>Пожалуйста, выберите удобный язык:</b>\n\n` +
@@ -384,6 +412,20 @@ export const translations = {
         btn_res_1080: '🎬 1080p Full HD',
         btn_res_2k: '💎 2K Quad HD',
         btn_res_4k: '👑 4K Ultra HD',
+        doc_invalid_format: '⚠️ Пожалуйста, отправьте файл изображения (JPG, PNG, WebP).',
+        doc_image_caption: '📁 <i>Файл в оригинальном качестве (100% Full Fidelity)</i>',
+        doc_video_caption: '📁 <i>Видеофайл в оригинальном качестве (Документ)</i>',
+        process_image_error: (err) => `❌ <b>Произошла ошибка при улучшении:</b>\n<code>${err}</code>\n\nПожалуйста, попробуйте другое изображение или обратитесь к администратору.`,
+        process_video_error: (err) => `❌ <b>Произошла ошибка при улучшении видео:</b>\n<code>${err}</code>\n\nПожалуйста, попробуйте более короткое видео или обратитесь к администратору.`,
+        video_size_error: (maxMb) => `⚠️ <b>Размер видео слишком велик!</b>\n\nБот принимает видео объёмом до <b>${maxMb}МБ</b>.`,
+        video_duration_error: (maxSec) => `⚠️ <b>Видео слишком длинное!</b>\n\nМаксимальная длительность: <b>${maxSec} секунд</b>.`,
+        video_received: (w, h, fps, dur, rem, max) => `🎬 <b>Видео получено!</b>\n\n` +
+            `📐 <b>Исходный размер:</b> ${w} × ${h} px (${fps} FPS)\n` +
+            `⏱ <b>Длительность:</b> ${dur.toFixed(1)}с\n` +
+            `📊 <b>Остаток на сегодня:</b> ${rem} / ${max}\n\n` +
+            `<b>Выберите желаемое качество улучшения:</b>`,
+        callback_processing: '⏳ Обрабатывается...',
+        callback_cancelled: '❌ Отменено',
     },
 };
 export function getT(lang) {

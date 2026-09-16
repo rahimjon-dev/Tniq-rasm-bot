@@ -41,8 +41,15 @@ export interface StoredJob {
   targetResolution?: string;
   inputResolution?: string;
   outputResolution?: string;
+  inputSize?: number;
+  outputSize?: number;
   processingTime?: number;
   createdAt: string;
+  user?: {
+    telegramId: string;
+    firstName?: string | null;
+    username?: string | null;
+  } | null;
 }
 
 interface DBStructure {
@@ -313,6 +320,7 @@ class StoreService {
     languageCode?: string | null;
     plan?: UserPlan;
     lastAction?: string | null;
+    isExplicitLanguageChange?: boolean;
   }): StoredUser {
     const key = params.telegramId.toString();
     const existing = this.data.users[key];
@@ -323,13 +331,23 @@ class StoreService {
       ? PlanService.normalizePlan(params.plan)
       : (existing ? existing.plan : 'FREE');
 
+    // Language safety: once a user selects a language, NEVER overwrite it with Telegram client device locale
+    let finalLanguage = 'uz';
+    if (existing && existing.languageCode) {
+      finalLanguage = params.isExplicitLanguageChange && params.languageCode
+        ? params.languageCode
+        : existing.languageCode;
+    } else if (params.languageCode) {
+      finalLanguage = params.languageCode;
+    }
+
     const updated: StoredUser = {
       id: existing ? existing.id : `usr_${key}`,
       telegramId: key,
       username: params.username !== undefined ? params.username : (existing?.username || null),
       firstName: params.firstName !== undefined ? params.firstName : (existing?.firstName || null),
       lastName: params.lastName !== undefined ? params.lastName : (existing?.lastName || null),
-      languageCode: params.languageCode !== undefined ? params.languageCode : (existing?.languageCode || 'uz'),
+      languageCode: finalLanguage,
       plan,
       isBanned: existing ? !!existing.isBanned : false,
       createdAt: existing ? existing.createdAt : now,
@@ -349,6 +367,25 @@ class StoreService {
     this.data.users[key] = updated;
     this.saveToDisk(true);
     return updated;
+  }
+
+  setUserLanguage(telegramId: number | bigint | string, languageCode: string): boolean {
+    const key = telegramId.toString();
+    const existing = this.data.users[key];
+    if (existing) {
+      existing.languageCode = languageCode;
+      existing.updatedAt = new Date().toISOString();
+      existing.lastAction = `Language changed to ${languageCode}`;
+      this.saveToDisk(true);
+      return true;
+    }
+    this.saveUser({
+      telegramId: key,
+      languageCode,
+      isExplicitLanguageChange: true,
+      lastAction: `Language set to ${languageCode}`,
+    });
+    return true;
   }
 
   updateUserActivity(telegramId: number | bigint | string, action: string): void {
@@ -557,6 +594,8 @@ class StoreService {
     targetResolution?: string;
     inputResolution?: string;
     outputResolution?: string;
+    inputSize?: number;
+    outputSize?: number;
   }) {
     const key = job.telegramId.toString();
 
@@ -564,6 +603,7 @@ class StoreService {
       this.data.stats.failedJobs++;
     }
 
+    const u = this.data.users[key];
     const newJob: StoredJob = {
       id: `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       telegramId: key,
@@ -573,13 +613,16 @@ class StoreService {
       targetResolution: job.targetResolution,
       inputResolution: job.inputResolution,
       outputResolution: job.outputResolution,
+      inputSize: job.inputSize,
+      outputSize: job.outputSize,
       processingTime: job.processingTime,
       createdAt: new Date().toISOString(),
+      user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : null,
     };
 
     this.data.jobs.unshift(newJob);
-    if (this.data.jobs.length > 200) {
-      this.data.jobs = this.data.jobs.slice(0, 200);
+    if (this.data.jobs.length > 1000) {
+      this.data.jobs = this.data.jobs.slice(0, 1000);
     }
 
     this.saveToDisk(true);
@@ -590,9 +633,98 @@ class StoreService {
       const u = this.data.users[j.telegramId];
       return {
         ...j,
-        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : null,
+        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : (j.user || null),
       };
     });
+  }
+
+  getJobs(params: {
+    query?: string;
+    type?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  } = {}) {
+    const query = (params.query || '').toLowerCase().trim();
+    const type = (params.type || '').toUpperCase().trim();
+    const status = (params.status || '').toUpperCase().trim();
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.max(1, Math.min(100, params.limit || 20));
+
+    let filtered = this.data.jobs.map((j) => {
+      const u = this.data.users[j.telegramId];
+      return {
+        ...j,
+        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : (j.user || null),
+      };
+    });
+
+    if (query) {
+      filtered = filtered.filter((j) => {
+        const u = j.user;
+        return (
+          j.id.toLowerCase().includes(query) ||
+          j.telegramId.includes(query) ||
+          (u?.username && u.username.toLowerCase().includes(query)) ||
+          (u?.firstName && u.firstName.toLowerCase().includes(query))
+        );
+      });
+    }
+
+    if (type && type !== 'ALL') {
+      filtered = filtered.filter((j) => j.type === type);
+    }
+
+    if (status && status !== 'ALL') {
+      filtered = filtered.filter((j) => j.status === status);
+    }
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const offset = (page - 1) * limit;
+    const paginated = filtered.slice(offset, offset + limit);
+
+    return {
+      jobs: paginated,
+      total,
+      page,
+      totalPages,
+      limit,
+    };
+  }
+
+  syncJobsFromDatabase(dbJobs: any[]): void {
+    let added = 0;
+    for (const j of dbJobs) {
+      if (!this.data.jobs.some((existing) => existing.id === j.id)) {
+        const key = (j.user?.telegramId || j.userId || '').toString();
+        const u = this.data.users[key];
+        this.data.jobs.push({
+          id: j.id,
+          telegramId: key,
+          type: j.type,
+          status: j.status,
+          scale: j.scale || 2,
+          targetResolution: j.targetResolution || undefined,
+          inputResolution: j.inputResolution || undefined,
+          outputResolution: j.outputResolution || undefined,
+          inputSize: j.inputSize ? Number(j.inputSize) : undefined,
+          outputSize: j.outputSize ? Number(j.outputSize) : undefined,
+          processingTime: j.processingTime || 0,
+          createdAt: j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString(),
+          user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : null,
+        });
+        added++;
+      }
+    }
+    if (added > 0) {
+      this.data.jobs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      if (this.data.jobs.length > 1000) {
+        this.data.jobs = this.data.jobs.slice(0, 1000);
+      }
+      this.saveToDisk(true);
+      logger.info(`[STORE] Synchronized ${added} historical media jobs from PostgreSQL into store.`);
+    }
   }
 
   /**

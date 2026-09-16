@@ -40,7 +40,6 @@ bot.use(async (ctx, next) => {
             username: from.username || null,
             firstName: from.first_name || null,
             lastName: from.last_name || null,
-            languageCode: from.language_code || null,
             lastAction: ctx.message ? 'Sent message' : (ctx.callbackQuery ? 'Pressed button' : 'Active'),
         });
     }
@@ -95,7 +94,6 @@ bot.start(async (ctx) => {
             username: ctx.from?.username,
             firstName: ctx.from?.first_name,
             lastName: ctx.from?.last_name,
-            languageCode: 'uz',
             lastAction: 'First time /start',
         });
         await ctx.replyWithHTML(translations.uz.choose_language, languageKeyboard);
@@ -107,7 +105,6 @@ bot.start(async (ctx) => {
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
         lastName: ctx.from?.last_name,
-        languageCode: existingLang,
         lastAction: '/start',
     });
     const t = getT(existingLang);
@@ -116,7 +113,8 @@ bot.start(async (ctx) => {
     const customBg = UserService.getUserCustomBackground(telegramId);
     if (customBg) {
         try {
-            await ctx.replyWithPhoto({ source: customBg }, { caption: `🎨 <i>Sizning maxsus foningiz</i>`, parse_mode: 'HTML' });
+            const caption = existingLang === 'ru' ? '🎨 <i>Ваш персональный фон</i>' : existingLang === 'en' ? '🎨 <i>Your custom background</i>' : '🎨 <i>Sizning maxsus foningiz</i>';
+            await ctx.replyWithPhoto({ source: customBg }, { caption, parse_mode: 'HTML' });
         }
         catch { }
     }
@@ -130,14 +128,6 @@ bot.action(['set_lang_uz', 'set_lang_en', 'set_lang_ru'], async (ctx) => {
     // @ts-ignore
     const data = ctx.callbackQuery?.data;
     const lang = data === 'set_lang_ru' ? 'ru' : data === 'set_lang_en' ? 'en' : 'uz';
-    await UserService.findOrCreateUser({
-        telegramId,
-        username: ctx.from?.username,
-        firstName: ctx.from?.first_name,
-        lastName: ctx.from?.last_name,
-        languageCode: lang,
-        lastAction: `Selected language: ${lang}`,
-    });
     await UserService.setUserLanguage(telegramId, lang);
     await ctx.answerCbQuery();
     const t = getT(lang);
@@ -263,7 +253,6 @@ bot.hears([
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
         lastName: ctx.from?.last_name,
-        languageCode: ctx.from?.language_code,
         lastAction: 'Viewed profile',
     });
     const lang = user.languageCode || 'uz';

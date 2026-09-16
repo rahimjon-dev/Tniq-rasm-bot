@@ -181,8 +181,14 @@
     currentUserPlanFilter = 'PRO';
     switchTab('tab-users');
   });
-  document.getElementById('cardImages')?.addEventListener('click', () => switchTab('tab-jobs'));
-  document.getElementById('cardVideos')?.addEventListener('click', () => switchTab('tab-jobs'));
+  document.getElementById('cardImages')?.addEventListener('click', () => {
+    if (jobTypeFilter) jobTypeFilter.value = 'IMAGE';
+    switchTab('tab-jobs');
+  });
+  document.getElementById('cardVideos')?.addEventListener('click', () => {
+    if (jobTypeFilter) jobTypeFilter.value = 'VIDEO';
+    switchTab('tab-jobs');
+  });
   document.getElementById('cardQueue')?.addEventListener('click', () => switchTab('tab-jobs'));
   document.getElementById('cardSystem')?.addEventListener('click', () => switchTab('tab-system'));
 
@@ -679,44 +685,114 @@
   });
 
   // ----------------------------------------------------------------------------
-  // Jobs Queue Tab
+  // Jobs Queue Tab (Persistent History with Caching, Filters, and Pagination)
   // ----------------------------------------------------------------------------
   const jobsTableBody = document.getElementById('jobsTableBody');
+  const jobSearchInput = document.getElementById('jobSearchInput');
+  const jobTypeFilter = document.getElementById('jobTypeFilter');
+  const jobStatusFilter = document.getElementById('jobStatusFilter');
+  const jobTableSummary = document.getElementById('jobTableSummary');
+  const btnPrevJobPage = document.getElementById('btnPrevJobPage');
+  const btnNextJobPage = document.getElementById('btnNextJobPage');
+  const jobPageIndicator = document.getElementById('jobPageIndicator');
 
-  async function loadJobs() {
+  let currentJobPage = 1;
+  let totalJobPages = 1;
+  let jobQueryDebounce = null;
+
+  function renderJobsList(jobs) {
+    if (!jobs || jobs.length === 0) {
+      jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Hozircha mos keluvchi ishlar topilmadi.</td></tr>`;
+      return;
+    }
+
+    jobsTableBody.innerHTML = jobs.map((j) => {
+      const u = j.user;
+      const icon = j.type === 'IMAGE' ? '🖼️' : '🎬';
+      const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-business');
+      const duration = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
+      const date = j.createdAt ? new Date(j.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-';
+      const res = j.outputResolution || (j.inputResolution ? `${j.inputResolution} (${j.scale}x)` : `${j.scale}x HD`);
+
+      return `
+        <tr>
+          <td><code>${j.id.slice(0, 10)}</code></td>
+          <td>${u ? escapeHtml(u.firstName || u.username || u.telegramId) : (j.telegramId ? `ID: ${j.telegramId}` : 'Noma\'lum')}</td>
+          <td>${icon} ${j.type}</td>
+          <td><strong>${j.scale}x (${res})</strong></td>
+          <td><span class="status-pill ${statusClass}">${j.status}</span></td>
+          <td>${duration}</td>
+          <td>${date}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Load from LocalStorage cache immediately for zero-flicker experience
+  try {
+    const cachedJobs = JSON.parse(localStorage.getItem('cached_admin_jobs') || '[]');
+    if (cachedJobs && cachedJobs.length > 0) {
+      renderJobsList(cachedJobs);
+      if (jobTableSummary) jobTableSummary.innerText = `Ko'rsatilmoqda: ${cachedJobs.length} ta (Kesh)`;
+    }
+  } catch {}
+
+  async function loadJobs(page = 1) {
+    currentJobPage = page;
+    const q = jobSearchInput ? jobSearchInput.value.trim() : '';
+    const type = jobTypeFilter ? jobTypeFilter.value : '';
+    const status = jobStatusFilter ? jobStatusFilter.value : '';
+
     try {
-      jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Ishlar navbati yuklanmoqda...</td></tr>`;
-      const data = await apiFetch('/api/admin/jobs?limit=25');
-      if (!data.success || !data.jobs) return;
+      const url = `/api/admin/jobs?q=${encodeURIComponent(q)}&type=${encodeURIComponent(type)}&status=${encodeURIComponent(status)}&page=${page}&limit=20`;
+      const data = await apiFetch(url);
 
-      if (data.jobs.length === 0) {
-        jobsTableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Hozircha ishlar jurnali bo'sh.</td></tr>`;
-        return;
+      if (!data.success) return;
+
+      const jobs = data.jobs || [];
+      totalJobPages = data.totalPages || 1;
+
+      // Persist latest jobs to client cache
+      if (page === 1 && !q && !type && !status) {
+        try {
+          localStorage.setItem('cached_admin_jobs', JSON.stringify(jobs.slice(0, 25)));
+        } catch {}
       }
 
-      jobsTableBody.innerHTML = data.jobs.map((j) => {
-        const u = j.user;
-        const icon = j.type === 'IMAGE' ? '🖼️' : '🎬';
-        const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-business');
-        const duration = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
-        const date = j.createdAt ? new Date(j.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-';
+      renderJobsList(jobs);
 
-        return `
-          <tr>
-            <td><code>${j.id.slice(0, 10)}</code></td>
-            <td>${u ? escapeHtml(u.firstName || u.username || u.telegramId) : 'Noma\'lum'}</td>
-            <td>${icon} ${j.type}</td>
-            <td><strong>${j.scale}x (${j.outputResolution || j.targetResolution || 'HD'})</strong></td>
-            <td><span class="status-pill ${statusClass}">${j.status}</span></td>
-            <td>${duration}</td>
-            <td>${date}</td>
-          </tr>
-        `;
-      }).join('');
+      if (jobTableSummary) {
+        jobTableSummary.innerText = `Ko'rsatilmoqda: ${jobs.length} ta (Jami: ${data.total || 0} ta)`;
+      }
+
+      if (jobPageIndicator) {
+        jobPageIndicator.innerText = `Sahifa ${currentJobPage} / ${totalJobPages}`;
+      }
+
+      if (btnPrevJobPage) btnPrevJobPage.disabled = currentJobPage <= 1;
+      if (btnNextJobPage) btnNextJobPage.disabled = currentJobPage >= totalJobPages;
     } catch (e) {
       console.warn('Failed to load jobs:', e);
     }
   }
+
+  jobSearchInput?.addEventListener('input', () => {
+    clearTimeout(jobQueryDebounce);
+    jobQueryDebounce = setTimeout(() => {
+      loadJobs(1);
+    }, 250);
+  });
+
+  jobTypeFilter?.addEventListener('change', () => loadJobs(1));
+  jobStatusFilter?.addEventListener('change', () => loadJobs(1));
+
+  btnPrevJobPage?.addEventListener('click', () => {
+    if (currentJobPage > 1) loadJobs(currentJobPage - 1);
+  });
+
+  btnNextJobPage?.addEventListener('click', () => {
+    if (currentJobPage < totalJobPages) loadJobs(currentJobPage + 1);
+  });
 
   // ----------------------------------------------------------------------------
   // Topbar Refresh Button Action

@@ -20,7 +20,6 @@ export async function handleIncomingVideo(ctx) {
             username: ctx.from?.username,
             firstName: ctx.from?.first_name,
             lastName: ctx.from?.last_name,
-            languageCode: ctx.from?.language_code,
             lastAction: 'Sent Video',
         });
         const lang = user.languageCode || 'uz';
@@ -38,14 +37,12 @@ export async function handleIncomingVideo(ctx) {
             return;
         // Check Telegram file size limit
         if (video.file_size && video.file_size > config.MAX_VIDEO_SIZE_MB * 1024 * 1024) {
-            await ctx.replyWithHTML(`⚠️ <b>Video hajmi juda katta!</b>\n\n` +
-                `Bot hozirda maksimal <b>${config.MAX_VIDEO_SIZE_MB}MB</b> gacha bo'lgan videolarni qabul qiladi.`);
+            await ctx.replyWithHTML(t.video_size_error(config.MAX_VIDEO_SIZE_MB));
             return;
         }
         // Check duration limit
         if (video.duration && video.duration > config.MAX_VIDEO_DURATION_SECONDS) {
-            await ctx.replyWithHTML(`⚠️ <b>Video davomiyligi juda uzun!</b>\n\n` +
-                `Maksimal ruxsat etilgan davomiylik: <b>${config.MAX_VIDEO_DURATION_SECONDS} soniya</b>.`);
+            await ctx.replyWithHTML(t.video_duration_error(config.MAX_VIDEO_DURATION_SECONDS));
             return;
         }
         const statusMsg = await ctx.reply('⏳ <i>...</i>', { parse_mode: 'HTML' });
@@ -71,17 +68,14 @@ export async function handleIncomingVideo(ctx) {
             await ctx.deleteMessage(statusMsg.message_id);
         }
         catch { }
-        // 6. Present Resolution Selection
-        await ctx.replyWithHTML(`🎬 <b>Video qabul qilindi!</b>\n\n` +
-            `📐 <b>Asl o'lchami:</b> ${metadata.width} × ${metadata.height} px (${metadata.fps} FPS)\n` +
-            `⏱ <b>Davomiyligi:</b> ${metadata.durationSeconds.toFixed(1)} soniya\n` +
-            `📊 <b>Bugungi qoldiq:</b> ${quota.remaining} / ${quota.maxLimit}\n\n` +
-            `<b>AI orqali qaysi sifat darajasiga ko'tarmoqchisiz?</b>`, getVideoResolutionKeyboard(lang));
+        // 6. Present Resolution Selection in user's language
+        await ctx.replyWithHTML(t.video_received(metadata.width, metadata.height, metadata.fps, metadata.durationSeconds, quota.remaining, quota.maxLimit), getVideoResolutionKeyboard(lang));
     }
     catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.error('Error handling incoming video:', { error: errorMsg });
-        await ctx.reply(`❌ <b>Could not process video:</b> ${errorMsg}`, { parse_mode: 'HTML' });
+        const userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
+        await ctx.replyWithHTML(getT(userLang).process_video_error(errorMsg));
     }
 }
 //# sourceMappingURL=video.handler.js.map

@@ -31,11 +31,7 @@ export class UserService {
   }
 
   static async setUserLanguage(telegramId: number | bigint, languageCode: string): Promise<void> {
-    store.saveUser({
-      telegramId,
-      languageCode,
-      lastAction: `Language changed to ${languageCode}`,
-    });
+    store.setUserLanguage(telegramId, languageCode);
 
     if (isDatabaseAvailable()) {
       try {
@@ -54,10 +50,11 @@ export class UserService {
     lastName?: string | null;
     languageCode?: string | null;
     lastAction?: string | null;
+    isExplicitLanguageChange?: boolean;
   }) {
     const telegramIdBigInt = BigInt(params.telegramId);
 
-    // 1. Save to persistent store immediately
+    // 1. Save to persistent store immediately with language protection
     const storedUser = store.saveUser({
       telegramId: params.telegramId,
       username: params.username,
@@ -65,6 +62,7 @@ export class UserService {
       lastName: params.lastName,
       languageCode: params.languageCode,
       lastAction: params.lastAction || 'User /start',
+      isExplicitLanguageChange: params.isExplicitLanguageChange,
     });
 
     if (!isDatabaseAvailable()) {
@@ -98,7 +96,7 @@ export class UserService {
         update: {
           username: params.username || undefined,
           firstName: params.firstName || undefined,
-          languageCode: params.languageCode || undefined,
+          languageCode: params.isExplicitLanguageChange ? (params.languageCode || undefined) : undefined,
         },
         create: {
           telegramId: telegramIdBigInt,

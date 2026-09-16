@@ -443,34 +443,68 @@
 
         <!-- 4. JOBS TAB -->
         <section id="tab-jobs" class="tab-pane">
-          <div class="glass-card">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                id="jobSearchInput"
+                placeholder="Ish ID, Telegram ID yoki foydalanuvchi..."
+              />
+            </div>
+            <div class="filter-group">
+              <label for="jobTypeFilter">Turi:</label>
+              <select id="jobTypeFilter" class="plan-filter-select">
+                <option value="">Barcha turlar</option>
+                <option value="IMAGE">🖼️ Rasmlar (IMAGE)</option>
+                <option value="VIDEO">🎬 Videolar (VIDEO)</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="jobStatusFilter">Holat:</label>
+              <select id="jobStatusFilter" class="plan-filter-select">
+                <option value="">Barcha holatlar</option>
+                <option value="COMPLETED">✅ Muvaffaqiyatli</option>
+                <option value="FAILED">❌ Xatolik</option>
+              </select>
+            </div>
+            <div class="table-pagination-info">
+              <span id="jobTableSummary">Ko'rsatilmoqda: 0 ta</span>
+            </div>
+          </div>
+
+          <div class="glass-card table-wrapper">
             <div class="card-header">
               <div class="header-icon">📋</div>
               <div>
-                <h3>So'nggi Qayta Ishlangan Media Fayllar</h3>
-                <p>AI orqali tiniqlashtirilgan rasmlar va videolarning real-vaqt jurnali</p>
+                <h3>Ishlar Navbati va Tarixi</h3>
+                <p>AI orqali tiniqlashtirilgan rasmlar va videolarning doimiy jurnali</p>
               </div>
             </div>
-            <div class="table-wrapper">
-              <table class="styled-table" id="jobsTable">
-                <thead>
-                  <tr>
-                    <th>Ish ID</th>
-                    <th>Foydalanuvchi</th>
-                    <th>Turi</th>
-                    <th>Daraja</th>
-                    <th>Holati</th>
-                    <th>Vaqt</th>
-                    <th>Sana</th>
-                  </tr>
-                </thead>
-                <tbody id="jobsTableBody">
-                  <tr>
-                    <td colspan="7" class="text-center py-4">Ishlar tarixi yuklanmoqda...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <table class="styled-table" id="jobsTable">
+              <thead>
+                <tr>
+                  <th>Ish ID</th>
+                  <th>Foydalanuvchi</th>
+                  <th>Turi</th>
+                  <th>O'lcham & Daraja</th>
+                  <th>Holati</th>
+                  <th>Vaqt</th>
+                  <th>Sana</th>
+                </tr>
+              </thead>
+              <tbody id="jobsTableBody">
+                <tr>
+                  <td colspan="7" class="text-center py-4">Ishlar tarixi yuklanmoqda...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination-footer">
+            <button class="btn-secondary" id="btnPrevJobPage" disabled>&larr; Oldingi</button>
+            <span id="jobPageIndicator">Sahifa 1 / 1</span>
+            <button class="btn-secondary" id="btnNextJobPage" disabled>Keyingi &rarr;</button>
           </div>
         </section>
 

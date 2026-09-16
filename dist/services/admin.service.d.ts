@@ -149,8 +149,8 @@ export declare class AdminService {
     static getRecentJobs(limit?: number): Promise<{
         user: {
             telegramId: string;
-            firstName: string | null;
-            username: string | null;
+            firstName?: string | null;
+            username?: string | null;
         } | null;
         id: string;
         telegramId: string;
@@ -160,9 +160,45 @@ export declare class AdminService {
         targetResolution?: string;
         inputResolution?: string;
         outputResolution?: string;
+        inputSize?: number;
+        outputSize?: number;
         processingTime?: number;
         createdAt: string;
     }[]>;
+    /**
+     * Search and filter media jobs with pagination
+     */
+    static getJobs(params: {
+        query?: string;
+        type?: string;
+        status?: string;
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        jobs: {
+            user: {
+                telegramId: string;
+                firstName?: string | null;
+                username?: string | null;
+            } | null;
+            id: string;
+            telegramId: string;
+            type: "IMAGE" | "VIDEO";
+            status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+            scale: number;
+            targetResolution?: string;
+            inputResolution?: string;
+            outputResolution?: string;
+            inputSize?: number;
+            outputSize?: number;
+            processingTime?: number;
+            createdAt: string;
+        }[];
+        total: number;
+        page: number;
+        totalPages: number;
+        limit: number;
+    }>;
     /**
      * Broadcast message to all active users with support for Text, Photo, Video, and Inline URLs
      */

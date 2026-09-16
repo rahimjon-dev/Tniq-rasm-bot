@@ -117,15 +117,13 @@ export class RealESRGANLocalProvider {
             logger.info(`[AI_IMAGE] Real-ESRGAN binary not found at ${exe}. Using Ultra-Clarity Multi-Pass Engine.`);
             return this.fallbackSharpUpscale(inputPath, outputPath, scale, originalWidth, originalHeight, startTime);
         }
-        // High-speed, high-fidelity compact models: 1.2MB size, 1.2-1.8s execution (30x faster than 34MB model)
-        let modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
-        const candidateModel = path.join(models, `${modelName}.bin`);
-        if (!fs.existsSync(candidateModel)) {
-            modelName = fs.existsSync(path.join(models, 'realesr-animevideov3-x2.bin'))
-                ? 'realesr-animevideov3-x2'
-                : 'realesrgan-x4plus';
+        // Primary Model: Real-ESRGAN x4plus is the gold-standard for real-world photos, portraits, and textures
+        let modelName = 'realesrgan-x4plus';
+        const x4plusBin = path.join(models, `${modelName}.bin`);
+        if (!fs.existsSync(x4plusBin)) {
+            modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
         }
-        logger.info(`[AI_IMAGE] Starting fast photo AI enhancement: scale=${scale}x, model=${modelName}`, {
+        logger.info(`[AI_IMAGE] Starting photographic Real-ESRGAN AI enhancement: scale=${scale}x, model=${modelName}`, {
             exe,
             models,
             inputPath,
@@ -143,8 +141,8 @@ export class RealESRGANLocalProvider {
         ];
         try {
             await new Promise((resolve, reject) => {
-                // Strict 7-second timeout: if local/cloud CPU is too slow, immediately fallback to Ultra-Clarity engine
-                execFile(exe, args, { timeout: 7000 }, (error, stdout, stderr) => {
+                // Robust 60-second timeout allows complete neural network inference on both cloud CPU and GPU
+                execFile(exe, args, { timeout: 60000 }, (error, stdout, stderr) => {
                     if (error)
                         return reject(error);
                     resolve();

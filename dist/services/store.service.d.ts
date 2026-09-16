@@ -33,8 +33,15 @@ export interface StoredJob {
     targetResolution?: string;
     inputResolution?: string;
     outputResolution?: string;
+    inputSize?: number;
+    outputSize?: number;
     processingTime?: number;
     createdAt: string;
+    user?: {
+        telegramId: string;
+        firstName?: string | null;
+        username?: string | null;
+    } | null;
 }
 declare class StoreService {
     private dbPath;
@@ -66,7 +73,9 @@ declare class StoreService {
         languageCode?: string | null;
         plan?: UserPlan;
         lastAction?: string | null;
+        isExplicitLanguageChange?: boolean;
     }): StoredUser;
+    setUserLanguage(telegramId: number | bigint | string, languageCode: string): boolean;
     updateUserActivity(telegramId: number | bigint | string, action: string): void;
     getUser(telegramId: number | bigint | string): StoredUser | null;
     getAllUsers(query?: string, page?: number, limit?: number, planFilter?: string): {
@@ -116,12 +125,14 @@ declare class StoreService {
         targetResolution?: string;
         inputResolution?: string;
         outputResolution?: string;
+        inputSize?: number;
+        outputSize?: number;
     }): void;
     getRecentJobs(limit?: number): {
         user: {
             telegramId: string;
-            firstName: string | null;
-            username: string | null;
+            firstName?: string | null;
+            username?: string | null;
         } | null;
         id: string;
         telegramId: string;
@@ -131,9 +142,43 @@ declare class StoreService {
         targetResolution?: string;
         inputResolution?: string;
         outputResolution?: string;
+        inputSize?: number;
+        outputSize?: number;
         processingTime?: number;
         createdAt: string;
     }[];
+    getJobs(params?: {
+        query?: string;
+        type?: string;
+        status?: string;
+        page?: number;
+        limit?: number;
+    }): {
+        jobs: {
+            user: {
+                telegramId: string;
+                firstName?: string | null;
+                username?: string | null;
+            } | null;
+            id: string;
+            telegramId: string;
+            type: "IMAGE" | "VIDEO";
+            status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+            scale: number;
+            targetResolution?: string;
+            inputResolution?: string;
+            outputResolution?: string;
+            inputSize?: number;
+            outputSize?: number;
+            processingTime?: number;
+            createdAt: string;
+        }[];
+        total: number;
+        page: number;
+        totalPages: number;
+        limit: number;
+    };
+    syncJobsFromDatabase(dbJobs: any[]): void;
     /**
      * Detailed metrics for Admin Dashboard
      */

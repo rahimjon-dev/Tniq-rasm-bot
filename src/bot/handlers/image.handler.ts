@@ -35,7 +35,6 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
       username: ctx.from?.username,
       firstName: ctx.from?.first_name,
       lastName: ctx.from?.last_name,
-      languageCode: ctx.from?.language_code,
       lastAction: 'Sent Photo',
     });
 
@@ -50,7 +49,7 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
       return;
     }
 
-    // 3. Identify highest resolution photo
+    // 3. Identify highest resolution photo (select last element in photo array)
     // @ts-ignore
     const photos = ctx.message?.photo;
     if (!photos || photos.length === 0) return;
@@ -92,7 +91,8 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Error handling incoming photo:', { error: errorMsg });
-    await ctx.reply(`❌ <b>Could not process image:</b> ${errorMsg}`, { parse_mode: 'HTML' });
+    const userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
+    await ctx.replyWithHTML(getT(userLang).process_image_error(errorMsg));
   }
 }
 
@@ -106,9 +106,12 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
   const handledAsProBg = await checkAndProcessProBackgroundUpload(ctx);
   if (handledAsProBg) return;
 
+  const userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
+  const t = getT(userLang);
+
   // Check if document is an image
   if (!doc.mime_type || !doc.mime_type.startsWith('image/')) {
-    await ctx.reply('⚠️ Iltimos, rasm formatidagi fayl yuboring (JPG, PNG, WebP).');
+    await ctx.replyWithHTML(t.doc_invalid_format);
     return;
   }
 
@@ -118,18 +121,17 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
       username: ctx.from?.username,
       firstName: ctx.from?.first_name,
       lastName: ctx.from?.last_name,
-      languageCode: ctx.from?.language_code,
       lastAction: 'Sent Document Image',
     });
 
-    const lang = user.languageCode || 'uz';
-    const t = getT(lang);
+    const lang = user.languageCode || userLang;
+    const currentT = getT(lang);
 
     const quota = await UsageService.canProcessImage(user.id, telegramId, user.plan);
 
     if (!quota.allowed) {
       const typeStr = lang === 'ru' ? 'фото' : lang === 'en' ? 'image' : 'rasm';
-      await ctx.replyWithHTML(t.limit_reached(typeStr, quota.maxLimit));
+      await ctx.replyWithHTML(currentT.limit_reached(typeStr, quota.maxLimit));
       return;
     }
 
@@ -158,12 +160,12 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
     } catch {}
 
     await ctx.replyWithHTML(
-      t.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit),
+      currentT.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit),
       getScaleSelectionKeyboard(lang)
     );
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Error handling document image:', { error: errorMsg });
-    await ctx.reply(`❌ <b>Could not process file:</b> ${errorMsg}`, { parse_mode: 'HTML' });
+    await ctx.replyWithHTML(t.process_image_error(errorMsg));
   }
 }

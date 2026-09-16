@@ -232,6 +232,19 @@ export class AdminService {
   }
 
   /**
+   * Search and filter media jobs with pagination
+   */
+  static async getJobs(params: {
+    query?: string;
+    type?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    return store.getJobs(params);
+  }
+
+  /**
    * Broadcast message to all active users with support for Text, Photo, Video, and Inline URLs
    */
   static async broadcastMessage(
