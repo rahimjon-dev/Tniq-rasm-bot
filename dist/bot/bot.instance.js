@@ -2,7 +2,7 @@ import { Telegraf } from 'telegraf';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { mainKeyboard, languageKeyboard, getMainKeyboard, getSettingsKeyboard, } from './keyboards/main.keyboard.js';
-import { getT, translations } from '../i18n/index.js';
+import { getT } from '../i18n/index.js';
 import { handleIncomingPhoto, handleIncomingDocument } from './handlers/image.handler.js';
 import { handleIncomingVideo } from './handlers/video.handler.js';
 import { handleScaleSelection, handleVideoResolutionSelection, handleCancelAction, } from './handlers/callback.handler.js';
@@ -85,40 +85,19 @@ bot.start(async (ctx) => {
     if (!telegramId)
         return;
     awaitingProBackgroundUsers.delete(telegramId);
-    // 1. Check if user already exists
-    const existingLang = await UserService.getUserLanguage(telegramId);
-    if (!existingLang) {
-        // New user: register in DB and prompt language selection first
-        await UserService.findOrCreateUser({
-            telegramId,
-            username: ctx.from?.username,
-            firstName: ctx.from?.first_name,
-            lastName: ctx.from?.last_name,
-            lastAction: 'First time /start',
-        });
-        await ctx.replyWithHTML(translations.uz.choose_language, languageKeyboard);
-        return;
-    }
-    // Existing user: preserve language, plan, and statistics
-    const user = await UserService.findOrCreateUser({
+    // Register or update user record in persistent storage
+    await UserService.findOrCreateUser({
         telegramId,
         username: ctx.from?.username,
         firstName: ctx.from?.first_name,
         lastName: ctx.from?.last_name,
         lastAction: '/start',
     });
-    const t = getT(existingLang);
-    const name = ctx.from?.first_name || 'Creator';
-    // Check if Pro user has custom background
-    const customBg = UserService.getUserCustomBackground(telegramId);
-    if (customBg) {
-        try {
-            const caption = existingLang === 'ru' ? '🎨 <i>Ваш персональный фон</i>' : existingLang === 'en' ? '🎨 <i>Your custom background</i>' : '🎨 <i>Sizning maxsus foningiz</i>';
-            await ctx.replyWithPhoto({ source: customBg }, { caption, parse_mode: 'HTML' });
-        }
-        catch { }
-    }
-    await ctx.replyWithHTML(t.welcome(name), getMainKeyboard(existingLang));
+    const langPrompt = `👋 <b>Assalomu alaykum! / Здравствуйте! / Hello!</b>\n\n` +
+        `🇺🇿 Iltimos, muloqot tilini tanlang:\n` +
+        `🇷🇺 Пожалуйста, выберите язык общения:\n` +
+        `🇬🇧 Please choose your preferred language:`;
+    await ctx.replyWithHTML(langPrompt, languageKeyboard);
 });
 // Language selection callbacks
 bot.action(['set_lang_uz', 'set_lang_en', 'set_lang_ru'], async (ctx) => {

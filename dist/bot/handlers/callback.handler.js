@@ -8,6 +8,7 @@ import { enqueueVideoJob } from '../../queue/queues/video.queue.js';
 import ImageService from '../../services/media/image.service.js';
 import UserService from '../../services/user.service.js';
 import { getT } from '../../i18n/index.js';
+import { awaitingProBackgroundUsers } from './pro-background.handler.js';
 export async function handleScaleSelection(ctx, scale) {
     const telegramId = ctx.from?.id;
     if (!telegramId)
@@ -78,6 +79,7 @@ export async function handleCancelAction(ctx) {
     const telegramId = ctx.from?.id;
     let userLang = 'uz';
     if (telegramId) {
+        awaitingProBackgroundUsers.delete(telegramId);
         userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
         const pendingImg = pendingImageUploads.get(telegramId);
         if (pendingImg) {

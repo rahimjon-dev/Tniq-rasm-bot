@@ -129,7 +129,7 @@ export const translations = {
       `🔒 <b>Ushbu funksiya faqat PRO foydalanuvchilar uchun!</b>\n\n` +
       `Maxsus fon o'rnatish imkoniyatidan foydalanish uchun <b>PRO</b> tarifiga ega bo'lishingiz kerak.\n` +
       `Tarifni olish uchun "💎 Tariflar" bo'limiga kiring!`,
-    bg_saved_success: `✅ <b>Maxsus fon muvaffaqiyatli o'rnatildi va saqlandi!</b>`,
+    bg_saved_success: `✅ <b>Maxsus fon muvaffaqiyatli saqlandi!</b>\n\nFoningiz profilingizga biriktirildi va avtomatik ravishda faollashtirildi.`,
     bg_removed_success: `🗑 <b>Maxsus fon tozalandi va asl holatga qaytarildi.</b>`,
     restart_success:
       `🔄 <b>Bot muvaffaqiyatli yangilandi va ishga tushirildi!</b>\n\n` +
@@ -305,7 +305,7 @@ export const translations = {
       `🔒 <b>This feature is exclusive to PRO users!</b>\n\n` +
       `To set a custom background, you need an active <b>PRO</b> plan.\n` +
       `Check out the "💎 Plans" menu to learn more!`,
-    bg_saved_success: `✅ <b>Custom background successfully saved!</b>`,
+    bg_saved_success: `✅ <b>Custom background successfully saved!</b>\n\nYour background is now active and linked to your profile.`,
     bg_removed_success: `🗑 <b>Custom background reset to default.</b>`,
     restart_success:
       `🔄 <b>Bot interface successfully restarted!</b>\n\n` +
@@ -481,7 +481,7 @@ export const translations = {
       `🔒 <b>Эта функция доступна только для пользователей PRO!</b>\n\n` +
       `Чтобы установить свой фон, необходим тариф <b>PRO</b>.\n` +
       `Подробнее в разделе «💎 Тарифы»!`,
-    bg_saved_success: `✅ <b>Персональный фон успешно сохранён!</b>`,
+    bg_saved_success: `✅ <b>Персональный фон успешно сохранён!</b>\n\nФон привязан к вашему профилю и активирован.`,
     bg_removed_success: `🗑 <b>Фон сброшен до стандартного.</b>`,
     restart_success:
       `🔄 <b>Бот успешно перезапущен!</b>\n\n` +

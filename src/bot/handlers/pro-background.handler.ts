@@ -1,10 +1,11 @@
 import path from 'path';
 import fs from 'fs';
-import { Context } from 'telegraf';
+import { Context, Markup } from 'telegraf';
 import config from '../../config/index.js';
 import UserService from '../../services/user.service.js';
 import PlanService from '../../services/plan.service.js';
 import ImageService from '../../services/media/image.service.js';
+import { getScaleSelectionKeyboard, getMainKeyboard } from '../keyboards/main.keyboard.js';
 import { getT } from '../../i18n/index.js';
 import logger from '../../utils/logger.js';
 
@@ -24,7 +25,10 @@ export async function handleProCustomBackgroundCommand(ctx: Context): Promise<vo
   }
 
   awaitingProBackgroundUsers.add(telegramId);
-  await ctx.replyWithHTML(t.pro_custom_bg_prompt);
+  await ctx.replyWithHTML(
+    t.pro_custom_bg_prompt,
+    Markup.inlineKeyboard([[Markup.button.callback(t.btn_cancel, 'cancel_action')]])
+  );
 }
 
 export async function handleResetCustomBackground(ctx: Context): Promise<void> {
@@ -85,8 +89,7 @@ export async function checkAndProcessProBackgroundUpload(ctx: Context): Promise<
     UserService.setUserCustomBackground(telegramId, targetPath);
     awaitingProBackgroundUsers.delete(telegramId);
 
-    await ctx.replyWithHTML(t.bg_saved_success);
-    await ctx.replyWithPhoto({ source: targetPath }, { caption: '🖼 <i>Sizning maxsus foningiz</i>', parse_mode: 'HTML' });
+    await ctx.replyWithHTML(t.bg_saved_success, getMainKeyboard(lang));
     return true;
   } catch (err) {
     logger.error('Error setting pro background:', err);

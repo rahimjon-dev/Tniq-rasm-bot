@@ -117,25 +117,8 @@ bot.start(async (ctx) => {
 
   awaitingProBackgroundUsers.delete(telegramId);
 
-  // 1. Check if user already exists
-  const existingLang = await UserService.getUserLanguage(telegramId);
-
-  if (!existingLang) {
-    // New user: register in DB and prompt language selection first
-    await UserService.findOrCreateUser({
-      telegramId,
-      username: ctx.from?.username,
-      firstName: ctx.from?.first_name,
-      lastName: ctx.from?.last_name,
-      lastAction: 'First time /start',
-    });
-
-    await ctx.replyWithHTML(translations.uz.choose_language, languageKeyboard);
-    return;
-  }
-
-  // Existing user: preserve language, plan, and statistics
-  const user = await UserService.findOrCreateUser({
+  // Register or update user record in persistent storage
+  await UserService.findOrCreateUser({
     telegramId,
     username: ctx.from?.username,
     firstName: ctx.from?.first_name,
@@ -143,19 +126,13 @@ bot.start(async (ctx) => {
     lastAction: '/start',
   });
 
-  const t = getT(existingLang);
-  const name = ctx.from?.first_name || 'Creator';
+  const langPrompt =
+    `👋 <b>Assalomu alaykum! / Здравствуйте! / Hello!</b>\n\n` +
+    `🇺🇿 Iltimos, muloqot tilini tanlang:\n` +
+    `🇷🇺 Пожалуйста, выберите язык общения:\n` +
+    `🇬🇧 Please choose your preferred language:`;
 
-  // Check if Pro user has custom background
-  const customBg = UserService.getUserCustomBackground(telegramId);
-  if (customBg) {
-    try {
-      const caption = existingLang === 'ru' ? '🎨 <i>Ваш персональный фон</i>' : existingLang === 'en' ? '🎨 <i>Your custom background</i>' : '🎨 <i>Sizning maxsus foningiz</i>';
-      await ctx.replyWithPhoto({ source: customBg }, { caption, parse_mode: 'HTML' });
-    } catch {}
-  }
-
-  await ctx.replyWithHTML(t.welcome(name), getMainKeyboard(existingLang));
+  await ctx.replyWithHTML(langPrompt, languageKeyboard);
 });
 
 // Language selection callbacks

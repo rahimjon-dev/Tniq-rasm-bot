@@ -7,3 +7,6 @@ storage/*.tmp
 *.log
 !storage/db.json
 !storage/db.backup.json
+storage/backgrounds/
+scratch/
+realesrgan/test_out*.jpg
