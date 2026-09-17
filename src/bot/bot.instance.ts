@@ -536,16 +536,16 @@ export async function registerBotCommands(): Promise<void> {
 
     try {
       // @ts-ignore
-      await bot.telegram.setMyName('Tiniq Rasm & Video HD | AI Upscaler');
+      await bot.telegram.setMyName('Remini AI | HD Rasm & Video Tiniqlashtirish');
       // @ts-ignore
-      await bot.telegram.setMyShortDescription('Rasmlar va videolarni 4K Ultra HD tiniqlashtiruvchi professional AI bot.');
+      await bot.telegram.setMyShortDescription('Remini AI — Rasmlar va videolarni 4K Ultra HD formatda 1-3 soniyada tiniqlashtiruvchi eng kuchli AI bot.');
       // @ts-ignore
       await bot.telegram.setMyDescription(
-        '🤖 Rasmlar va videolaringizni sun\'iy intellekt (AI) yordamida tiniqlashtiring va 4K formatga o\'tkazing!\n\n' +
+        '🤖 Rasmlar va videolaringizni eng kuchli sun\'iy intellekt (Remini AI) yordamida kristaldek tiniqlashtiring va 4K Ultra HD ga oshiring!\n\n' +
         '✨ Asosiy imkoniyatlar:\n' +
-        '• Xira va noaniq rasmlarni tiniqlashtirish\n' +
-        '• Yuz va libos detallarini Ultra HD formatda tiklash\n' +
-        '• Videolarni 1080p va 4K sifatga ko\'tarish\n' +
+        '• Xira va eski rasmlarni 1-3 soniyada tiniqlashtirish\n' +
+        '• Yuz va libos detallarini 4K Ultra HD formatda tiklash\n' +
+        '• Videolarni 720p, 1080p va 4K sifatga ko\'tarish\n' +
         '• 100% asl sifatda hujjat (Document) ko\'rinishida yuklab olish'
       );
     } catch (seoErr) {

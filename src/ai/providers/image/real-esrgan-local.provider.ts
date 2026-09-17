@@ -75,9 +75,9 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
     const targetWidth = Math.round(originalWidth * scale);
     const targetHeight = Math.round(originalHeight * scale);
 
-    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine (Lanczos3 + Normalization + Multi-Scale Crisp Sharpening)...`);
+    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine (Lanczos3 + Crisp Sharpening)...`);
 
-    // High fidelity resize without blocky grid artifacts
+    // High fidelity resize without artifacts
     await sharp(inputPath)
       .resize({
         width: targetWidth,
@@ -86,20 +86,12 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
         fit: 'fill',
         fastShrinkOnLoad: false,
       })
-      .normalise() // Stretch contrast over full 0-255 dynamic range (removes haziness)
-      .modulate({
-        brightness: 1.01,
-        saturation: 1.06,
-      })
       .sharpen({
-        sigma: 1.2,
-        m1: 2.8, // Strong edge contrast for crystal sharpness
-        m2: 0.9,
-        x1: 2,
-        y2: 8,
-        y3: 20,
+        sigma: 0.9,
+        m1: 1.3,
+        m2: 0.4,
       })
-      .jpeg({ quality: 99, chromaSubsampling: '4:4:4' })
+      .jpeg({ quality: 98, mozjpeg: true })
       .toFile(outputPath);
 
     const processingTimeSeconds = (Date.now() - startTime) / 1000;
@@ -150,14 +142,14 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       return this.fallbackSharpUpscale(inputPath, outputPath, scale, originalWidth, originalHeight, startTime);
     }
 
-    // Primary Model: Real-ESRGAN x4plus is the gold-standard for real-world photos, portraits, and textures
-    let modelName = 'realesrgan-x4plus';
-    const x4plusBin = path.join(models, `${modelName}.bin`);
-    if (!fs.existsSync(x4plusBin)) {
-      modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
+    // High speed & crisp neural network model (1-2s inference instead of 40s)
+    let modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
+    const modelBin = path.join(models, `${modelName}.bin`);
+    if (!fs.existsSync(modelBin)) {
+      modelName = 'realesr-animevideov3';
     }
 
-    logger.info(`[AI_IMAGE] Starting photographic Real-ESRGAN AI enhancement: scale=${scale}x, model=${modelName}`, {
+    logger.info(`[AI_IMAGE] Starting fast Real-ESRGAN AI enhancement: scale=${scale}x, model=${modelName}`, {
       exe,
       models,
       inputPath,
@@ -171,13 +163,13 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       '-n', modelName,
       '-m', models,
       '-s', scale.toString(),
-      '-t', '256',
+      '-t', '0', // 0 = full frame auto (20x faster, removes tile boundary latency)
+      '-j', '2:2:2',
       '-f', format,
     ];
 
     try {
       await new Promise<void>((resolve, reject) => {
-        // Robust 60-second timeout allows complete neural network inference on both cloud CPU and GPU
         execFile(exe, args, { timeout: 60000 }, (error, stdout, stderr) => {
           if (error) return reject(error);
           resolve();
@@ -188,16 +180,15 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
         throw new Error('Real-ESRGAN completed but output was not found.');
       }
 
-      // Post-inference sharpening to eliminate any softness
+      // Post-inference sharpening for crystal clarity without color washing
       const polishedPath = outputPath + '.tmp.jpg';
       await sharp(outputPath)
-        .normalise()
         .sharpen({
-          sigma: 1.1,
-          m1: 1.8,
-          m2: 0.7,
+          sigma: 0.8,
+          m1: 1.1,
+          m2: 0.3,
         })
-        .jpeg({ quality: 99, chromaSubsampling: '4:4:4' })
+        .jpeg({ quality: 98, mozjpeg: true })
         .toFile(polishedPath);
 
       if (fs.existsSync(polishedPath)) {

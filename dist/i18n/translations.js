@@ -4,7 +4,7 @@ export const translations = {
             `🌐 <b>Hello! Please choose your preferred language:</b>\n\n` +
             `🌐 <b>Здравствуйте! Пожалуйста, выберите удобный язык:</b>`,
         language_selected: `✅ <b>O'zbek tili tanlandi!</b>`,
-        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER BOT</b>\n\n` +
+        welcome: (name) => `🚀 <b>REMINI AI — 4K ULTRA HD BOT</b>\n\n` +
             `Xush kelibsiz, <b>${name}</b>!\n` +
             `Ilg'or chuqur neyron tarmoqlar (Real-ESRGAN & AI Engine) yordamida rasmlar va videolaringizni yuqori tiniqlikda (4K Ultra HD) qayta ishlang.\n\n` +
             `✨ <b>Asosiy imkoniyatlar:</b>\n` +
@@ -147,7 +147,7 @@ export const translations = {
         choose_language: `🌐 <b>Hello! Please choose your preferred language:</b>\n\n` +
             `Tap one of the buttons below:`,
         language_selected: `✅ <b>English language selected!</b>`,
-        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER BOT</b>\n\n` +
+        welcome: (name) => `🚀 <b>REMINI AI — 4K ULTRA HD BOT</b>\n\n` +
             `Welcome, <b>${name}</b>!\n` +
             `Enhance your images and videos up to 4K Ultra HD using cutting-edge deep neural network AI.\n\n` +
             `✨ <b>Key Capabilities:</b>\n` +
@@ -289,7 +289,7 @@ export const translations = {
         choose_language: `🌐 <b>Пожалуйста, выберите удобный язык:</b>\n\n` +
             `Нажмите на одну из кнопок ниже:`,
         language_selected: `✅ <b>Выбран русский язык!</b>`,
-        welcome: (name) => `🚀 <b>AI MEDIA UPSCALER BOT</b>\n\n` +
+        welcome: (name) => `🚀 <b>REMINI AI — 4K ULTRA HD BOT</b>\n\n` +
             `Добро пожаловать, <b>${name}</b>!\n` +
             `Улучшайте качество фото и видео до 4K Ultra HD с помощью передовых нейросетей.\n\n` +
             `✨ <b>Основные возможности:</b>\n` +
