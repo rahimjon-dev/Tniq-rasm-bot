@@ -54,14 +54,13 @@ let server: http.Server | undefined;
 let keepAliveTimer: NodeJS.Timeout | undefined;
 
 export function startKeepAlivePinger(): void {
-  const targetUrl = config.KEEP_ALIVE_URL || config.RENDER_EXTERNAL_URL;
-  if (!targetUrl) {
-    logger.debug('[KEEP_ALIVE] No KEEP_ALIVE_URL or RENDER_EXTERNAL_URL configured. Self-pinger inactive.');
-    return;
-  }
+  const targetUrl =
+    config.KEEP_ALIVE_URL ||
+    config.RENDER_EXTERNAL_URL ||
+    'https://tniq-rasm-bot.onrender.com';
 
   const pingUrl = targetUrl.replace(/\/$/, '') + '/health';
-  logger.info(`[KEEP_ALIVE] 24/7 Render Keep-Alive active! Self-pinging ${pingUrl} every 9 minutes.`);
+  logger.info(`[KEEP_ALIVE] 24/7 Render Keep-Alive active! Self-pinging ${pingUrl} every 5 minutes.`);
 
   setTimeout(async () => {
     try {
@@ -70,16 +69,16 @@ export function startKeepAlivePinger(): void {
     } catch (err: any) {
       logger.debug(`[KEEP_ALIVE] Initial ping note: ${err.message}`);
     }
-  }, 60000);
+  }, 20000);
 
   keepAliveTimer = setInterval(async () => {
     try {
       const response = await fetch(pingUrl);
-      logger.debug(`[KEEP_ALIVE] 9-min keep-alive ping sent to ${pingUrl}: status ${response.status}`);
+      logger.debug(`[KEEP_ALIVE] 5-min keep-alive ping sent to ${pingUrl}: status ${response.status}`);
     } catch (err: any) {
       logger.warn(`[KEEP_ALIVE] Keep-alive ping failed to ${pingUrl}: ${err.message}`);
     }
-  }, 9 * 60 * 1000);
+  }, 5 * 60 * 1000);
 }
 
 export function stopKeepAlivePinger(): void {
