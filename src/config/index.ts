@@ -39,8 +39,8 @@ const envSchema = z.object({
   STORAGE_OUTPUT_DIR: z.string().default('storage/outputs'),
 
   // Limits
-  FREE_DAILY_IMAGE_LIMIT: z.coerce.number().default(70),
-  FREE_DAILY_VIDEO_LIMIT: z.coerce.number().default(20),
+  FREE_DAILY_IMAGE_LIMIT: z.coerce.number().default(50),
+  FREE_DAILY_VIDEO_LIMIT: z.coerce.number().default(10),
   MAX_IMAGE_SIZE_MB: z.coerce.number().default(20),
   MAX_VIDEO_SIZE_MB: z.coerce.number().default(50),
   MAX_VIDEO_DURATION_SECONDS: z.coerce.number().default(30),

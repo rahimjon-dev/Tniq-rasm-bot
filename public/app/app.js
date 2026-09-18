@@ -30,6 +30,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
+// Helper: convert File/Blob to Base64
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (err) => reject(err);
+  });
+}
+
 // --------------------------------------------------------------------------
 // 1. User & State Loading
 // --------------------------------------------------------------------------
@@ -54,21 +64,40 @@ async function loadUserData() {
       const data = await res.json();
       currentUser = data;
 
-      // Update plan badge
+      // Update plan badge & glowing badge
       const planBadge = document.getElementById('user-plan-badge');
+      const proGlowBadge = document.getElementById('pro-badge-glow');
+      const isPro = data.plan === 'PRO' || data.plan === 'BUSINESS' || data.isUnlimited;
+
       if (planBadge) {
         planBadge.textContent = data.plan || 'FREE';
-        if (data.plan === 'PRO' || data.plan === 'BUSINESS') {
+        if (isPro) {
           planBadge.style.background = 'rgba(234, 179, 8, 0.2)';
           planBadge.style.color = '#fde047';
           planBadge.style.borderColor = 'rgba(234, 179, 8, 0.5)';
         }
       }
 
+      if (proGlowBadge) {
+        proGlowBadge.style.display = isPro ? 'inline-flex' : 'none';
+      }
+
+      // Highlight active plan card
+      const cardFree = document.getElementById('card-plan-free');
+      const cardPremium = document.getElementById('card-plan-premium');
+      const cardPro = document.getElementById('card-plan-pro');
+      if (data.plan === 'PREMIUM' && cardPremium) {
+        cardPremium.style.borderColor = 'rgba(59, 130, 246, 0.8)';
+      }
+
       // Update Quota Pill
       const quotaText = document.getElementById('quota-text');
       if (quotaText) {
-        quotaText.textContent = `${data.imagesRemaining || 70} ta qoldi`;
+        if (data.isUnlimited) {
+          quotaText.textContent = 'Cheksiz ⚡';
+        } else {
+          quotaText.textContent = `${data.imagesRemaining ?? 50} ta qoldi`;
+        }
       }
 
       // Check Custom Background
@@ -213,18 +242,25 @@ function setupImageStudio() {
     processBtn.disabled = true;
 
     try {
-      const formData = new FormData();
-      formData.append('media', currentImageData);
-      formData.append('type', 'IMAGE');
-      formData.append('scale', scale);
-      formData.append('telegramId', tg?.initDataUnsafe?.user?.id || '0');
+      if (progressTitle) progressTitle.textContent = 'Rasm yuklanmoqda...';
+      if (progressDesc) progressDesc.textContent = 'Fayl tayyorlanmoqda';
+
+      const imageBase64 = await fileToBase64(currentImageData);
 
       if (progressTitle) progressTitle.textContent = 'AI Neyrotarmoq ishlamoqda...';
       if (progressDesc) progressDesc.textContent = `${scale}x Ultra HD formatda piksellar tiklanmoqda`;
 
       const response = await fetch('/api/miniapp/process', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegramId: tg?.initDataUnsafe?.user?.id || '0',
+          type: 'IMAGE',
+          scale: parseInt(scale, 10) || 4,
+          imageBase64,
+        }),
       });
 
       const result = await response.json();
@@ -233,6 +269,8 @@ function setupImageStudio() {
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         if (progressTitle) progressTitle.textContent = '✅ Muvaffaqiyatli yakunlandi!';
         if (progressDesc) progressDesc.textContent = 'Tayyor 4K rasm botingizga yuborildi!';
+
+        await loadUserData();
 
         // Notify user via Telegram WebApp popup and close
         if (tg?.showAlert) {
@@ -402,19 +440,24 @@ function setupBackgroundStudio() {
 
     saveBgBtn.disabled = true;
     try {
-      const formData = new FormData();
-      formData.append('background', currentBgData);
-      formData.append('telegramId', tg?.initDataUnsafe?.user?.id || '0');
+      const imageBase64 = await fileToBase64(currentBgData);
 
       const res = await fetch('/api/miniapp/set-background', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          telegramId: tg?.initDataUnsafe?.user?.id || '0',
+          imageBase64,
+        }),
       });
 
       const resJson = await res.json();
       if (res.ok && resJson.success) {
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
         if (resetBgBtn) resetBgBtn.style.display = 'inline-flex';
+        await loadUserData();
         alert('✅ Maxsus foningiz muvaffaqiyatli saqlandi va faollashtirildi!');
       } else {
         throw new Error(resJson.error || 'Fonni saqlashda xatolik yuz berdi');
@@ -443,18 +486,20 @@ function setupBackgroundStudio() {
 }
 
 // --------------------------------------------------------------------------
-// 6. Plans & Telegram Stars Purchase
+// 6. Plans & Admin Contact
 // --------------------------------------------------------------------------
 function setupPlans() {
-  const buyProBtn = document.getElementById('btn-buy-pro');
-  buyProBtn?.addEventListener('click', () => {
-    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-
-    // Close WebApp and trigger Telegram Stars payment prompt in chat
-    if (tg?.sendData) {
-      tg.sendData('ACTION_BUY_PRO');
+  const contactAdmin = (e) => {
+    e.preventDefault();
+    const adminUrl = 'https://t.me/rahmonoov_19';
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(adminUrl);
     } else {
-      tg?.close();
+      window.open(adminUrl, '_blank');
     }
-  });
+  };
+
+  document.getElementById('btn-plan-free')?.addEventListener('click', contactAdmin);
+  document.getElementById('btn-plan-premium')?.addEventListener('click', contactAdmin);
+  document.getElementById('btn-plan-pro')?.addEventListener('click', contactAdmin);
 }

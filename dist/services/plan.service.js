@@ -1,18 +1,18 @@
 export class PlanService {
     static PLANS = {
         FREE: {
-            dailyImages: 70,
-            dailyVideos: 20,
+            dailyImages: 50,
+            dailyVideos: 10,
             isUnlimitedImages: false,
             isUnlimitedVideos: false,
             hasCustomBackground: false,
-            canUse4K: false,
+            canUse4K: true,
             maxImageSizeMB: 20,
             maxVideoSizeMB: 50,
         },
         PREMIUM: {
-            dailyImages: 150,
-            dailyVideos: 50,
+            dailyImages: 70,
+            dailyVideos: 30,
             isUnlimitedImages: false,
             isUnlimitedVideos: false,
             hasCustomBackground: false,
@@ -75,12 +75,12 @@ export class PlanService {
         const normalized = this.normalizePlan(plan);
         switch (normalized) {
             case 'PRO':
-                return lang === 'ru' ? '💎 PRO (Безлимит)' : lang === 'en' ? '💎 PRO (Unlimited)' : '💎 PRO (Cheksiz)';
+                return lang === 'ru' ? '👑 PRO (Безлимит)' : lang === 'en' ? '👑 PRO (Unlimited)' : '👑 PRO (Cheksiz)';
             case 'PREMIUM':
-                return lang === 'ru' ? '⭐ PREMIUM (150/50)' : lang === 'en' ? '⭐ PREMIUM (150/50)' : '⭐ PREMIUM (150/50)';
+                return lang === 'ru' ? '⭐ PREMIUM (70/30)' : lang === 'en' ? '⭐ PREMIUM (70/30)' : '⭐ PREMIUM (70/30)';
             case 'FREE':
             default:
-                return lang === 'ru' ? '🎁 FREE (70/20)' : lang === 'en' ? '🎁 FREE (70/20)' : '🎁 FREE (70/20)';
+                return lang === 'ru' ? '🎁 FREE (50/10)' : lang === 'en' ? '🎁 FREE (50/10)' : '🎁 FREE (50/10)';
         }
     }
 }

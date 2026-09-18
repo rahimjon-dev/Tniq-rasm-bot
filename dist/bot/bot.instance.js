@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { mainKeyboard, languageKeyboard, getMainKeyboard, getSettingsKeyboard, } from './keyboards/main.keyboard.js';
@@ -148,7 +148,14 @@ bot.hears([
     const t = getT(lang);
     if (ctx.from?.id)
         UserService.updateActivity(ctx.from.id, 'Viewed plans');
-    await ctx.replyWithHTML(t.plans_info, getMainKeyboard(lang));
+    const contactText = lang === 'ru'
+        ? '💬 Написать администратору'
+        : lang === 'en'
+            ? '💬 Contact Administrator'
+            : '💬 Admin bilan bog\'lanish';
+    await ctx.replyWithHTML(t.plans_info, Markup.inlineKeyboard([
+        [Markup.button.url(contactText, 'https://t.me/rahmonoov_19')],
+    ]));
 });
 // ⚙️ Settings
 bot.hears([

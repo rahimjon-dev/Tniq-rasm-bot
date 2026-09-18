@@ -23,7 +23,10 @@
       <div class="user-profile-badge" id="user-profile-badge">
         <div class="avatar-circle" id="user-avatar">👤</div>
         <div class="user-meta">
-          <span class="user-name" id="user-name">Yuklanmoqda...</span>
+          <div class="user-meta-row">
+            <span class="user-name" id="user-name">Yuklanmoqda...</span>
+            <span class="pro-badge-glow" id="pro-badge-glow" style="display: none;">👑 PRO</span>
+          </div>
           <span class="user-badge" id="user-plan-badge">FREE</span>
         </div>
       </div>
@@ -226,40 +229,69 @@
       <div class="glass-card hero-card">
         <div class="card-glow"></div>
         <h2 class="hero-title">Tarif Rejalari</h2>
-        <p class="hero-sub">Ehtiyojingizga mos tarifni tanlang va maksimal 4K sifatdan bahramand bo'ling.</p>
+        <p class="hero-sub">3 ta qulay tarif. Istalgan tarifga o'tish uchun adminga murojaat qiling.</p>
       </div>
 
-      <!-- FREE Plan -->
-      <div class="glass-card plan-card free-plan">
+      <!-- 1. FREE Plan -->
+      <div class="glass-card plan-card free-plan" id="card-plan-free">
         <div class="plan-header">
-          <h3>FREE BETA</h3>
+          <div>
+            <span class="plan-tag-mini">STANDART</span>
+            <h3>🎁 FREE</h3>
+          </div>
           <span class="plan-price">0 so'm</span>
         </div>
         <ul class="plan-features">
-          <li>✔ Kuniga 70 ta rasm (2x & 4K)</li>
-          <li>✔ Kuniga 20 ta video</li>
+          <li>✔ Kuniga <b>50 ta</b> rasm (2x & 4K)</li>
+          <li>✔ Kuniga <b>10 ta</b> video</li>
           <li>✔ 1-3 soniyada tezkor ishlov</li>
-          <li>✔ 100% asl sifatda hujjat formatida yuklash</li>
+          <li>✔ 100% asl sifatda yuklash</li>
         </ul>
-        <button class="btn btn-secondary btn-full" id="btn-active-free" disabled>Joriy Tarif</button>
+        <a href="https://t.me/rahmonoov_19" target="_blank" class="btn btn-secondary btn-full" id="btn-plan-free">
+          <span>🎁 Bepul / Admin bilan bog'lanish</span>
+        </a>
       </div>
 
-      <!-- PRO Plan -->
-      <div class="glass-card plan-card pro-plan featured">
-        <div class="popular-tag">ENG OMMABOP</div>
+      <!-- 2. PREMIUM Plan -->
+      <div class="glass-card plan-card premium-plan" id="card-plan-premium">
         <div class="plan-header">
-          <h3>PRO 4K VIP</h3>
-          <span class="plan-price">100 ⭐ Stars <small>/ oy</small></span>
+          <div>
+            <span class="plan-tag-mini tag-premium">KUCHAYTIRILGAN</span>
+            <h3>⭐ PREMIUM</h3>
+          </div>
+          <span class="plan-price">Bepul <small>(Admin orqali)</small></span>
         </div>
         <ul class="plan-features">
-          <li>✔ <b>Kuniga 500 ta</b> 4K Ultra HD rasm</li>
-          <li>✔ <b>Kuniga 50 ta</b> 4K video</li>
-          <li>✔ <b>Avtomatik Maxsus Fon</b> (orqa fonni almashtirish)</li>
+          <li>✔ Kuniga <b>70 ta</b> rasm (2x & 4K)</li>
+          <li>✔ Kuniga <b>30 ta</b> video</li>
+          <li>✔ Ustuvor AI navbati</li>
+          <li>✔ Yuqori tezlikdagi render</li>
+        </ul>
+        <a href="https://t.me/rahmonoov_19" target="_blank" class="btn btn-secondary btn-full btn-premium-action" id="btn-plan-premium">
+          <span>⭐ Premium Olish (@rahmonoov_19)</span>
+        </a>
+      </div>
+
+      <!-- 3. PRO Plan (Cheksiz, Custom BG, Glowing Badge) -->
+      <div class="glass-card plan-card pro-plan featured glowing-pro-card" id="card-plan-pro">
+        <div class="popular-tag pro-badge-animated">👑 CHEKSIZ PRO VIP</div>
+        <div class="plan-header">
+          <div>
+            <span class="plan-tag-mini tag-pro">MAKSIMAL</span>
+            <h3 class="pro-glow-text">👑 PRO (Cheksiz)</h3>
+          </div>
+          <span class="plan-price pro-glow-text">VIP <small>(Admin orqali)</small></span>
+        </div>
+        <ul class="plan-features">
+          <li>✔ <b>CHEKSIZ</b> 4K Ultra HD rasm</li>
+          <li>✔ <b>CHEKSIZ</b> 4K video tiniqlashtirish</li>
+          <li>✔ 🌄 <b>Maxsus Fon:</b> chat va rasmlarga o'zingiz xohlagan fonni qo'yish</li>
+          <li>✔ 👑 <b>Alohida yonib-o'chuvchi PRO nishoni</b></li>
           <li>✔ Eng ustuvor VIP navbat (0 kutish vaqti)</li>
         </ul>
-        <button class="btn btn-primary btn-full" id="btn-buy-pro">
-          <span>💎 PRO-ga O'tish</span>
-        </button>
+        <a href="https://t.me/rahmonoov_19" target="_blank" class="btn btn-primary btn-full btn-pro-action" id="btn-plan-pro">
+          <span>💎 PRO Olish (@rahmonoov_19)</span>
+        </a>
       </div>
     </section>
 

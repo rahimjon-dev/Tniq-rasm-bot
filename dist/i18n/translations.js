@@ -83,21 +83,22 @@ export const translations = {
             `⚡ <i>Limitlarni oshirish yoki cheksiz imkoniyat uchun "Tariflar" bo'limiga qarang!</i>`,
         plans_info: `💎 <b>AI MEDIA UPSCALER — TARIF REJALARI</b>\n\n` +
             `🎁 <b>1. FREE (Standart)</b>\n` +
-            `• 70 ta rasm tiniqlashtirish / kun\n` +
-            `• 20 ta video tiniqlashtirish / kun\n` +
+            `• Kuniga 50 ta rasm tiniqlashtirish\n` +
+            `• Kuniga 10 ta video tiniqlashtirish\n` +
             `• 2x va 4x AI Ultra HD\n` +
-            `• Narxi: Bepul\n\n` +
+            `• Narxi: 100% Bepul\n\n` +
             `⭐ <b>2. PREMIUM</b>\n` +
-            `• 150 ta rasm tiniqlashtirish / kun\n` +
-            `• 50 ta video tiniqlashtirish / kun\n` +
+            `• Kuniga 70 ta rasm tiniqlashtirish\n` +
+            `• Kuniga 30 ta video tiniqlashtirish\n` +
             `• 4K Video va ustuvor navbat\n` +
-            `• Katta hajmdagi fayllar (50MB gacha)\n\n` +
-            `👑 <b>3. PRO (Cheksiz)</b>\n` +
+            `• Narxi: Bepul (Admin tasdiqlaydi)\n\n` +
+            `👑 <b>3. PRO (Cheksiz & Shaxsiy Fon)</b>\n` +
             `• <b>CHEKSIZ</b> rasm tiniqlashtirish\n` +
             `• <b>CHEKSIZ</b> video tiniqlashtirish\n` +
-            `• 🖼 <b>Maxsus Fon o'rnatish</b> (Personalization)\n` +
-            `• Maksimal tezlik va VIP yordam\n\n` +
-            `<i>Tarifni almashtirish uchun admin bilan bog'laning: @rahmonoov_19</i>`,
+            `• 🖼 <b>Chat va rasm orqa foniga xohlagan rasmni o'rnatish</b>\n` +
+            `• 👑 <b>Alohida yonib turuvchi PRO znachogi</b>\n` +
+            `• Maksimal VIP tezlik va 0 kutish vaqti\n\n` +
+            `<i>Tarif olish yoki oshirish uchun admin bilan bog'laning: @rahmonoov_19</i>`,
         settings_menu: `⚙️ <b>Sozlamalar</b>\n\nKerakli parametrni tanlang:`,
         pro_custom_bg_prompt: `🖼 <b>Pro Maxsus Fon O'rnatish</b>\n\n` +
             `Iltimos, bot orqa foni sifatida foydalanmoqchi bo'lgan rasmingizni yuboring (JPG yoki PNG, 10MB gacha).\n\n` +
@@ -225,21 +226,22 @@ export const translations = {
             `⚡ <i>Check out the "Plans" menu for unlimited access!</i>`,
         plans_info: `💎 <b>AI MEDIA UPSCALER — SUBSCRIPTION PLANS</b>\n\n` +
             `🎁 <b>1. FREE Plan</b>\n` +
-            `• 70 Image generations / day\n` +
-            `• 20 Video generations / day\n` +
+            `• 50 Image generations / day\n` +
+            `• 10 Video generations / day\n` +
             `• 2x and 4x AI Ultra HD\n` +
-            `• Price: Free\n\n` +
+            `• Price: 100% Free\n\n` +
             `⭐ <b>2. PREMIUM Plan</b>\n` +
-            `• 150 Image generations / day\n` +
-            `• 50 Video generations / day\n` +
+            `• 70 Image generations / day\n` +
+            `• 30 Video generations / day\n` +
             `• 4K Video & priority queue\n` +
-            `• File size up to 50MB\n\n` +
-            `👑 <b>3. PRO Plan (Unlimited)</b>\n` +
+            `• Price: Free (Granted by Admin)\n\n` +
+            `👑 <b>3. PRO Plan (Unlimited & Custom Background)</b>\n` +
             `• <b>UNLIMITED</b> Image generations\n` +
             `• <b>UNLIMITED</b> Video generations\n` +
-            `• 🖼 <b>Custom Background image</b> personalization\n` +
-            `• Highest processing speed & VIP support\n\n` +
-            `<i>Contact the administrator to change plans: @rahmonoov_19</i>`,
+            `• 🖼 <b>Custom Background personalization</b>\n` +
+            `• 👑 <b>Glowing animated PRO badge</b>\n` +
+            `• Maximum VIP speed\n\n` +
+            `<i>Contact the administrator to activate or upgrade plans: @rahmonoov_19</i>`,
         settings_menu: `⚙️ <b>Settings</b>\n\nChoose an option to configure:`,
         pro_custom_bg_prompt: `🖼 <b>Pro Custom Background</b>\n\n` +
             `Please send the image you would like to set as your custom bot background (JPG or PNG, up to 10MB).\n\n` +
@@ -367,21 +369,22 @@ export const translations = {
             `⚡ <i>Для безлимитного доступа ознакомьтесь с разделом «Тарифы»!</i>`,
         plans_info: `💎 <b>AI MEDIA UPSCALER — ТАРИФНЫЕ ПЛАНЫ</b>\n\n` +
             `🎁 <b>1. FREE (Базовый)</b>\n` +
-            `• 70 генераций фото / день\n` +
-            `• 20 генераций видео / день\n` +
+            `• 50 генераций фото / день\n` +
+            `• 10 генераций видео / день\n` +
             `• 2x и 4x AI Ultra HD\n` +
-            `• Цена: Бесплатно\n\n` +
+            `• Цена: 100% Бесплатно\n\n` +
             `⭐ <b>2. PREMIUM</b>\n` +
-            `• 150 генераций фото / день\n` +
-            `• 50 генераций видео / день\n` +
+            `• 70 генераций фото / день\n` +
+            `• 30 генераций видео / день\n` +
             `• 4K Видео и приоритет в очереди\n` +
-            `• Файлы до 50МБ\n\n` +
-            `👑 <b>3. PRO (Безлимит)</b>\n` +
+            `• Цена: Бесплатно (Выдает администратор)\n\n` +
+            `👑 <b>3. PRO (Безлимит и Свой Фон)</b>\n` +
             `• <b>БЕЗЛИМИТНОЕ</b> улучшение фото\n` +
             `• <b>БЕЗЛИМИТНОЕ</b> улучшение видео\n` +
-            `• 🖼 <b>Персонализация: установка своего фона</b>\n` +
-            `• Максимальная скорость и VIP поддержка\n\n` +
-            `<i>Для смены тарифа свяжитесь с администратором: @rahmonoov_19</i>`,
+            `• 🖼 <b>Установка персонального фона на фото и в чат</b>\n` +
+            `• 👑 <b>Светящийся анимированный PRO значок</b>\n` +
+            `• Максимальная скорость VIP без задержек\n\n` +
+            `<i>Для получения или повышения тарифа свяжитесь с администратором: @rahmonoov_19</i>`,
         settings_menu: `⚙️ <b>Настройки</b>\n\nВыберите нужный параметр:`,
         pro_custom_bg_prompt: `🖼 <b>Установка персонального фона (PRO)</b>\n\n` +
             `Пожалуйста, отправьте изображение, которое вы хотите установить в качестве фона (JPG или PNG, до 10МБ).\n\n` +
