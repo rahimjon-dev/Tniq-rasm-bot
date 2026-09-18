@@ -14,7 +14,7 @@
       "lastActivityDate": "2026-09-18T16:16:46.132Z",
       "lastAction": "Sent message",
       "dailyUsage": {
-        "date": "2026-09-18",
+        "date": "2026-09-19",
         "images": 0,
         "videos": 0
       },
@@ -38,7 +38,7 @@
       "lastActivityDate": "2026-09-15T17:32:00.000Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-18",
+        "date": "2026-09-19",
         "images": 0,
         "videos": 0
       },
@@ -58,17 +58,17 @@
       "plan": "PRO",
       "isBanned": false,
       "createdAt": "2026-09-15T07:16:15.035Z",
-      "updatedAt": "2026-09-15T07:56:15.536Z",
-      "lastActivityDate": "2026-09-15T07:56:15.536Z",
-      "lastAction": "Active",
+      "updatedAt": "2026-09-18T19:01:59.536Z",
+      "lastActivityDate": "2026-09-18T19:01:59.536Z",
+      "lastAction": "Upscaled IMAGE",
       "dailyUsage": {
-        "date": "2026-09-18",
-        "images": 0,
+        "date": "2026-09-19",
+        "images": 1,
         "videos": 0
       },
-      "totalImages": 0,
+      "totalImages": 1,
       "totalVideos": 0,
-      "totalJobs": 0,
+      "totalJobs": 1,
       "customBackground": null,
       "metadata": {}
     },
@@ -86,7 +86,7 @@
       "lastActivityDate": "2026-09-16T06:27:30.091Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-18",
+        "date": "2026-09-19",
         "images": 0,
         "videos": 0
       },
@@ -110,7 +110,7 @@
       "lastActivityDate": "2026-09-16T06:28:48.660Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-18",
+        "date": "2026-09-19",
         "images": 0,
         "videos": 0
       },
@@ -134,7 +134,7 @@
       "lastActivityDate": "2026-09-16T08:00:48.607Z",
       "lastAction": "Custom background removed",
       "dailyUsage": {
-        "date": "2026-09-18",
+        "date": "2026-09-19",
         "images": 0,
         "videos": 0
       },
@@ -147,6 +147,24 @@
   },
   "jobs": [
     {
+      "id": "job_1789758119545_gyh5",
+      "telegramId": "7534175269",
+      "type": "IMAGE",
+      "status": "COMPLETED",
+      "scale": 4,
+      "inputResolution": "1080x2340",
+      "outputResolution": "1772x3840",
+      "inputSize": 15263,
+      "outputSize": 20317,
+      "processingTime": 63.215,
+      "createdAt": "2026-09-18T19:01:59.545Z",
+      "user": {
+        "telegramId": "7534175269",
+        "firstName": "Rahimjon",
+        "username": "rahmonoov_19"
+      }
+    },
+    {
       "id": "job_img_6504326848_1",
       "telegramId": "6504326848",
       "type": "IMAGE",
@@ -157,7 +175,7 @@
     }
   ],
   "stats": {
-    "totalImages": 3,
+    "totalImages": 4,
     "totalVideos": 0,
     "failedJobs": 0
   }

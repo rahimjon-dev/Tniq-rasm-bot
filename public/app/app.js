@@ -250,6 +250,9 @@ function setupImageStudio() {
       if (progressTitle) progressTitle.textContent = 'AI Neyrotarmoq ishlamoqda...';
       if (progressDesc) progressDesc.textContent = `${scale}x Ultra HD formatda piksellar tiklanmoqda`;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
       const response = await fetch('/api/miniapp/process', {
         method: 'POST',
         headers: {
@@ -261,25 +264,29 @@ function setupImageStudio() {
           scale: parseInt(scale, 10) || 4,
           imageBase64,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const result = await response.json();
 
       if (response.ok && result.success) {
         if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        if (progressTitle) progressTitle.textContent = '✅ Muvaffaqiyatli yakunlandi!';
-        if (progressDesc) progressDesc.textContent = 'Tayyor 4K rasm botingizga yuborildi!';
+        if (progressTitle) progressTitle.textContent = '✅ Qabul qilindi!';
+        if (progressDesc) progressDesc.textContent = '4K Ultra HD formatda tayyorlanib botingizga yuborilmoqda!';
 
         await loadUserData();
 
         // Notify user via Telegram WebApp popup and close
-        if (tg?.showAlert) {
-          tg.showAlert('✨ Rasmingiz 4K formatda tayyorlandi va Telegram chatiga yuborildi!', () => {
-            tg.close();
-          });
-        } else {
-          alert('✨ Rasmingiz 4K formatda tayyorlandi va Telegram chatiga yuborildi!');
-        }
+        setTimeout(() => {
+          if (tg?.showAlert) {
+            tg.showAlert('✨ Rasmingiz qabul qilindi! Bir necha soniyada 4K Ultra HD formatda botingizga yetkaziladi.', () => {
+              tg.close();
+            });
+          } else {
+            alert('✨ Rasmingiz qabul qilindi! Bir necha soniyada 4K Ultra HD formatda botingizga yetkaziladi.');
+          }
+        }, 400);
       } else {
         throw new Error(result.error || 'Qayta ishlashda xatolik yuz berdi');
       }

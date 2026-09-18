@@ -21,18 +21,22 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
   }
 
   private getExecutablePath(): string {
-    const candidates = [
-      this.exePath,
-      path.resolve(process.cwd(), 'realesrgan/realesrgan-ncnn-vulkan'),
-      '/app/realesrgan/realesrgan-ncnn-vulkan',
-      path.resolve(process.cwd(), 'realesrgan/realesrgan-ncnn-vulkan.exe'),
-    ];
+    const isWindows = process.platform === 'win32';
+    const candidates = isWindows
+      ? [
+          this.exePath,
+          path.resolve(process.cwd(), 'realesrgan/realesrgan-ncnn-vulkan.exe'),
+        ]
+      : [
+          path.resolve(process.cwd(), 'realesrgan/realesrgan-ncnn-vulkan'),
+          '/app/realesrgan/realesrgan-ncnn-vulkan',
+        ];
     for (const c of candidates) {
       if (fs.existsSync(c)) {
         return c;
       }
     }
-    return this.exePath;
+    return isWindows ? this.exePath : '';
   }
 
   private getModelsDirectory(): string {
@@ -53,7 +57,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
     try {
       const exe = this.getExecutablePath();
       const models = this.getModelsDirectory();
-      return fs.existsSync(exe) && fs.existsSync(models);
+      return !!(exe && fs.existsSync(exe) && fs.existsSync(models));
     } catch {
       return false;
     }
@@ -72,10 +76,19 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
     originalHeight: number,
     startTime: number
   ): Promise<ImageUpscaleResult> {
-    const targetWidth = Math.round(originalWidth * scale);
-    const targetHeight = Math.round(originalHeight * scale);
+    // True 4K Ultra HD bounding: max dimension capped at 3840px (standard 4K UHD)
+    // This prevents 40+ Megapixel memory explosions while ensuring authentic 4K resolution
+    const maxTargetDim = scale === 4 ? 3840 : 2560;
+    let targetWidth = Math.round(originalWidth * scale);
+    let targetHeight = Math.round(originalHeight * scale);
 
-    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine (Lanczos3 + Crisp Sharpening)...`);
+    if (targetWidth > maxTargetDim || targetHeight > maxTargetDim) {
+      const ratio = Math.min(maxTargetDim / targetWidth, maxTargetDim / targetHeight);
+      targetWidth = Math.max(1, Math.round(targetWidth * ratio));
+      targetHeight = Math.max(1, Math.round(targetHeight * ratio));
+    }
+
+    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine: ${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight} (${scale}x 4K UHD)...`);
 
     // High fidelity resize with enhanced tone and crisp sharpness
     await sharp(inputPath)

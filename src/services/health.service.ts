@@ -309,81 +309,95 @@ export function startHealthServer(): http.Server {
           const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
           fs.writeFileSync(inputPath, Buffer.from(cleanBase64, 'base64'));
 
-          let processingInputPath = inputPath;
-          const customBg = UserService.getUserCustomBackground(tid);
-          if (PlanService.canUseCustomBackground(userPlan) && customBg && BackgroundService.hasCustomBackground(customBg)) {
-            try {
-              const compositePath = path.join(tempDir, `miniapp_bg_${fileId}.jpg`);
-              processingInputPath = await BackgroundService.replaceBackground(inputPath, customBg, compositePath);
-            } catch (bgErr: any) {
-              logger.warn('[MINIAPP_PROCESS] Background replace notice:', bgErr.message);
-            }
-          }
-
-          const scaleVal = scale === 2 ? 2 : 4;
-          const provider = getImageUpscalerProvider();
-          const startTime = Date.now();
-          const result = await provider.upscaleImage(processingInputPath, outputPath, {
-            scale: scaleVal,
-            format: 'jpg',
-          });
-
-          const duration = (Date.now() - startTime) / 1000;
-          const caption = t.complete_image(
-            scaleVal,
-            `${result.originalWidth}x${result.originalHeight}`,
-            `${result.outputWidth}x${result.outputHeight}`,
-            duration
-          );
-
-          // Send to Telegram chat
-          try {
-            await bot.telegram.sendPhoto(
-              Number(tid),
-              { source: outputPath },
-              { caption, parse_mode: 'HTML' }
-            );
-
-            await bot.telegram.sendDocument(
-              Number(tid),
-              { source: outputPath, filename: `4k_upscaled_${scaleVal}x_${result.outputWidth}x${result.outputHeight}.jpg` },
-              { caption: t.doc_image_caption, parse_mode: 'HTML' }
-            );
-          } catch (tgSendErr: any) {
-            logger.error('[MINIAPP_PROCESS] Failed to send photo to Telegram:', tgSendErr);
-          }
-
-          await Promise.all([
-            UsageService.incrementImageUsage(userId, tid),
-            UsageService.recordJob({
-              userId,
-              telegramId: tid,
-              type: 'IMAGE',
-              scale: scaleVal,
-              status: 'COMPLETED',
-              inputResolution: `${result.originalWidth}x${result.originalHeight}`,
-              outputResolution: `${result.outputWidth}x${result.outputHeight}`,
-              inputSize: fs.existsSync(inputPath) ? fs.statSync(inputPath).size : 0,
-              outputSize: fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0,
-              processingTimeSeconds: duration,
-            }),
-          ]);
-
-          // Clean up temp files safely after short delay
-          setTimeout(() => {
-            try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
-            try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
-          }, 15000);
-
+          // Immediately respond 200 OK to the client so Mini App never times out or drops connection
           res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
           res.end(
             JSON.stringify({
               success: true,
-              message: 'Rasmingiz 4K formatda tayyorlandi va Telegram botingizga yuborildi!',
-              outputWidth: result.outputWidth,
-              outputHeight: result.outputHeight,
+              message: 'Rasmingiz qabul qilindi! AI 4K tiniqlashtirish boshlandi va tayyor bo\'lgach Telegram botingizga yuboriladi.',
+              jobId: fileId,
             })
           );
+
+          // Asynchronous processing in background:
+          setImmediate(async () => {
+            try {
+              let processingInputPath = inputPath;
+              const customBg = UserService.getUserCustomBackground(tid);
+              if (PlanService.canUseCustomBackground(userPlan) && customBg && BackgroundService.hasCustomBackground(customBg)) {
+                try {
+                  const compositePath = path.join(tempDir, `miniapp_bg_${fileId}.jpg`);
+                  processingInputPath = await BackgroundService.replaceBackground(inputPath, customBg, compositePath);
+                } catch (bgErr: any) {
+                  logger.warn('[MINIAPP_PROCESS] Background replace notice:', bgErr.message);
+                }
+              }
+
+              const scaleVal = scale === 2 ? 2 : 4;
+              const provider = getImageUpscalerProvider();
+              const startTime = Date.now();
+              const result = await provider.upscaleImage(processingInputPath, outputPath, {
+                scale: scaleVal,
+                format: 'jpg',
+              });
+
+              const duration = (Date.now() - startTime) / 1000;
+              const caption = t.complete_image(
+                scaleVal,
+                `${result.originalWidth}x${result.originalHeight}`,
+                `${result.outputWidth}x${result.outputHeight}`,
+                duration
+              );
+
+              // Send to Telegram chat
+              try {
+                await bot.telegram.sendPhoto(
+                  Number(tid),
+                  { source: outputPath },
+                  { caption, parse_mode: 'HTML' }
+                );
+
+                await bot.telegram.sendDocument(
+                  Number(tid),
+                  { source: outputPath, filename: `4k_upscaled_${scaleVal}x_${result.outputWidth}x${result.outputHeight}.jpg` },
+                  { caption: t.doc_image_caption, parse_mode: 'HTML' }
+                );
+              } catch (tgSendErr: any) {
+                logger.error('[MINIAPP_PROCESS] Failed to send photo to Telegram:', tgSendErr);
+              }
+
+              await Promise.all([
+                UsageService.incrementImageUsage(userId, tid),
+                UsageService.recordJob({
+                  userId,
+                  telegramId: tid,
+                  type: 'IMAGE',
+                  scale: scaleVal,
+                  status: 'COMPLETED',
+                  inputResolution: `${result.originalWidth}x${result.originalHeight}`,
+                  outputResolution: `${result.outputWidth}x${result.outputHeight}`,
+                  inputSize: fs.existsSync(inputPath) ? fs.statSync(inputPath).size : 0,
+                  outputSize: fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0,
+                  processingTimeSeconds: duration,
+                }),
+              ]);
+            } catch (bgProcErr: any) {
+              logger.error('[MINIAPP_PROCESS] Background process error:', bgProcErr);
+              try {
+                await bot.telegram.sendMessage(
+                  Number(tid),
+                  `❌ <b>Rasmga ishlov berishda xatolik yuz berdi:</b>\n<code>${bgProcErr.message}</code>`,
+                  { parse_mode: 'HTML' }
+                );
+              } catch {}
+            } finally {
+              // Clean up temp files safely
+              setTimeout(() => {
+                try { if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath); } catch {}
+                try { if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath); } catch {}
+              }, 15000);
+            }
+          });
           return;
         }
 
