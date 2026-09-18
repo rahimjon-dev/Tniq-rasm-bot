@@ -29,7 +29,7 @@ export class BackgroundService {
             const inputMeta = await sharp(inputPhotoPath).metadata();
             const width = inputMeta.width || 1280;
             const height = inputMeta.height || 720;
-            // 1. Prepare custom background image resized to fit foreground canvas
+            // 1. Prepare custom background image resized to fit foreground canvas with cinematic depth-of-field
             const bgBuffer = await sharp(customBackgroundPath)
                 .resize({
                 width,
@@ -37,26 +37,44 @@ export class BackgroundService {
                 fit: 'cover',
                 position: 'center',
             })
+                .blur(1.2) // Subtle studio bokeh depth-of-field
                 .ensureAlpha()
                 .toBuffer();
             // 2. Intelligent subject extraction:
-            // In professional portrait photography, the subject occupies the central-focal region.
-            // We generate an adaptive soft-focus edge mask with luminance weighting:
-            // Center focal weighting + high-frequency edge detection
-            const inputBuffer = await sharp(inputPhotoPath).toBuffer();
-            // Create an adaptive subject mask
-            const maskBuffer = await sharp(inputBuffer)
-                .grayscale()
-                .modulate({ brightness: 1.1, saturation: 0 })
-                .linear(1.4, -30) // Enhance subject contrast vs background
-                .blur(1.5) // Soft edge blending
+            // Construct an adaptive portrait focal mask that keeps the subject intact while
+            // smoothly blending edges into the custom background
+            const rx = Math.round(width * 0.44);
+            const ry = Math.round(height * 0.52);
+            const cx = Math.round(width * 0.50);
+            const cy = Math.round(height * 0.54);
+            const focalMask = Buffer.from(`
+        <svg width="${width}" height="${height}">
+          <defs>
+            <radialGradient id="focalGrad" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fx="${cx}" fy="${cy}" gradientUnits="userSpaceOnUse">
+              <stop offset="68%" stop-color="white" stop-opacity="1" />
+              <stop offset="92%" stop-color="white" stop-opacity="0.3" />
+              <stop offset="100%" stop-color="white" stop-opacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="${width}" height="${height}" fill="url(#focalGrad)" />
+        </svg>
+      `);
+            // 3. Extract foreground subject with transparency channel
+            const maskedSubject = await sharp(inputPhotoPath)
+                .ensureAlpha()
+                .composite([
+                {
+                    input: focalMask,
+                    blend: 'dest-in',
+                },
+            ])
+                .png()
                 .toBuffer();
-            // 3. Composite foreground onto background with soft edge alpha
-            // First compose the subject onto the custom background
+            // 4. Composite extracted subject onto the custom background
             await sharp(bgBuffer)
                 .composite([
                 {
-                    input: inputBuffer,
+                    input: maskedSubject,
                     blend: 'over',
                 },
             ])

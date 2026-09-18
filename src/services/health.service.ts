@@ -321,7 +321,16 @@ export function startHealthServer(): http.Server {
 
           // Asynchronous processing in background:
           setImmediate(async () => {
+            let progressMsg: any = null;
             try {
+              try {
+                progressMsg = await bot.telegram.sendMessage(
+                  Number(tid),
+                  '⚡ <b>AI 4K Tiniqlashtirish boshlandi...</b>\n<i>Natija bir necha soniyada tayyorlanib yuboriladi.</i>',
+                  { parse_mode: 'HTML' }
+                );
+              } catch {}
+
               let processingInputPath = inputPath;
               const customBg = UserService.getUserCustomBackground(tid);
               if (PlanService.canUseCustomBackground(userPlan) && customBg && BackgroundService.hasCustomBackground(customBg)) {
@@ -364,6 +373,12 @@ export function startHealthServer(): http.Server {
                 );
               } catch (tgSendErr: any) {
                 logger.error('[MINIAPP_PROCESS] Failed to send photo to Telegram:', tgSendErr);
+              }
+
+              if (progressMsg) {
+                try {
+                  await bot.telegram.deleteMessage(Number(tid), progressMsg.message_id);
+                } catch {}
               }
 
               await Promise.all([
