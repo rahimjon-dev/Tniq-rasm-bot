@@ -77,7 +77,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
 
     logger.info(`[AI_IMAGE] Applying Ultra-Clarity Engine (Lanczos3 + Crisp Sharpening)...`);
 
-    // High fidelity resize without artifacts
+    // High fidelity resize with enhanced tone and crisp sharpness
     await sharp(inputPath)
       .resize({
         width: targetWidth,
@@ -86,10 +86,14 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
         fit: 'fill',
         fastShrinkOnLoad: false,
       })
+      .modulate({
+        brightness: 1.02,
+        saturation: 1.06,
+      })
       .sharpen({
-        sigma: 0.9,
-        m1: 1.3,
-        m2: 0.4,
+        sigma: 1.1,
+        m1: 1.4,
+        m2: 0.5,
       })
       .jpeg({ quality: 98, mozjpeg: true })
       .toFile(outputPath);
@@ -142,14 +146,23 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       return this.fallbackSharpUpscale(inputPath, outputPath, scale, originalWidth, originalHeight, startTime);
     }
 
-    // High speed & crisp neural network model (1-2s inference instead of 40s)
-    let modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
-    const modelBin = path.join(models, `${modelName}.bin`);
-    if (!fs.existsSync(modelBin)) {
-      modelName = 'realesr-animevideov3';
+    // Primary high-clarity model for genuine 4K photographic detail:
+    // realesrgan-x4plus reconstructs authentic facial features, textures, and crisp edges
+    let modelName = 'realesrgan-x4plus';
+    const x4Bin = path.join(models, `${modelName}.bin`);
+    if (!fs.existsSync(x4Bin)) {
+      modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
+      const fallbackBin = path.join(models, `${modelName}.bin`);
+      if (!fs.existsSync(fallbackBin)) {
+        modelName = 'realesr-animevideov3';
+      }
     }
 
-    logger.info(`[AI_IMAGE] Starting fast Real-ESRGAN AI enhancement: scale=${scale}x, model=${modelName}`, {
+    // Adaptive tiling: for images > 1500px, use tile size 256 to prevent VRAM overflow
+    const maxDim = Math.max(originalWidth, originalHeight);
+    const tileSize = maxDim > 1400 ? '256' : '0';
+
+    logger.info(`[AI_IMAGE] Starting Real-ESRGAN 4K AI enhancement: scale=${scale}x, model=${modelName}, tileSize=${tileSize}`, {
       exe,
       models,
       inputPath,
@@ -163,7 +176,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       '-n', modelName,
       '-m', models,
       '-s', scale.toString(),
-      '-t', '0', // 0 = full frame auto (20x faster, removes tile boundary latency)
+      '-t', tileSize,
       '-j', '2:2:2',
       '-f', format,
     ];

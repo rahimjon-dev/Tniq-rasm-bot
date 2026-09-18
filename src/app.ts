@@ -7,7 +7,7 @@ import { redisConnection, checkRedisConnection, getRedisClient } from './queue/q
 import { imageWorker, startImageWorker } from './queue/workers/image.worker.js';
 import { videoWorker, startVideoWorker } from './queue/workers/video.worker.js';
 import CleanupService from './services/media/cleanup.service.js';
-import { startHealthServer, stopHealthServer } from './services/health.service.js';
+import { startHealthServer, stopHealthServer, startKeepAlivePinger } from './services/health.service.js';
 import store from './services/store.service.js';
 
 export async function bootstrap(): Promise<void> {
@@ -140,12 +140,28 @@ export async function bootstrap(): Promise<void> {
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));
 
-  // 7. Launch the Telegram Bot
+  // 7. Launch the Telegram Bot (Auto Webhook for Render 24/7 or Polling for local)
   try {
     const botInfo = await bot.telegram.getMe();
-    bot.launch().catch((err) => {
-      logger.error('Telegram bot polling error:', err);
-    });
+    const webhookDomain = config.WEBHOOK_DOMAIN || config.RENDER_EXTERNAL_URL;
+
+    if (webhookDomain) {
+      const fullWebhookUrl = webhookDomain.replace(/\/$/, '') + config.WEBHOOK_PATH;
+      await bot.telegram.setWebhook(fullWebhookUrl);
+      logger.info(`✅ Webhook mode active for 24/7 cloud hosting: ${fullWebhookUrl}`);
+    } else {
+      try {
+        await bot.telegram.deleteWebhook({ drop_pending_updates: false });
+      } catch {}
+      bot.launch().catch((err) => {
+        logger.error('Telegram bot polling error:', err);
+      });
+      logger.info(`✅ Polling mode active for @${botInfo.username}`);
+    }
+
+    // Start 24/7 Keep-Alive Pinger if configured
+    startKeepAlivePinger();
+
     logger.info(`✅ Telegram Bot @${botInfo.username} is fully operational and receiving updates`);
   } catch (error) {
     logger.error('Failed to launch Telegram Bot:', {

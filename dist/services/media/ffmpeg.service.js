@@ -163,18 +163,18 @@ export class FFmpegService {
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
-        // Advanced video filter chain:
-        // 1. hqdn3d: Removes input sensor/compression noise before upscaling
-        // 2. scale: Lanczos + accurate rounding + full chroma interpolation
-        // 3. cas: AMD Contrast Adaptive Sharpening recovers fine textures and edge contrast
-        const filter = `hqdn3d=1.2:1.2:3:3,scale=iw*${scale}:ih*${scale}:flags=lanczos+accurate_rnd+full_chroma_int+full_chroma_inp,cas=0.6`;
+        // Advanced high-clarity video filter chain:
+        // 1. hqdn3d: Removes camera sensor noise and compression artifacts
+        // 2. scale: High precision Lanczos + rounding to even numbers (libx264 compatibility)
+        // 3. unsharp + cas: Crisp edge recovery for genuine 4K / HD appearance
+        const filter = `hqdn3d=1.2:1.2:3:3,scale=w='trunc(iw*${scale}/2)*2':h='trunc(ih*${scale}/2)*2':flags=lanczos+accurate_rnd+full_chroma_int+full_chroma_inp,unsharp=5:5:0.8:3:3:0.4,cas=0.5`;
         const args = [
             '-y',
             '-i', inputPath,
             '-vf', filter,
             '-c:v', 'libx264',
             '-pix_fmt', 'yuv420p',
-            '-preset', 'fast',
+            '-preset', 'faster',
             '-crf', crf.toString(),
             '-c:a', 'copy',
             '-movflags', '+faststart',

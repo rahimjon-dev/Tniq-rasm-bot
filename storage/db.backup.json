@@ -1,5 +1,29 @@
 {
   "users": {
+    "999999": {
+      "id": "usr_999999",
+      "telegramId": "999999",
+      "username": null,
+      "firstName": "TestUser",
+      "lastName": null,
+      "languageCode": "uz",
+      "plan": "FREE",
+      "isBanned": false,
+      "createdAt": "2026-09-18T16:16:46.132Z",
+      "updatedAt": "2026-09-18T16:16:46.132Z",
+      "lastActivityDate": "2026-09-18T16:16:46.132Z",
+      "lastAction": "Sent message",
+      "dailyUsage": {
+        "date": "2026-09-18",
+        "images": 0,
+        "videos": 0
+      },
+      "totalImages": 0,
+      "totalVideos": 0,
+      "totalJobs": 0,
+      "customBackground": null,
+      "metadata": {}
+    },
     "5392129023": {
       "id": "usr_5392129023",
       "telegramId": "5392129023",
@@ -14,7 +38,7 @@
       "lastActivityDate": "2026-09-15T17:32:00.000Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-16",
+        "date": "2026-09-18",
         "images": 0,
         "videos": 0
       },
@@ -38,7 +62,7 @@
       "lastActivityDate": "2026-09-15T07:56:15.536Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-16",
+        "date": "2026-09-18",
         "images": 0,
         "videos": 0
       },
@@ -62,7 +86,7 @@
       "lastActivityDate": "2026-09-16T06:27:30.091Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-16",
+        "date": "2026-09-18",
         "images": 0,
         "videos": 0
       },
@@ -86,7 +110,7 @@
       "lastActivityDate": "2026-09-16T06:28:48.660Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-16",
+        "date": "2026-09-18",
         "images": 0,
         "videos": 0
       },
@@ -110,7 +134,7 @@
       "lastActivityDate": "2026-09-16T08:00:48.607Z",
       "lastAction": "Custom background removed",
       "dailyUsage": {
-        "date": "2026-09-16",
+        "date": "2026-09-18",
         "images": 0,
         "videos": 0
       },

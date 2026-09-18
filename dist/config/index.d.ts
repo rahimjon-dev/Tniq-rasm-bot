@@ -11,6 +11,7 @@ export declare const config: {
     BOT_TOKEN: string;
     ADMIN_TELEGRAM_IDS: bigint[];
     ADMIN_SECRET_KEY: string;
+    WEBHOOK_PATH: string;
     DATABASE_URL: string;
     REDIS_URL: string;
     STORAGE_TEMP_DIR: string;
@@ -24,6 +25,9 @@ export declare const config: {
     AI_VIDEO_PROVIDER: string;
     REAL_ESRGAN_PATH: string;
     REAL_ESRGAN_MODELS_DIR: string;
+    RENDER_EXTERNAL_URL?: string | undefined;
+    WEBHOOK_DOMAIN?: string | undefined;
+    KEEP_ALIVE_URL?: string | undefined;
     REPLICATE_API_TOKEN?: string | undefined;
     RUNWARE_API_KEY?: string | undefined;
 };

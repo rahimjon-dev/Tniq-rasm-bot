@@ -6,6 +6,7 @@ import logger from '../utils/logger.js';
 import { checkDatabaseConnection } from '../database/prisma.js';
 import { checkRedisConnection } from '../queue/queue.client.js';
 import AdminApiService from './admin-api.service.js';
+import { bot } from '../bot/bot.instance.js';
 
 function findPublicFile(filename: string): string | null {
   const candidates = [
@@ -22,6 +23,43 @@ function findPublicFile(filename: string): string | null {
 }
 
 let server: http.Server | undefined;
+let keepAliveTimer: NodeJS.Timeout | undefined;
+
+export function startKeepAlivePinger(): void {
+  const targetUrl = config.KEEP_ALIVE_URL || config.RENDER_EXTERNAL_URL;
+  if (!targetUrl) {
+    logger.debug('[KEEP_ALIVE] No KEEP_ALIVE_URL or RENDER_EXTERNAL_URL configured. Self-pinger inactive.');
+    return;
+  }
+
+  const pingUrl = targetUrl.replace(/\/$/, '') + '/health';
+  logger.info(`[KEEP_ALIVE] 24/7 Render Keep-Alive active! Self-pinging ${pingUrl} every 9 minutes.`);
+
+  setTimeout(async () => {
+    try {
+      await fetch(pingUrl);
+      logger.debug(`[KEEP_ALIVE] Initial self-ping sent to ${pingUrl}`);
+    } catch (err: any) {
+      logger.debug(`[KEEP_ALIVE] Initial ping note: ${err.message}`);
+    }
+  }, 60000);
+
+  keepAliveTimer = setInterval(async () => {
+    try {
+      const response = await fetch(pingUrl);
+      logger.debug(`[KEEP_ALIVE] 9-min keep-alive ping sent to ${pingUrl}: status ${response.status}`);
+    } catch (err: any) {
+      logger.warn(`[KEEP_ALIVE] Keep-alive ping failed to ${pingUrl}: ${err.message}`);
+    }
+  }, 9 * 60 * 1000);
+}
+
+export function stopKeepAlivePinger(): void {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = undefined;
+  }
+}
 
 export function startHealthServer(): http.Server {
   const port = config.PORT || 3000;
@@ -30,6 +68,39 @@ export function startHealthServer(): http.Server {
     const rawUrl = req.url || '/';
     const parsedUrl = new URL(rawUrl, 'http://localhost');
     const pathname = parsedUrl.pathname;
+
+    // 0. Telegram Webhook endpoint for Render 24/7 deployment
+    const isWebhookPath =
+      pathname === config.WEBHOOK_PATH ||
+      pathname === '/webhook' ||
+      pathname === '/api/telegram-webhook';
+
+    if (req.method === 'POST' && isWebhookPath) {
+      try {
+        let bodyStr = '';
+        req.on('data', (chunk) => {
+          bodyStr += chunk;
+        });
+        req.on('end', async () => {
+          try {
+            const update = JSON.parse(bodyStr);
+            await bot.handleUpdate(update);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+          } catch (updateErr: any) {
+            logger.error('[WEBHOOK] Error handling update:', updateErr);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: updateErr.message }));
+          }
+        });
+        return;
+      } catch (err: any) {
+        logger.error('[WEBHOOK] Request error:', err);
+        res.writeHead(500);
+        res.end();
+        return;
+      }
+    }
 
     // 1. Admin REST API routes
     if (pathname.startsWith('/api/admin')) {
@@ -111,6 +182,7 @@ export function startHealthServer(): http.Server {
 }
 
 export function stopHealthServer(): Promise<void> {
+  stopKeepAlivePinger();
   return new Promise((resolve) => {
     if (server) {
       server.close(() => {

@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { Context } from 'telegraf';
@@ -18,6 +19,7 @@ export const pendingImageUploads = new Map<number, {
   originalHeight: number;
   language: string;
   timestamp: number;
+  customBackgroundPath?: string | null;
 }>();
 
 export async function handleIncomingPhoto(ctx: Context): Promise<void> {
@@ -68,6 +70,9 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
     // 5. Validate file integrity & dimensions
     const inspected = await ImageService.inspectAndValidate(tempInputPath);
 
+    const customBg = UserService.getUserCustomBackground(telegramId);
+    const hasActiveCustomBg = customBg && fs.existsSync(customBg);
+
     // 6. Save in pending map (expires after 10 mins)
     pendingImageUploads.set(telegramId, {
       userId: user.id,
@@ -76,6 +81,7 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
       originalHeight: inspected.height,
       language: lang,
       timestamp: Date.now(),
+      customBackgroundPath: hasActiveCustomBg ? customBg : null,
     });
 
     // Clean up loading message
@@ -83,11 +89,19 @@ export async function handleIncomingPhoto(ctx: Context): Promise<void> {
       await ctx.deleteMessage(statusMsg.message_id);
     } catch {}
 
+    let promptText = t.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit);
+    if (hasActiveCustomBg) {
+      const bgNotice =
+        lang === 'ru'
+          ? '\n\n🌄 <b>Ваш Pro-фон активен!</b> Фото будет автоматически перенесено на ваш фон и улучшено до 4K.'
+          : lang === 'en'
+          ? '\n\n🌄 <b>Your Pro background is active!</b> The image will be automatically placed on your custom background and upscaled to 4K.'
+          : '\n\n🌄 <b>Sizning Pro foningiz faol!</b> Rasm avtomatik tarzda tanlagan foningizga ko\'chiriladi va 4K tiniqlashtiriladi.';
+      promptText += bgNotice;
+    }
+
     // 7. Present Scale Selection in user's language
-    await ctx.replyWithHTML(
-      t.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit),
-      getScaleSelectionKeyboard(lang)
-    );
+    await ctx.replyWithHTML(promptText, getScaleSelectionKeyboard(lang));
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Error handling incoming photo:', { error: errorMsg });
@@ -146,6 +160,9 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
 
     const inspected = await ImageService.inspectAndValidate(tempInputPath);
 
+    const customBg = UserService.getUserCustomBackground(telegramId);
+    const hasActiveCustomBg = customBg && fs.existsSync(customBg);
+
     pendingImageUploads.set(telegramId, {
       userId: user.id,
       filePath: tempInputPath,
@@ -153,16 +170,25 @@ export async function handleIncomingDocument(ctx: Context): Promise<void> {
       originalHeight: inspected.height,
       language: lang,
       timestamp: Date.now(),
+      customBackgroundPath: hasActiveCustomBg ? customBg : null,
     });
 
     try {
       await ctx.deleteMessage(statusMsg.message_id);
     } catch {}
 
-    await ctx.replyWithHTML(
-      currentT.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit),
-      getScaleSelectionKeyboard(lang)
-    );
+    let docPrompt = currentT.image_received(inspected.width, inspected.height, quota.remaining, quota.maxLimit);
+    if (hasActiveCustomBg) {
+      const bgNotice =
+        lang === 'ru'
+          ? '\n\n🌄 <b>Ваш Pro-фон активен!</b> Фото будет автоматически перенесено на ваш фон и улучшено до 4K.'
+          : lang === 'en'
+          ? '\n\n🌄 <b>Your Pro background is active!</b> The image will be automatically placed on your custom background and upscaled to 4K.'
+          : '\n\n🌄 <b>Sizning Pro foningiz faol!</b> Rasm avtomatik tarzda tanlagan foningizga ko\'chiriladi va 4K tiniqlashtiriladi.';
+      docPrompt += bgNotice;
+    }
+
+    await ctx.replyWithHTML(docPrompt, getScaleSelectionKeyboard(lang));
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Error handling document image:', { error: errorMsg });

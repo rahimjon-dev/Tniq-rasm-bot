@@ -46,6 +46,7 @@ export async function handleScaleSelection(ctx: Context, scale: 2 | 4): Promise<
     inputFilePath: pending.filePath,
     outputFilePath,
     scale,
+    customBackgroundPath: pending.customBackgroundPath || null,
     language: lang,
     createdAt: new Date().toISOString(),
   });

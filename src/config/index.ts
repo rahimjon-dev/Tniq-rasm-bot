@@ -24,6 +24,12 @@ const envSchema = z.object({
     ),
   ADMIN_SECRET_KEY: z.string().default('0603'),
 
+  // Webhook & Deployment (Render 24/7)
+  RENDER_EXTERNAL_URL: z.string().optional(),
+  WEBHOOK_DOMAIN: z.string().optional(),
+  KEEP_ALIVE_URL: z.string().optional(),
+  WEBHOOK_PATH: z.string().default('/api/telegram-webhook'),
+
   // Database & Redis
   DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/ai_upscaler?schema=public'),
   REDIS_URL: z.string().default('redis://localhost:6379'),

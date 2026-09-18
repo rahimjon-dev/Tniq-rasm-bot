@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: ai-media-upscaler-bot
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_TELEGRAM_IDS
+        sync: false
+      - key: ADMIN_SECRET_KEY
+        value: "0603"
+      - key: FREE_DAILY_IMAGE_LIMIT
+        value: "70"
+      - key: FREE_DAILY_VIDEO_LIMIT
+        value: "20"
+      - key: STORAGE_TEMP_DIR
+        value: storage/temp
+      - key: STORAGE_OUTPUT_DIR
+        value: storage/outputs

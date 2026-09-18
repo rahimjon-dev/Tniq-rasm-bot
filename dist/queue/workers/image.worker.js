@@ -1,13 +1,15 @@
 import fs from 'fs';
+import path from 'path';
 import { Worker } from 'bullmq';
 import { redisConnection } from '../queue.client.js';
 import { getImageUpscalerProvider } from '../../ai/providers/image/index.js';
+import BackgroundService from '../../services/media/background.service.js';
 import UsageService from '../../services/usage.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
 import { getT } from '../../i18n/index.js';
 export async function processImageJob(payload) {
-    const { jobId, userId, telegramChatId, inputFilePath, outputFilePath, scale } = payload;
+    const { jobId, userId, telegramChatId, inputFilePath, outputFilePath, scale, customBackgroundPath } = payload;
     const startTime = Date.now();
     let statusMsgId;
     const t = getT(payload.language);
@@ -15,6 +17,23 @@ export async function processImageJob(payload) {
         // 1. Stage 1: Preparing
         const sent = await bot.telegram.sendMessage(telegramChatId, t.stage_preparing, { parse_mode: 'HTML' });
         statusMsgId = sent.message_id;
+        // 1.5 Pro Custom Background Replacement (if active)
+        let processingInputPath = inputFilePath;
+        if (customBackgroundPath && BackgroundService.hasCustomBackground(customBackgroundPath)) {
+            try {
+                const bgMsg = payload.language === 'ru'
+                    ? '🌄 <b>Устанавливается ваш специальный фон...</b>'
+                    : payload.language === 'en'
+                        ? '🌄 <b>Applying your custom background...</b>'
+                        : '🌄 <b>Sizning maxsus foningiz o\'rnatilmoqda...</b>';
+                await bot.telegram.editMessageText(telegramChatId, statusMsgId, undefined, bgMsg, { parse_mode: 'HTML' });
+                const compositePath = path.join(path.dirname(inputFilePath), `bg_composite_${jobId}.jpg`);
+                processingInputPath = await BackgroundService.replaceBackground(inputFilePath, customBackgroundPath, compositePath);
+            }
+            catch (bgErr) {
+                logger.warn('[IMAGE_WORKER] Custom background processing notice:', bgErr.message);
+            }
+        }
         // 2. Stage 2: Generating
         try {
             await bot.telegram.editMessageText(telegramChatId, statusMsgId, undefined, t.stage_generating(scale), { parse_mode: 'HTML' });
@@ -22,7 +41,7 @@ export async function processImageJob(payload) {
         catch { }
         // Perform AI Upscale
         const provider = getImageUpscalerProvider();
-        const result = await provider.upscaleImage(inputFilePath, outputFilePath, {
+        const result = await provider.upscaleImage(processingInputPath, outputFilePath, {
             scale,
             format: payload.format || 'jpg',
         });

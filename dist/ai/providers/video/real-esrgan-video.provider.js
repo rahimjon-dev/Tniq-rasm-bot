@@ -57,8 +57,21 @@ export class RealESRGANVideoProvider {
             const meta = await FFmpegService.getMetadata(inputPath);
             logger.info(`[AI_VIDEO] Metadata inspected: ${meta.width}x${meta.height}, ${meta.fps} FPS, ${meta.durationSeconds.toFixed(1)}s, ${meta.totalFrames} frames`);
             let scale = options.scale || 2;
-            if (options.targetResolution === '4K' || (meta.width < 720 && options.targetResolution === '1080p')) {
-                scale = 4;
+            const maxInputDim = Math.max(meta.width, meta.height);
+            if (options.targetResolution === '4K') {
+                // True 4K: target 3840px on the longest dimension
+                scale = Math.min(4, Math.max(1.5, Math.round((3840 / maxInputDim) * 10) / 10));
+            }
+            else if (options.targetResolution === '2K') {
+                // 2K Quad HD: target 2560px on longest dimension
+                scale = Math.min(3, Math.max(1.2, Math.round((2560 / maxInputDim) * 10) / 10));
+            }
+            else if (options.targetResolution === '1080p') {
+                // 1080p Full HD: target 1920px on longest dimension
+                scale = Math.min(2.5, Math.max(1.1, Math.round((1920 / maxInputDim) * 10) / 10));
+            }
+            else if (options.targetResolution === '720p') {
+                scale = Math.min(2, Math.max(1.0, Math.round((1280 / maxInputDim) * 10) / 10));
             }
             // High-speed, high-fidelity Lanczos Video Scaling Engine (Completes in 3-8 seconds)
             // Frame extraction + deep neural network on 300+ frames takes 30-80 minutes on CPU containers,

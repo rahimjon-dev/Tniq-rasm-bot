@@ -9,6 +9,7 @@ export interface ImageJobPayload {
     scale: 2 | 4;
     format?: 'jpg' | 'png' | 'webp';
     language?: string;
+    customBackgroundPath?: string | null;
     createdAt: string;
 }
 export interface VideoJobPayload {
