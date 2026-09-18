@@ -6,6 +6,8 @@ import logger from '../utils/logger.js';
 import { checkDatabaseConnection } from '../database/prisma.js';
 import { checkRedisConnection } from '../queue/queue.client.js';
 import AdminApiService from './admin-api.service.js';
+import UserService from './user.service.js';
+import store from './store.service.js';
 import { bot } from '../bot/bot.instance.js';
 function findPublicFile(filename) {
     const candidates = [
@@ -101,7 +103,67 @@ export function startHealthServer() {
             if (handled)
                 return;
         }
-        // 2. Admin Dashboard Static Assets (Both root "/" and "/admin" load Admin Panel)
+        // 1.5 Telegram Mini App REST APIs
+        if (pathname === '/api/miniapp/user-info') {
+            const tid = parsedUrl.searchParams.get('telegramId');
+            const user = tid ? store.getUser(tid) : null;
+            const plan = user?.plan || 'FREE';
+            const used = user?.dailyUsage?.images || 0;
+            const maxImages = plan === 'PRO' || plan === 'BUSINESS' ? 500 : config.FREE_DAILY_IMAGE_LIMIT;
+            const customBg = tid ? UserService.getUserCustomBackground(tid) : null;
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            });
+            res.end(JSON.stringify({
+                telegramId: tid,
+                firstName: user?.firstName || 'Foydalanuvchi',
+                plan,
+                imagesUsed: used,
+                imagesRemaining: Math.max(0, maxImages - used),
+                hasCustomBackground: !!(customBg && fs.existsSync(customBg)),
+                customBackgroundUrl: customBg && fs.existsSync(customBg) ? `/api/miniapp/custom-bg?telegramId=${tid}` : null,
+            }));
+            return;
+        }
+        if (pathname === '/api/miniapp/reset-background') {
+            const tid = parsedUrl.searchParams.get('telegramId');
+            if (tid) {
+                UserService.setUserCustomBackground(tid, null);
+            }
+            res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            });
+            res.end(JSON.stringify({ success: true }));
+            return;
+        }
+        // 2. Telegram Mini App Static Assets (/app, /app/style.css, /app/app.js)
+        if (pathname === '/app' || pathname === '/app/') {
+            const filePath = path.resolve(process.cwd(), 'public/app/index.html');
+            if (fs.existsSync(filePath)) {
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(fs.readFileSync(filePath));
+                return;
+            }
+        }
+        if (pathname === '/app/style.css') {
+            const filePath = path.resolve(process.cwd(), 'public/app/style.css');
+            if (fs.existsSync(filePath)) {
+                res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8' });
+                res.end(fs.readFileSync(filePath));
+                return;
+            }
+        }
+        if (pathname === '/app/app.js') {
+            const filePath = path.resolve(process.cwd(), 'public/app/app.js');
+            if (fs.existsSync(filePath)) {
+                res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
+                res.end(fs.readFileSync(filePath));
+                return;
+            }
+        }
+        // 2.5 Admin Dashboard Static Assets (Both root "/" and "/admin" load Admin Panel)
         if (pathname === '/' || pathname === '/admin' || pathname === '/admin/') {
             const filePath = findPublicFile('index.html');
             if (filePath) {

@@ -1,4 +1,5 @@
 import { Markup } from 'telegraf';
+import config from '../../config/index.js';
 import { getT, Language } from '../../i18n/index.js';
 
 export const languageKeyboard = Markup.inlineKeyboard([
@@ -11,7 +12,22 @@ export const languageKeyboard = Markup.inlineKeyboard([
 
 export function getMainKeyboard(lang?: string | null) {
   const t = getT(lang);
+  const publicBaseUrl = (
+    config.WEBHOOK_DOMAIN ||
+    config.RENDER_EXTERNAL_URL ||
+    'https://tniq-rasm-bot.onrender.com'
+  ).replace(/\/$/, '');
+  const miniAppUrl = `${publicBaseUrl}/app`;
+
+  const miniAppBtnText =
+    lang === 'ru'
+      ? '🚀 Открыть 4K Студию (Mini App)'
+      : lang === 'en'
+      ? '🚀 Launch 4K Studio (Mini App)'
+      : '🚀 4K Studiyani Ochish (Mini App)';
+
   return Markup.keyboard([
+    [Markup.button.webApp(miniAppBtnText, miniAppUrl)],
     [t.btn_image, t.btn_video],
     [t.btn_account, t.btn_usage],
     [t.btn_plans, t.btn_settings],

@@ -413,6 +413,25 @@ export async function registerBotCommands() {
             { command: 'restart', description: 'Bot interfeysini yangilash' },
             { command: 'help', description: 'Bot haqida qisqacha ma\'lumot' },
         ]);
+        // Set Chat Menu Button in bottom-left corner to open 4K Studio Mini App
+        try {
+            const publicBaseUrl = (config.WEBHOOK_DOMAIN ||
+                config.RENDER_EXTERNAL_URL ||
+                'https://tniq-rasm-bot.onrender.com').replace(/\/$/, '');
+            const miniAppUrl = `${publicBaseUrl}/app`;
+            // @ts-ignore
+            await bot.telegram.setChatMenuButton({
+                menuButton: {
+                    type: 'web_app',
+                    text: '🚀 4K Studio',
+                    web_app: { url: miniAppUrl },
+                },
+            });
+            logger.info(`✅ Telegram Chat Menu Button configured: ${miniAppUrl}`);
+        }
+        catch (btnErr) {
+            logger.warn('Could not set chat menu button, keeping standard commands:', btnErr);
+        }
         try {
             // @ts-ignore
             await bot.telegram.setMyName('Remini AI | HD Rasm & Video Tiniqlashtirish');

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>4K Studio — AI Media Upscaler</title>
+  
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/app/style.css">
+</head>
+<body>
+  <div class="app-container" id="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header" id="app-header">
+      <div class="user-profile-badge" id="user-profile-badge">
+        <div class="avatar-circle" id="user-avatar">👤</div>
+        <div class="user-meta">
+          <span class="user-name" id="user-name">Yuklanmoqda...</span>
+          <span class="user-badge" id="user-plan-badge">FREE</span>
+        </div>
+      </div>
+      <div class="quota-pill" id="quota-pill" title="Bugungi qolgan limit">
+        <span class="quota-icon">⚡</span>
+        <span class="quota-text" id="quota-text">...</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" id="nav-tabs" role="tablist">
+      <button class="nav-tab active" data-tab="image" id="tab-btn-image">
+        <span class="tab-icon">🖼</span>
+        <span class="tab-label">Rasm 4K</span>
+      </button>
+      <button class="nav-tab" data-tab="video" id="tab-btn-video">
+        <span class="tab-icon">🎬</span>
+        <span class="tab-label">Video 4K</span>
+      </button>
+      <button class="nav-tab" data-tab="background" id="tab-btn-bg">
+        <span class="tab-icon">🌄</span>
+        <span class="tab-label">Maxsus Fon</span>
+      </button>
+      <button class="nav-tab" data-tab="plans" id="tab-btn-plans">
+        <span class="tab-icon">💎</span>
+        <span class="tab-label">Tariflar</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: Image 4K Studio -->
+    <section class="tab-content active" id="tab-content-image">
+      <div class="glass-card hero-card">
+        <div class="card-glow"></div>
+        <h1 class="hero-title">AI Rasm Tiniqlashtirish</h1>
+        <p class="hero-sub">Xira yoki eski suratlarni Real-ESRGAN neyrotarmog'i orqali 4K Ultra HD formatga ko'taring.</p>
+      </div>
+
+      <!-- Upload Zone -->
+      <div class="upload-box glass-card" id="image-upload-box">
+        <input type="file" id="image-file-input" accept="image/*" hidden>
+        <div class="upload-placeholder" id="image-upload-placeholder">
+          <div class="upload-icon-circle">
+            <span class="upload-icon">📸</span>
+          </div>
+          <h3 class="upload-prompt">Rasm tanlang yoki shu yerga tashlang</h3>
+          <p class="upload-hint">JPG, PNG, WEBP — 20MB gacha</p>
+          <button class="btn btn-secondary" id="btn-browse-image">Faylni Tanlash</button>
+        </div>
+
+        <div class="preview-container" id="image-preview-container" style="display: none;">
+          <img id="image-preview" src="" alt="Yuklangan rasm">
+          <button class="btn-clear" id="btn-clear-image" title="O'chirish">✕</button>
+          <div class="preview-meta" id="image-preview-meta">800 × 600 px</div>
+        </div>
+      </div>
+
+      <!-- Scale Selection -->
+      <div class="options-group glass-card" id="image-options-group">
+        <label class="group-title">Kattalashtirish darajasi:</label>
+        <div class="radio-tiles">
+          <label class="radio-tile active" id="tile-scale-2x">
+            <input type="radio" name="image-scale" value="2">
+            <div class="tile-content">
+              <span class="tile-val">2x</span>
+              <span class="tile-desc">Tezkor HD</span>
+            </div>
+          </label>
+          <label class="radio-tile" id="tile-scale-4x">
+            <input type="radio" name="image-scale" value="4" checked>
+            <div class="tile-content">
+              <span class="tile-val">4K</span>
+              <span class="tile-desc">Ultra Clear</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Custom Background Active Notice -->
+        <div class="bg-active-pill" id="custom-bg-indicator" style="display: none;">
+          <span class="pill-dot"></span>
+          <span>🌄 Maxsus foningiz avtomatik montaj qilinadi</span>
+        </div>
+      </div>
+
+      <!-- Action Button -->
+      <button class="btn btn-primary btn-action" id="btn-process-image" disabled>
+        <span class="btn-icon">⚡</span>
+        <span class="btn-text">4K Tiniqlashtirish</span>
+      </button>
+
+      <!-- Processing Status Modal/Area -->
+      <div class="progress-card glass-card" id="image-progress-card" style="display: none;">
+        <div class="spinner"></div>
+        <h4 id="image-progress-title">Neyrotarmoq ishlamoqda...</h4>
+        <p id="image-progress-desc">Detallar tiklanmoqda va 4K ga oshirilmoqda</p>
+      </div>
+    </section>
+
+    <!-- TAB 2: Video 4K Studio -->
+    <section class="tab-content" id="tab-content-video">
+      <div class="glass-card hero-card">
+        <div class="card-glow"></div>
+        <h2 class="hero-title">AI Video 4K Studio</h2>
+        <p class="hero-sub">Videolarni 100% ovoz sinxroni va CAS kontur filtri bilan 4K sifatga ko'taring.</p>
+      </div>
+
+      <div class="upload-box glass-card" id="video-upload-box">
+        <input type="file" id="video-file-input" accept="video/*" hidden>
+        <div class="upload-placeholder" id="video-upload-placeholder">
+          <div class="upload-icon-circle">
+            <span class="upload-icon">🎬</span>
+          </div>
+          <h3 class="upload-prompt">Videoni tanlang</h3>
+          <p class="upload-hint">MP4, MOV — 50MB va 30s gacha</p>
+          <button class="btn btn-secondary" id="btn-browse-video">Video Tanlash</button>
+        </div>
+
+        <div class="preview-container" id="video-preview-container" style="display: none;">
+          <video id="video-preview" controls></video>
+          <button class="btn-clear" id="btn-clear-video" title="O'chirish">✕</button>
+          <div class="preview-meta" id="video-preview-meta">00:15 • 720p</div>
+        </div>
+      </div>
+
+      <div class="options-group glass-card">
+        <label class="group-title">Maqsadli o'lcham:</label>
+        <div class="radio-tiles four-tiles">
+          <label class="radio-tile" id="tile-res-720p">
+            <input type="radio" name="video-res" value="720p">
+            <div class="tile-content"><span>720p</span><small>HD</small></div>
+          </label>
+          <label class="radio-tile active" id="tile-res-1080p">
+            <input type="radio" name="video-res" value="1080p" checked>
+            <div class="tile-content"><span>1080p</span><small>FHD</small></div>
+          </label>
+          <label class="radio-tile" id="tile-res-2k">
+            <input type="radio" name="video-res" value="2K">
+            <div class="tile-content"><span>2K</span><small>QHD</small></div>
+          </label>
+          <label class="radio-tile" id="tile-res-4k">
+            <input type="radio" name="video-res" value="4K">
+            <div class="tile-content"><span>4K</span><small>UHD</small></div>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-action" id="btn-process-video" disabled>
+        <span class="btn-icon">⚡</span>
+        <span class="btn-text">Videoni 4K Qilish</span>
+      </button>
+
+      <div class="progress-card glass-card" id="video-progress-card" style="display: none;">
+        <div class="spinner"></div>
+        <h4 id="video-progress-title">Video render qilinmoqda...</h4>
+        <p id="video-progress-desc">Kadrlar va ovoz sinxronlashmoqda</p>
+      </div>
+    </section>
+
+    <!-- TAB 3: Pro Custom Background -->
+    <section class="tab-content" id="tab-content-background">
+      <div class="glass-card hero-card">
+        <div class="card-glow"></div>
+        <h2 class="hero-title">Pro Maxsus Fon</h2>
+        <p class="hero-sub">O'zingiz yoqtirgan fon rasmini yuklang. Barcha kelgusi suratlaringiz avtomatik shu fonga montaj qilinadi!</p>
+      </div>
+
+      <div class="glass-card current-bg-card" id="current-bg-card">
+        <label class="group-title">Joriy o'rnatilgan fon:</label>
+        <div class="bg-display-frame" id="bg-display-frame">
+          <div class="bg-empty-state" id="bg-empty-state">
+            <span>🌄 Hozircha maxsus fon o'rnatilmagan</span>
+          </div>
+          <img id="current-bg-img" src="" alt="Joriy fon" style="display: none;">
+        </div>
+      </div>
+
+      <div class="upload-box glass-card" id="bg-upload-box">
+        <input type="file" id="bg-file-input" accept="image/*" hidden>
+        <div class="upload-placeholder" id="bg-upload-placeholder">
+          <div class="upload-icon-circle">
+            <span class="upload-icon">🖼</span>
+          </div>
+          <h3 class="upload-prompt">Yangi fon rasmini yuklash</h3>
+          <p class="upload-hint">Tog'lar, tabiat, neon shahar yoki siz xohlagan har qanday fon</p>
+          <button class="btn btn-secondary" id="btn-browse-bg">Fon Tanlash</button>
+        </div>
+      </div>
+
+      <div class="bg-action-buttons">
+        <button class="btn btn-primary" id="btn-save-bg" disabled>
+          <span>💾 Fonni Saqlash</span>
+        </button>
+        <button class="btn btn-danger" id="btn-reset-bg" style="display: none;">
+          <span>🗑 Fonni O'chirish</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 4: Plans -->
+    <section class="tab-content" id="tab-content-plans">
+      <div class="glass-card hero-card">
+        <div class="card-glow"></div>
+        <h2 class="hero-title">Tarif Rejalari</h2>
+        <p class="hero-sub">Ehtiyojingizga mos tarifni tanlang va maksimal 4K sifatdan bahramand bo'ling.</p>
+      </div>
+
+      <!-- FREE Plan -->
+      <div class="glass-card plan-card free-plan">
+        <div class="plan-header">
+          <h3>FREE BETA</h3>
+          <span class="plan-price">0 so'm</span>
+        </div>
+        <ul class="plan-features">
+          <li>✔ Kuniga 70 ta rasm (2x & 4K)</li>
+          <li>✔ Kuniga 20 ta video</li>
+          <li>✔ 1-3 soniyada tezkor ishlov</li>
+          <li>✔ 100% asl sifatda hujjat formatida yuklash</li>
+        </ul>
+        <button class="btn btn-secondary btn-full" id="btn-active-free" disabled>Joriy Tarif</button>
+      </div>
+
+      <!-- PRO Plan -->
+      <div class="glass-card plan-card pro-plan featured">
+        <div class="popular-tag">ENG OMMABOP</div>
+        <div class="plan-header">
+          <h3>PRO 4K VIP</h3>
+          <span class="plan-price">100 ⭐ Stars <small>/ oy</small></span>
+        </div>
+        <ul class="plan-features">
+          <li>✔ <b>Kuniga 500 ta</b> 4K Ultra HD rasm</li>
+          <li>✔ <b>Kuniga 50 ta</b> 4K video</li>
+          <li>✔ <b>Avtomatik Maxsus Fon</b> (orqa fonni almashtirish)</li>
+          <li>✔ Eng ustuvor VIP navbat (0 kutish vaqti)</li>
+        </ul>
+        <button class="btn btn-primary btn-full" id="btn-buy-pro">
+          <span>💎 PRO-ga O'tish</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Floating Telegram Quick Chat Return Button -->
+    <footer class="app-footer">
+      <button class="btn-return-chat" id="btn-close-app">
+        <span>💬 Bot Chatiga Qaytish</span>
+      </button>
+    </footer>
+
+  </div>
+
+  <script src="/app/app.js"></script>
+</body>
+</html>
