@@ -48,7 +48,7 @@ export async function handleIncomingVideo(ctx: Context): Promise<void> {
 
     // 2. Identify Video Object
     // @ts-ignore
-    const video = ctx.message?.video || ctx.message?.video_note || ctx.message?.animation;
+    const video = ctx.message?.video || ctx.message?.video_note || ctx.message?.animation || (ctx.message?.document?.mime_type?.startsWith('video/') ? ctx.message.document : null);
     if (!video) return;
 
     // Check Telegram file size limit

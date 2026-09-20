@@ -216,7 +216,7 @@ export class FFmpegService {
     fps?: number;
     crf?: number;
   }): Promise<void> {
-    const { inputPath, outputPath, scale = 2, targetResolution, crf = 17 } = params;
+    const { inputPath, outputPath, scale = 2, targetResolution, crf = 20 } = params;
 
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
@@ -256,8 +256,10 @@ export class FFmpegService {
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
       '-preset', 'fast',
-      '-threads', '0',
+      '-threads', '2', // Strict 2-thread limit prevents memory ballooning & OOM on Render 512MB RAM
       '-crf', crf.toString(),
+      '-maxrate', '14M', // Caps peak bitrate so 4K video never exceeds Telegram Bot 50MB limit
+      '-bufsize', '28M',
       '-c:a', 'copy',
       '-movflags', '+faststart',
       outputPath,
@@ -266,7 +268,31 @@ export class FFmpegService {
     await new Promise<void>((resolve, reject) => {
       execFile(this.ffmpegExe, args, { timeout: 600000 }, (error, stdout, stderr) => {
         if (error) {
-          return reject(new Error(`FFmpeg direct upscale failed: ${error.message}`));
+          // If -c:a copy failed because of audio track container issues, retry with AAC re-encode
+          const fallbackArgs = [
+            '-y',
+            '-i', inputPath,
+            '-vf', filter,
+            '-c:v', 'libx264',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'fast',
+            '-threads', '2',
+            '-crf', crf.toString(),
+            '-maxrate', '14M',
+            '-bufsize', '28M',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-movflags', '+faststart',
+            outputPath,
+          ];
+
+          execFile(this.ffmpegExe, fallbackArgs, { timeout: 600000 }, (fallbackErr) => {
+            if (fallbackErr) {
+              return reject(new Error(`FFmpeg direct upscale failed: ${fallbackErr.message}`));
+            }
+            resolve();
+          });
+          return;
         }
         resolve();
       });

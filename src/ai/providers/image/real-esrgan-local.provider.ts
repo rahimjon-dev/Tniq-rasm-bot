@@ -85,25 +85,25 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
 
     if (scale === 4) {
       // Authentic 4K Ultra HD: target 3840px on longest dimension
-      const boundedLonger = Math.min(3840, Math.max(Math.round(longerEdge * 4), 3840));
-      const boundedShorter = Math.round(boundedLonger * aspect);
+      const targetLonger = 3840;
+      const targetShorter = Math.max(2, Math.round(targetLonger * aspect));
       if (originalWidth >= originalHeight) {
-        targetWidth = boundedLonger;
-        targetHeight = boundedShorter;
+        targetWidth = targetLonger;
+        targetHeight = targetShorter;
       } else {
-        targetWidth = boundedShorter;
-        targetHeight = boundedLonger;
+        targetWidth = targetShorter;
+        targetHeight = targetLonger;
       }
     } else {
       // 2K Quad HD: target 2560px on longest dimension
-      const boundedLonger = Math.min(2560, Math.max(Math.round(longerEdge * 2), 2560));
-      const boundedShorter = Math.round(boundedLonger * aspect);
+      const targetLonger = 2560;
+      const targetShorter = Math.max(2, Math.round(targetLonger * aspect));
       if (originalWidth >= originalHeight) {
-        targetWidth = boundedLonger;
-        targetHeight = boundedShorter;
+        targetWidth = targetLonger;
+        targetHeight = targetShorter;
       } else {
-        targetWidth = boundedShorter;
-        targetHeight = boundedLonger;
+        targetWidth = targetShorter;
+        targetHeight = targetLonger;
       }
     }
 
@@ -229,14 +229,39 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
         throw new Error('Real-ESRGAN completed but output was not found.');
       }
 
-      // Post-inference dynamic sharpening for crystal clarity without color washing
+      // Check dimensions of AI inference output
+      const esrMeta = await sharp(outputPath).metadata();
+      const esrWidth = esrMeta.width || originalWidth * scale;
+      const esrHeight = esrMeta.height || originalHeight * scale;
+      const esrLonger = Math.max(esrWidth, esrHeight);
+
+      // Desired target dimension (4K UHD: 3840px, 2K: 2560px)
+      const targetLonger = scale === 4 ? 3840 : 2560;
+
+      // Post-inference dynamic sharpening and scaling to true 4K (3840px) UHD
       const polishedPath = outputPath + '.tmp.jpg';
-      await sharp(outputPath)
-        .linear(1.04, -3)
+      let sharpPipeline = sharp(outputPath);
+
+      if (esrLonger !== targetLonger) {
+        const esrAspect = Math.min(esrWidth, esrHeight) / (esrLonger || 1);
+        const finalTargetWidth = esrWidth >= esrHeight ? targetLonger : Math.round(targetLonger * esrAspect);
+        const finalTargetHeight = esrWidth >= esrHeight ? Math.round(targetLonger * esrAspect) : targetLonger;
+
+        sharpPipeline = sharpPipeline.resize({
+          width: finalTargetWidth,
+          height: finalTargetHeight,
+          kernel: sharp.kernel.lanczos3,
+          fit: 'inside',
+          fastShrinkOnLoad: false,
+        });
+      }
+
+      await sharpPipeline
+        .linear(1.05, -4)
         .sharpen({
-          sigma: 0.9,
-          m1: 2.2,
-          m2: 0.7,
+          sigma: 1.1,
+          m1: 2.8,
+          m2: 0.8,
         })
         .jpeg({ quality: 99, chromaSubsampling: '4:4:4', mozjpeg: true })
         .toFile(polishedPath);
@@ -246,11 +271,11 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       }
 
       const outputMeta = await sharp(outputPath).metadata();
-      const outputWidth = outputMeta.width || originalWidth * scale;
-      const outputHeight = outputMeta.height || originalHeight * scale;
+      const outputWidth = outputMeta.width || targetLonger;
+      const outputHeight = outputMeta.height || targetLonger;
       const processingTimeSeconds = (Date.now() - startTime) / 1000;
 
-      logger.info(`[AI_IMAGE] Real-ESRGAN photo upscale complete in ${processingTimeSeconds.toFixed(2)}s: ${outputWidth}x${outputHeight}`);
+      logger.info(`[AI_IMAGE] Real-ESRGAN photo 4K upscale complete in ${processingTimeSeconds.toFixed(2)}s: ${outputWidth}x${outputHeight}`);
 
       return {
         outputPath,

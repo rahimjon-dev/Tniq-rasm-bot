@@ -13,6 +13,7 @@ import PlanService from './plan.service.js';
 import UsageService from './usage.service.js';
 import BackgroundService from './media/background.service.js';
 import { getImageUpscalerProvider } from '../ai/providers/image/index.js';
+import { processVideoJob } from '../queue/workers/video.worker.js';
 import { bot } from '../bot/bot.instance.js';
 import { getT } from '../i18n/index.js';
 import { sendReviewInvitation } from '../bot/handlers/review.handler.js';
@@ -113,13 +114,19 @@ export function startHealthServer() {
                 req.on('end', async () => {
                     try {
                         const update = JSON.parse(bodyStr);
-                        await bot.handleUpdate(update);
+                        // Respond 200 OK immediately so Telegram never times out on webhook calls (5s rule)
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ ok: true }));
+                        // Process update asynchronously in background
+                        setImmediate(() => {
+                            bot.handleUpdate(update).catch((updateErr) => {
+                                logger.error('[WEBHOOK] Error handling update:', updateErr);
+                            });
+                        });
                     }
                     catch (updateErr) {
-                        logger.error('[WEBHOOK] Error handling update:', updateErr);
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        logger.error('[WEBHOOK] Error parsing update JSON:', updateErr);
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ ok: false, error: updateErr.message }));
                     }
                 });
@@ -437,8 +444,65 @@ export function startHealthServer() {
                     });
                     return;
                 }
+                if (type === 'VIDEO') {
+                    const videoBase64 = body.videoBase64 || body.mediaBase64 || body.imageBase64;
+                    if (!videoBase64) {
+                        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                        res.end(JSON.stringify({ success: false, error: 'Video fayli yuborilmadi' }));
+                        return;
+                    }
+                    const quota = await UsageService.canProcessVideo(userId, tid, userPlan);
+                    if (!quota.allowed) {
+                        res.writeHead(403, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                        res.end(JSON.stringify({
+                            success: false,
+                            error: `Bugungi video limitingiz (${quota.maxLimit}) tugadi! Cheksiz PRO tarifga o'tish uchun @rahmonoov_19 bilan bog'laning.`,
+                        }));
+                        return;
+                    }
+                    const tempDir = path.resolve(process.cwd(), 'storage/temp');
+                    const outDir = path.resolve(process.cwd(), config.paths.outputStorage);
+                    fs.mkdirSync(tempDir, { recursive: true });
+                    fs.mkdirSync(outDir, { recursive: true });
+                    const fileId = crypto.randomUUID();
+                    const targetResolution = (body.resolution || '4K');
+                    const inputPath = path.join(tempDir, `miniapp_vid_in_${fileId}.mp4`);
+                    const outputPath = path.join(outDir, `miniapp_vid_out_${fileId}_${targetResolution}.mp4`);
+                    const cleanBase64 = videoBase64.replace(/^data:video\/\w+;base64,/, '').replace(/^data:application\/\w+;base64,/, '');
+                    fs.writeFileSync(inputPath, Buffer.from(cleanBase64, 'base64'));
+                    // Immediately respond 200 OK so Mini App never times out
+                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                    res.end(JSON.stringify({
+                        success: true,
+                        message: 'Videongiz qabul qilindi! AI 4K tiniqlashtirish boshlandi va tayyor bo\'lgach Telegram botingizga yuboriladi.',
+                        jobId: fileId,
+                    }));
+                    // Asynchronous video processing in background:
+                    setImmediate(async () => {
+                        try {
+                            let scale = 2;
+                            if (targetResolution === '4K')
+                                scale = 4;
+                            await processVideoJob({
+                                jobId: fileId,
+                                userId,
+                                telegramChatId: Number(tid),
+                                inputFilePath: inputPath,
+                                outputFilePath: outputPath,
+                                targetResolution,
+                                scale,
+                                language: lang,
+                                createdAt: new Date().toISOString(),
+                            });
+                        }
+                        catch (vidProcErr) {
+                            logger.error('[MINIAPP_PROCESS] Video processing error:', vidProcErr);
+                        }
+                    });
+                    return;
+                }
                 res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                res.end(JSON.stringify({ success: false, error: 'Faqat rasm formati qo\'llab quvvatlanadi' }));
+                res.end(JSON.stringify({ success: false, error: 'Qo\'llab quvvatlanmaydigan media turi' }));
                 return;
             }
             catch (procErr) {

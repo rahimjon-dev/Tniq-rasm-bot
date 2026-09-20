@@ -170,6 +170,12 @@ export async function processImageJob(payload: ImageJobPayload): Promise<void> {
       scale,
       status: 'FAILED',
     });
+  } finally {
+    try {
+      if (inputFilePath && fs.existsSync(inputFilePath)) {
+        fs.unlinkSync(inputFilePath);
+      }
+    } catch {}
   }
 }
 
@@ -177,7 +183,7 @@ export let imageWorker: Worker;
 
 export function startImageWorker(connection = redisConnection): Worker {
   imageWorker = new Worker(
-    'image-upscale-queue',
+    'image-upscale',
     async (job: Job<ImageJobPayload>) => {
       logger.info(`[IMAGE_WORKER] Processing job: ${job.id}`);
       await processImageJob(job.data);

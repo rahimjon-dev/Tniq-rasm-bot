@@ -108,10 +108,18 @@ export async function processImageJob(payload) {
             status: 'FAILED',
         });
     }
+    finally {
+        try {
+            if (inputFilePath && fs.existsSync(inputFilePath)) {
+                fs.unlinkSync(inputFilePath);
+            }
+        }
+        catch { }
+    }
 }
 export let imageWorker;
 export function startImageWorker(connection = redisConnection) {
-    imageWorker = new Worker('image-upscale-queue', async (job) => {
+    imageWorker = new Worker('image-upscale', async (job) => {
         logger.info(`[IMAGE_WORKER] Processing job: ${job.id}`);
         await processImageJob(job.data);
     }, {

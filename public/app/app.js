@@ -379,15 +379,29 @@ function setupVideoStudio() {
     processBtn.disabled = true;
 
     try {
-      const formData = new FormData();
-      formData.append('media', currentVideoData);
-      formData.append('type', 'VIDEO');
-      formData.append('resolution', resolution);
-      formData.append('telegramId', tg?.initDataUnsafe?.user?.id || '0');
+      if (currentVideoData.size > 50 * 1024 * 1024) {
+        throw new Error('Video hajmi 50MB dan oshmasligi kerak');
+      }
+
+      if (progressTitle) progressTitle.textContent = 'Video yuklanmoqda...';
+      if (progressDesc) progressDesc.textContent = 'Fayl tayyorlanmoqda';
+
+      const videoBase64 = await fileToBase64(currentVideoData);
+
+      if (progressTitle) progressTitle.textContent = 'AI 4K Neyrotarmoq ishlamoqda...';
+      if (progressDesc) progressDesc.textContent = `${resolution} Ultra HD formatda kadrlar tiklanmoqda`;
 
       const response = await fetch('/api/miniapp/process', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'VIDEO',
+          resolution: resolution,
+          telegramId: tg?.initDataUnsafe?.user?.id || '0',
+          videoBase64,
+        }),
       });
 
       const result = await response.json();

@@ -469,6 +469,7 @@ bot.action('video_res_720p', (ctx) => handleVideoResolutionSelection(ctx, '720p'
 bot.action('video_res_1080p', (ctx) => handleVideoResolutionSelection(ctx, '1080p'));
 bot.action('video_res_2K', (ctx) => handleVideoResolutionSelection(ctx, '2K'));
 bot.action('video_res_4K', (ctx) => handleVideoResolutionSelection(ctx, '4K'));
+bot.action('cancel_action', handleCancelAction);
 
 // Callback Queries for 1-5 Star Ratings
 bot.action('rate_star_1', (ctx) => handleStarRatingCallback(ctx, 1));

@@ -9,6 +9,7 @@ import { getScaleSelectionKeyboard } from '../keyboards/main.keyboard.js';
 import { getT } from '../../i18n/index.js';
 import logger from '../../utils/logger.js';
 import { checkAndProcessProBackgroundUpload } from './pro-background.handler.js';
+import { handleIncomingVideo } from './video.handler.js';
 // Pending media waiting for user to select 2x or 4x scale
 export const pendingImageUploads = new Map();
 export async function handleIncomingPhoto(ctx) {
@@ -98,6 +99,10 @@ export async function handleIncomingDocument(ctx) {
         return;
     const userLang = (await UserService.getUserLanguage(telegramId)) || 'uz';
     const t = getT(userLang);
+    // Check if document is a video
+    if (doc.mime_type && doc.mime_type.startsWith('video/')) {
+        return handleIncomingVideo(ctx);
+    }
     // Check if document is an image
     if (!doc.mime_type || !doc.mime_type.startsWith('image/')) {
         await ctx.replyWithHTML(t.doc_invalid_format);
