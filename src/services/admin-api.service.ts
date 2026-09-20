@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import AdminService from './admin.service.js';
+import store from './store.service.js';
 import { UserPlan } from '../types/user.types.js';
 
 export class AdminApiService {
@@ -236,6 +237,39 @@ export class AdminApiService {
           limit,
         });
         this.sendJson(res, 200, { success: true, ...result });
+        return true;
+      }
+
+      // 10. Reviews & Ratings API
+      if (pathname === '/api/admin/reviews' && req.method === 'GET') {
+        const query = parsedUrl.searchParams.get('q') || '';
+        const ratingFilter = parsedUrl.searchParams.get('rating') || '';
+        const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
+        const limit = parseInt(parsedUrl.searchParams.get('limit') || '20', 10);
+
+        const result = store.getReviews({
+          query,
+          ratingFilter,
+          page,
+          limit,
+        });
+        const ratingStats = store.getAverageRating();
+
+        this.sendJson(res, 200, {
+          success: true,
+          ratingStats,
+          ...result,
+        });
+        return true;
+      }
+
+      if (pathname.startsWith('/api/admin/reviews/') && req.method === 'DELETE') {
+        const reviewId = pathname.replace('/api/admin/reviews/', '');
+        const success = store.deleteReview(reviewId);
+        this.sendJson(res, success ? 200 : 404, {
+          success,
+          message: success ? 'Izoh muvaffaqiyatli o\'chirildi' : 'Izoh topilmadi',
+        });
         return true;
       }
 

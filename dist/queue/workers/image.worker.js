@@ -8,6 +8,7 @@ import UsageService from '../../services/usage.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
 import { getT } from '../../i18n/index.js';
+import { sendReviewInvitation } from '../../bot/handlers/review.handler.js';
 export async function processImageJob(payload) {
     const { jobId, userId, telegramChatId, inputFilePath, outputFilePath, scale, customBackgroundPath } = payload;
     const startTime = Date.now();
@@ -59,6 +60,10 @@ export async function processImageJob(payload) {
         await bot.telegram.sendPhoto(telegramChatId, { source: outputFilePath }, { caption, parse_mode: 'HTML' });
         // Send as uncompressed document to prevent Telegram lossy re-compression
         await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${scale}x_${result.outputWidth}x${result.outputHeight}.jpg` }, { caption: t.doc_image_caption, parse_mode: 'HTML' });
+        // Send interactive 1-5 star review invitation
+        setTimeout(() => {
+            sendReviewInvitation(telegramChatId, payload.language).catch(() => { });
+        }, 1200);
         // Clean up status message
         if (statusMsgId) {
             try {

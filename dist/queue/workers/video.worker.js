@@ -6,6 +6,7 @@ import UsageService from '../../services/usage.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
 import { getT } from '../../i18n/index.js';
+import { sendReviewInvitation } from '../../bot/handlers/review.handler.js';
 export async function processVideoJob(payload) {
     const { jobId, userId, telegramChatId, inputFilePath, outputFilePath, targetResolution, scale } = payload;
     const startTime = Date.now();
@@ -43,6 +44,10 @@ export async function processVideoJob(payload) {
         });
         // Send as uncompressed document
         await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${targetResolution}_${result.outputResolution}.mp4` }, { caption: t.doc_video_caption, parse_mode: 'HTML' });
+        // Send interactive 1-5 star review invitation
+        setTimeout(() => {
+            sendReviewInvitation(telegramChatId, payload.language).catch(() => { });
+        }, 1200);
         // Clean up status message
         if (statusMsgId) {
             try {

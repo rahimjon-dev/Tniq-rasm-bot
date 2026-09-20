@@ -43,6 +43,19 @@ export interface StoredJob {
         username?: string | null;
     } | null;
 }
+export interface StoredReview {
+    id: string;
+    telegramId: string;
+    rating: number;
+    comment: string;
+    createdAt: string;
+    updatedAt?: string;
+    user?: {
+        telegramId: string;
+        firstName?: string | null;
+        username?: string | null;
+    } | null;
+}
 declare class StoreService {
     private dbPath;
     private backupPath;
@@ -197,6 +210,43 @@ declare class StoreService {
         failedJobs: number;
         successRatePercent: number;
     };
+    addReview(params: {
+        telegramId: string | number | bigint;
+        rating: number;
+        comment?: string | null;
+    }): StoredReview;
+    getUserReview(telegramId: string | number | bigint): StoredReview | null;
+    getRecentReviews(limit?: number): StoredReview[];
+    getReviews(params?: {
+        query?: string;
+        ratingFilter?: number | string;
+        page?: number;
+        limit?: number;
+    }): {
+        reviews: {
+            user: {
+                telegramId: string;
+                firstName?: string | null;
+                username?: string | null;
+            } | null;
+            id: string;
+            telegramId: string;
+            rating: number;
+            comment: string;
+            createdAt: string;
+            updatedAt?: string;
+        }[];
+        total: number;
+        page: number;
+        totalPages: number;
+        limit: number;
+    };
+    getAverageRating(): {
+        average: number;
+        count: number;
+        breakdown: Record<number, number>;
+    };
+    deleteReview(reviewId: string): boolean;
 }
 export declare const store: StoreService;
 export default store;

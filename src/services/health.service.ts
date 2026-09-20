@@ -15,6 +15,7 @@ import BackgroundService from './media/background.service.js';
 import { getImageUpscalerProvider } from '../ai/providers/image/index.js';
 import { bot } from '../bot/bot.instance.js';
 import { getT } from '../i18n/index.js';
+import { sendReviewInvitation } from '../bot/handlers/review.handler.js';
 
 function findPublicFile(filename: string): string | null {
   const candidates = [
@@ -254,6 +255,83 @@ export function startHealthServer(): http.Server {
       }
     }
 
+    // 1.6 Telegram Mini App Reviews & Ratings REST APIs
+    if (pathname === '/api/miniapp/reviews' && req.method === 'GET') {
+      const stats = store.getAverageRating();
+      const reviews = store.getRecentReviews(20);
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(
+        JSON.stringify({
+          success: true,
+          average: stats.average,
+          count: stats.count,
+          breakdown: stats.breakdown,
+          reviews,
+        })
+      );
+      return;
+    }
+
+    if (pathname === '/api/miniapp/reviews' && req.method === 'POST') {
+      try {
+        const body = await readJsonBody(req);
+        const tid = body.telegramId;
+        const rating = Number(body.rating) || 5;
+        const comment = (body.comment || '').trim();
+
+        if (!tid) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'telegramId talab qilinadi' }));
+          return;
+        }
+
+        const saved = store.addReview({
+          telegramId: tid,
+          rating,
+          comment,
+        });
+
+        // Notify Admin if there is a comment
+        if (comment) {
+          const u = store.getUser(tid);
+          const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ') || 'Mini App Foydalanuvchisi';
+          const username = u?.username ? `@${u.username}` : 'Mavjud emas';
+          const stars = '⭐'.repeat(saved.rating);
+          const nowStr = new Intl.DateTimeFormat('uz-UZ', {
+            timeZone: 'Asia/Tashkent',
+            dateStyle: 'short',
+            timeStyle: 'medium',
+          }).format(new Date());
+
+          for (const adminId of config.ADMIN_TELEGRAM_IDS) {
+            try {
+              await bot.telegram.sendMessage(
+                Number(adminId),
+                `🌟 <b>YANGI BAHOLASH VA IZOH (Mini App)!</b>\n\n` +
+                `👤 <b>Foydalanuvchi:</b> ${name} (${username})\n` +
+                `🆔 <b>Telegram ID:</b> <code>${tid}</code>\n` +
+                `⭐ <b>Baho:</b> ${stars} (${saved.rating}/5)\n` +
+                `💬 <b>Izoh:</b> <i>"${comment}"</i>\n` +
+                `📅 <b>Vaqt:</b> ${nowStr}`,
+                { parse_mode: 'HTML' }
+              );
+            } catch {}
+          }
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, message: 'Fikringiz va bahoyingiz muvaffaqiyatli saqlandi!', review: saved }));
+        return;
+      } catch (err: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: false, error: err.message || 'Xatolik yuz berdi' }));
+        return;
+      }
+    }
+
     if (pathname === '/api/miniapp/process' && req.method === 'POST') {
       try {
         const body = await readJsonBody(req);
@@ -371,6 +449,11 @@ export function startHealthServer(): http.Server {
                   { source: outputPath, filename: `4k_upscaled_${scaleVal}x_${result.outputWidth}x${result.outputHeight}.jpg` },
                   { caption: t.doc_image_caption, parse_mode: 'HTML' }
                 );
+
+                // Send interactive review invitation
+                setTimeout(() => {
+                  sendReviewInvitation(Number(tid), lang).catch(() => {});
+                }, 1200);
               } catch (tgSendErr: any) {
                 logger.error('[MINIAPP_PROCESS] Failed to send photo to Telegram:', tgSendErr);
               }

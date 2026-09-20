@@ -23,9 +23,21 @@ export function getMainKeyboard(lang) {
         [Markup.button.webApp(miniAppBtnText, miniAppUrl)],
         [t.btn_image, t.btn_video],
         [t.btn_account, t.btn_usage],
-        [t.btn_plans, t.btn_settings],
-        [t.btn_restart, t.btn_help],
+        [t.btn_plans, t.btn_feedback],
+        [t.btn_settings, t.btn_help],
+        [t.btn_restart],
     ]).resize();
+}
+export function getStarRatingKeyboard() {
+    return Markup.inlineKeyboard([
+        [
+            Markup.button.callback('⭐ 1', 'rate_star_1'),
+            Markup.button.callback('⭐ 2', 'rate_star_2'),
+            Markup.button.callback('⭐ 3', 'rate_star_3'),
+            Markup.button.callback('⭐ 4', 'rate_star_4'),
+            Markup.button.callback('⭐️ 5', 'rate_star_5'),
+        ],
+    ]);
 }
 export function getSettingsKeyboard(lang) {
     const t = getT(lang);

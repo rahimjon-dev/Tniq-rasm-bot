@@ -8,6 +8,7 @@ import ImageService from '../../services/media/image.service.js';
 import { bot } from '../../bot/bot.instance.js';
 import logger from '../../utils/logger.js';
 import { getT } from '../../i18n/index.js';
+import { sendReviewInvitation } from '../../bot/handlers/review.handler.js';
 
 export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
   const { jobId, userId, telegramChatId, inputFilePath, outputFilePath, targetResolution, scale } = payload;
@@ -77,6 +78,11 @@ export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
       { source: outputFilePath, filename: `upscaled_${targetResolution}_${result.outputResolution}.mp4` },
       { caption: t.doc_video_caption, parse_mode: 'HTML' }
     );
+
+    // Send interactive 1-5 star review invitation
+    setTimeout(() => {
+      sendReviewInvitation(telegramChatId, payload.language).catch(() => {});
+    }, 1200);
 
     // Clean up status message
     if (statusMsgId) {

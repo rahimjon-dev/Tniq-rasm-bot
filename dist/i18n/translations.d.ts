@@ -58,6 +58,13 @@ export declare const translations: {
         video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
         callback_processing: string;
         callback_cancelled: string;
+        btn_feedback: string;
+        review_prompt_after_job: string;
+        review_menu_prompt: string;
+        review_rating_selected: (rating: number) => string;
+        review_thanks: (rating: number) => string;
+        review_thanks_no_comment: (rating: number) => string;
+        review_skip_hint: string;
     };
     en: {
         choose_language: string;
@@ -117,6 +124,13 @@ export declare const translations: {
         video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
         callback_processing: string;
         callback_cancelled: string;
+        btn_feedback: string;
+        review_prompt_after_job: string;
+        review_menu_prompt: string;
+        review_rating_selected: (rating: number) => string;
+        review_thanks: (rating: number) => string;
+        review_thanks_no_comment: (rating: number) => string;
+        review_skip_hint: string;
     };
     ru: {
         choose_language: string;
@@ -176,6 +190,13 @@ export declare const translations: {
         video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
         callback_processing: string;
         callback_cancelled: string;
+        btn_feedback: string;
+        review_prompt_after_job: string;
+        review_menu_prompt: string;
+        review_rating_selected: (rating: number) => string;
+        review_thanks: (rating: number) => string;
+        review_thanks_no_comment: (rating: number) => string;
+        review_skip_hint: string;
     };
 };
 export declare function getT(lang?: string | null): {
@@ -236,6 +257,13 @@ export declare function getT(lang?: string | null): {
     video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
     callback_processing: string;
     callback_cancelled: string;
+    btn_feedback: string;
+    review_prompt_after_job: string;
+    review_menu_prompt: string;
+    review_rating_selected: (rating: number) => string;
+    review_thanks: (rating: number) => string;
+    review_thanks_no_comment: (rating: number) => string;
+    review_skip_hint: string;
 } | {
     choose_language: string;
     language_selected: string;
@@ -294,6 +322,13 @@ export declare function getT(lang?: string | null): {
     video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
     callback_processing: string;
     callback_cancelled: string;
+    btn_feedback: string;
+    review_prompt_after_job: string;
+    review_menu_prompt: string;
+    review_rating_selected: (rating: number) => string;
+    review_thanks: (rating: number) => string;
+    review_thanks_no_comment: (rating: number) => string;
+    review_skip_hint: string;
 } | {
     choose_language: string;
     language_selected: string;
@@ -352,4 +387,11 @@ export declare function getT(lang?: string | null): {
     video_received: (w: number, h: number, fps: number, dur: number, rem: number | string, max: number | string) => string;
     callback_processing: string;
     callback_cancelled: string;
+    btn_feedback: string;
+    review_prompt_after_job: string;
+    review_menu_prompt: string;
+    review_rating_selected: (rating: number) => string;
+    review_thanks: (rating: number) => string;
+    review_thanks_no_comment: (rating: number) => string;
+    review_skip_hint: string;
 };

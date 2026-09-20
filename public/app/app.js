@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupVideoStudio();
   setupBackgroundStudio();
   setupPlans();
+  setupReviews();
   await loadUserData();
 
   // Close app button
@@ -509,4 +510,168 @@ function setupPlans() {
   document.getElementById('btn-plan-free')?.addEventListener('click', contactAdmin);
   document.getElementById('btn-plan-premium')?.addEventListener('click', contactAdmin);
   document.getElementById('btn-plan-pro')?.addEventListener('click', contactAdmin);
+}
+
+// --------------------------------------------------------------------------
+// 7. Reviews & Ratings (1 to 5 Stars)
+// --------------------------------------------------------------------------
+let selectedRating = 5;
+
+function setupReviews() {
+  const starBtns = document.querySelectorAll('#star-rating-selector .star-btn');
+  const labelText = document.getElementById('star-label-text');
+  const commentInput = document.getElementById('review-comment-text');
+  const submitBtn = document.getElementById('btn-submit-review');
+  const successBadge = document.getElementById('review-success-badge');
+
+  const ratingLabels = {
+    1: "1/5 — Qoniqarsiz ⭐️",
+    2: "2/5 — O'rtacha ⭐️⭐️",
+    3: "3/5 — Yaxshi ⭐️⭐️⭐️",
+    4: "4/5 — Juda yaxshi ⭐️⭐️⭐️⭐️",
+    5: "5/5 — A'lo darajada! ⭐️⭐️⭐️⭐️⭐️",
+  };
+
+  starBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const starVal = parseInt(btn.dataset.star, 10) || 5;
+      selectedRating = starVal;
+
+      starBtns.forEach((b) => {
+        const val = parseInt(b.dataset.star, 10);
+        if (val <= starVal) {
+          b.classList.add('active');
+        } else {
+          b.classList.remove('active');
+        }
+      });
+
+      if (labelText) {
+        labelText.textContent = ratingLabels[starVal] || `${starVal}/5 ⭐`;
+      }
+
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    });
+  });
+
+  submitBtn?.addEventListener('click', async () => {
+    const comment = commentInput ? commentInput.value.trim() : '';
+    const telegramId = tg?.initDataUnsafe?.user?.id || '0';
+
+    if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+    submitBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/miniapp/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId,
+          rating: selectedRating,
+          comment,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        if (successBadge) {
+          successBadge.style.display = 'block';
+          setTimeout(() => {
+            successBadge.style.display = 'none';
+          }, 5000);
+        }
+        if (commentInput) commentInput.value = '';
+        await loadReviewsData();
+      } else {
+        alert(data.error || 'Xatolik yuz berdi');
+      }
+    } catch (err) {
+      alert('Tarmoq xatosi: fikr yuborilmadi');
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  // Load reviews on startup
+  loadReviewsData();
+}
+
+async function loadReviewsData() {
+  try {
+    const res = await fetch('/api/miniapp/reviews');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.success) return;
+
+    // Update Big score display
+    const avgScoreEl = document.getElementById('avg-rating-val');
+    const avgStarsRow = document.getElementById('avg-stars-row');
+    const avgCountLabel = document.getElementById('avg-count-label');
+    const totalPill = document.getElementById('reviews-total-pill');
+
+    const avg = data.average || 5.0;
+    const count = data.count || 0;
+
+    if (avgScoreEl) avgScoreEl.textContent = avg.toFixed(1);
+    if (avgStarsRow) {
+      const fullStars = Math.round(avg);
+      avgStarsRow.textContent = '⭐️'.repeat(fullStars);
+    }
+    if (avgCountLabel) {
+      avgCountLabel.textContent = count > 0 ? `${count} ta baho asosida` : 'Hozircha birinchi bo\'lib baholang';
+    }
+    if (totalPill) {
+      totalPill.textContent = `${count} ta`;
+    }
+
+    // Render list
+    const container = document.getElementById('reviews-list-container');
+    if (!container) return;
+
+    if (!data.reviews || data.reviews.length === 0) {
+      container.innerHTML = `
+        <div class="review-empty-state">
+          <span>🌟 Birinchi bo'lib fikr va baho qoldiring!</span>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = data.reviews
+      .map((r) => {
+        const name = r.user?.firstName || 'Foydalanuvchi';
+        const letter = name.charAt(0).toUpperCase();
+        const starsStr = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+        const commentHtml = r.comment
+          ? `<p class="review-comment-body">"${escapeHtml(r.comment)}"</p>`
+          : `<p class="review-comment-body" style="font-style: italic; opacity: 0.7;">Baho qoldirildi: ${r.rating} yulduz</p>`;
+        const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '';
+
+        return `
+          <div class="review-card-item">
+            <div class="review-item-top">
+              <div class="review-author">
+                <div class="review-avatar-mini">${letter}</div>
+                <span class="review-author-name">${escapeHtml(name)}</span>
+              </div>
+              <span class="review-stars-val">${starsStr}</span>
+            </div>
+            ${commentHtml}
+            <span class="review-time-stamp">${dateStr}</span>
+          </div>
+        `;
+      })
+      .join('');
+  } catch (err) {
+    console.debug('Could not load reviews feed:', err);
+  }
+}
+
+function escapeHtml(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

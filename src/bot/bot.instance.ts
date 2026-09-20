@@ -20,6 +20,12 @@ import {
   handleResetCustomBackground,
   awaitingProBackgroundUsers,
 } from './handlers/pro-background.handler.js';
+import {
+  handleStarRatingCallback,
+  checkAndProcessReviewComment,
+  handleReviewCommand,
+  pendingReviewRatings,
+} from './handlers/review.handler.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.middleware.js';
 
 import UserService from '../services/user.service.js';
@@ -105,6 +111,23 @@ bot.use(async (ctx, next) => {
 
 // Middleware: Anti-Abuse Rate Limiting
 bot.use(rateLimitMiddleware);
+
+// Middleware: Review comment interceptor
+bot.use(async (ctx, next) => {
+  if (ctx.message && 'text' in ctx.message) {
+    const text = (ctx.message.text || '').trim();
+    const tid = ctx.from?.id;
+    if (tid && pendingReviewRatings.has(tid)) {
+      if (text === '/start') {
+        pendingReviewRatings.delete(tid);
+        return next();
+      }
+      const handled = await checkAndProcessReviewComment(ctx);
+      if (handled) return;
+    }
+  }
+  return next();
+});
 
 // -----------------------------------------------------------------------------
 // COMMANDS & HEAR HANDLERS
@@ -415,6 +438,21 @@ bot.hears(['❓ Yordam', '❓ Help', '❓ Помощь', 'ℹ️ Help', 'ℹ️ 
   await ctx.replyWithHTML(t.help_text, getMainKeyboard(lang));
 });
 
+// ⭐️ Reviews & Rating
+bot.hears(
+  [
+    '⭐️ Fikr bildirish',
+    '⭐️ Leave Feedback',
+    '⭐️ Оставить отзыв',
+    '⭐️ Baholash',
+    '⭐️ Baholash & Fikr',
+    '/review',
+    '/rate',
+    '/feedback',
+  ],
+  handleReviewCommand
+);
+
 // Photo & Image Document Upload Handlers
 bot.on('photo', handleIncomingPhoto);
 bot.on('document', handleIncomingDocument);
@@ -431,6 +469,13 @@ bot.action('video_res_720p', (ctx) => handleVideoResolutionSelection(ctx, '720p'
 bot.action('video_res_1080p', (ctx) => handleVideoResolutionSelection(ctx, '1080p'));
 bot.action('video_res_2K', (ctx) => handleVideoResolutionSelection(ctx, '2K'));
 bot.action('video_res_4K', (ctx) => handleVideoResolutionSelection(ctx, '4K'));
+
+// Callback Queries for 1-5 Star Ratings
+bot.action('rate_star_1', (ctx) => handleStarRatingCallback(ctx, 1));
+bot.action('rate_star_2', (ctx) => handleStarRatingCallback(ctx, 2));
+bot.action('rate_star_3', (ctx) => handleStarRatingCallback(ctx, 3));
+bot.action('rate_star_4', (ctx) => handleStarRatingCallback(ctx, 4));
+bot.action('rate_star_5', (ctx) => handleStarRatingCallback(ctx, 5));
 
 // Plans & Payment Actions
 bot.action('activate_free_beta', async (ctx) => {
@@ -543,6 +588,7 @@ export async function registerBotCommands(): Promise<void> {
       { command: 'usage', description: 'Bugungi limitlar statistikasi' },
       { command: 'plans', description: 'Tarif rejalari (Free, Premium, Pro)' },
       { command: 'settings', description: 'Sozlamalar va Maxsus Fon' },
+      { command: 'review', description: 'Botni baholash va fikr qoldirish' },
       { command: 'restart', description: 'Bot interfeysini yangilash' },
       { command: 'help', description: 'Bot haqida qisqacha ma\'lumot' },
     ]);

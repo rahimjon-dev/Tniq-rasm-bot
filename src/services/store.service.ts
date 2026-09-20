@@ -52,9 +52,24 @@ export interface StoredJob {
   } | null;
 }
 
+export interface StoredReview {
+  id: string;
+  telegramId: string;
+  rating: number; // 1 to 5
+  comment: string;
+  createdAt: string;
+  updatedAt?: string;
+  user?: {
+    telegramId: string;
+    firstName?: string | null;
+    username?: string | null;
+  } | null;
+}
+
 interface DBStructure {
   users: Record<string, StoredUser>;
   jobs: StoredJob[];
+  reviews: StoredReview[];
   stats: {
     totalImages: number;
     totalVideos: number;
@@ -141,6 +156,7 @@ class StoreService {
 
     const mergedUsers: Record<string, StoredUser> = {};
     const mergedJobs: StoredJob[] = [];
+    const mergedReviews: StoredReview[] = [];
     let maxImages = 0;
     let maxVideos = 0;
     let maxFailed = 0;
@@ -187,6 +203,13 @@ class StoreService {
               }
             }
           }
+          if (Array.isArray(parsed.reviews)) {
+            for (const r of parsed.reviews) {
+              if (!mergedReviews.some((existing) => existing.id === r.id)) {
+                mergedReviews.push(r);
+              }
+            }
+          }
           if (parsed.stats) {
             maxImages = Math.max(maxImages, parsed.stats.totalImages || 0);
             maxVideos = Math.max(maxVideos, parsed.stats.totalVideos || 0);
@@ -198,12 +221,16 @@ class StoreService {
       }
     }
 
+    // Sort reviews newest first
+    mergedReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
     const userCount = Object.keys(mergedUsers).length;
-    logger.info(`[STORE] Multi-source persistent database loaded. Total users: ${userCount}`);
+    logger.info(`[STORE] Multi-source persistent database loaded. Users: ${userCount}, Reviews: ${mergedReviews.length}`);
 
     return {
       users: mergedUsers,
       jobs: mergedJobs.slice(0, 200),
+      reviews: mergedReviews,
       stats: {
         totalImages: maxImages,
         totalVideos: maxVideos,
@@ -796,6 +823,168 @@ class StoreService {
       failedJobs: this.data.stats.failedJobs,
       successRatePercent,
     };
+  }
+
+  // --- Reviews & Ratings (1 to 5 Stars) ---
+  addReview(params: {
+    telegramId: string | number | bigint;
+    rating: number;
+    comment?: string | null;
+  }): StoredReview {
+    const key = params.telegramId.toString();
+    const cleanRating = Math.max(1, Math.min(5, Math.round(params.rating || 5)));
+    const cleanComment = (params.comment || '').trim();
+    const u = this.data.users[key];
+    const now = new Date().toISOString();
+
+    if (!Array.isArray(this.data.reviews)) {
+      this.data.reviews = [];
+    }
+
+    // Check if user already submitted a review: update or insert
+    const existingIndex = this.data.reviews.findIndex((r) => r.telegramId === key);
+    let reviewItem: StoredReview;
+
+    if (existingIndex !== -1) {
+      reviewItem = {
+        ...this.data.reviews[existingIndex],
+        rating: cleanRating,
+        comment: cleanComment || this.data.reviews[existingIndex].comment,
+        updatedAt: now,
+        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : this.data.reviews[existingIndex].user,
+      };
+      this.data.reviews[existingIndex] = reviewItem;
+    } else {
+      reviewItem = {
+        id: `rev_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        telegramId: key,
+        rating: cleanRating,
+        comment: cleanComment,
+        createdAt: now,
+        updatedAt: now,
+        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : null,
+      };
+      this.data.reviews.unshift(reviewItem);
+    }
+
+    // Keep up to 2000 reviews
+    if (this.data.reviews.length > 2000) {
+      this.data.reviews = this.data.reviews.slice(0, 2000);
+    }
+
+    if (u) {
+      u.lastAction = `Left ${cleanRating}★ review`;
+      u.lastActivityDate = now;
+    }
+
+    this.saveToDisk(true);
+    logger.info(`[STORE] Review saved for user ${key}: ${cleanRating}★ "${cleanComment.slice(0, 30)}"`);
+    return reviewItem;
+  }
+
+  getUserReview(telegramId: string | number | bigint): StoredReview | null {
+    const key = telegramId.toString();
+    if (!Array.isArray(this.data.reviews)) return null;
+    return this.data.reviews.find((r) => r.telegramId === key) || null;
+  }
+
+  getRecentReviews(limit = 10): StoredReview[] {
+    if (!Array.isArray(this.data.reviews)) return [];
+    return this.data.reviews.slice(0, limit).map((r) => {
+      const u = this.data.users[r.telegramId];
+      return {
+        ...r,
+        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : (r.user || null),
+      };
+    });
+  }
+
+  getReviews(params: {
+    query?: string;
+    ratingFilter?: number | string;
+    page?: number;
+    limit?: number;
+  } = {}) {
+    if (!Array.isArray(this.data.reviews)) {
+      this.data.reviews = [];
+    }
+
+    const query = (params.query || '').toLowerCase().trim();
+    const ratingFilter = params.ratingFilter ? Number(params.ratingFilter) : 0;
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.max(1, Math.min(100, params.limit || 20));
+
+    let list = this.data.reviews.map((r) => {
+      const u = this.data.users[r.telegramId];
+      return {
+        ...r,
+        user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : (r.user || null),
+      };
+    });
+
+    if (ratingFilter > 0) {
+      list = list.filter((r) => r.rating === ratingFilter);
+    }
+
+    if (query) {
+      list = list.filter((r) => {
+        const u = r.user;
+        return (
+          r.comment.toLowerCase().includes(query) ||
+          r.telegramId.includes(query) ||
+          (u?.username && u.username.toLowerCase().includes(query)) ||
+          (u?.firstName && u.firstName.toLowerCase().includes(query))
+        );
+      });
+    }
+
+    const total = list.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const offset = (page - 1) * limit;
+    const paginated = list.slice(offset, offset + limit);
+
+    return {
+      reviews: paginated,
+      total,
+      page,
+      totalPages,
+      limit,
+    };
+  }
+
+  getAverageRating(): {
+    average: number;
+    count: number;
+    breakdown: Record<number, number>;
+  } {
+    const reviews = Array.isArray(this.data.reviews) ? this.data.reviews : [];
+    const count = reviews.length;
+    const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+    if (count === 0) {
+      return { average: 5.0, count: 0, breakdown };
+    }
+
+    let sum = 0;
+    for (const r of reviews) {
+      const star = Math.max(1, Math.min(5, Math.round(r.rating || 5)));
+      breakdown[star] = (breakdown[star] || 0) + 1;
+      sum += star;
+    }
+
+    const average = parseFloat((sum / count).toFixed(1));
+    return { average, count, breakdown };
+  }
+
+  deleteReview(reviewId: string): boolean {
+    if (!Array.isArray(this.data.reviews)) return false;
+    const initLen = this.data.reviews.length;
+    this.data.reviews = this.data.reviews.filter((r) => r.id !== reviewId);
+    if (this.data.reviews.length !== initLen) {
+      this.saveToDisk(true);
+      return true;
+    }
+    return false;
   }
 }
 

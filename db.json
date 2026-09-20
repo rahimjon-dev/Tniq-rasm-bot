@@ -14,7 +14,7 @@
       "lastActivityDate": "2026-09-18T16:16:46.132Z",
       "lastAction": "Sent message",
       "dailyUsage": {
-        "date": "2026-09-19",
+        "date": "2026-09-20",
         "images": 0,
         "videos": 0
       },
@@ -38,7 +38,7 @@
       "lastActivityDate": "2026-09-15T17:32:00.000Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-19",
+        "date": "2026-09-20",
         "images": 0,
         "videos": 0
       },
@@ -59,11 +59,11 @@
       "isBanned": false,
       "createdAt": "2026-09-15T07:16:15.035Z",
       "updatedAt": "2026-09-18T19:01:59.536Z",
-      "lastActivityDate": "2026-09-18T19:01:59.536Z",
-      "lastAction": "Upscaled IMAGE",
+      "lastActivityDate": "2026-09-20T07:33:33.245Z",
+      "lastAction": "Left 5★ review",
       "dailyUsage": {
-        "date": "2026-09-19",
-        "images": 1,
+        "date": "2026-09-20",
+        "images": 0,
         "videos": 0
       },
       "totalImages": 1,
@@ -86,7 +86,7 @@
       "lastActivityDate": "2026-09-16T06:27:30.091Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-19",
+        "date": "2026-09-20",
         "images": 0,
         "videos": 0
       },
@@ -110,7 +110,7 @@
       "lastActivityDate": "2026-09-16T06:28:48.660Z",
       "lastAction": "Active",
       "dailyUsage": {
-        "date": "2026-09-19",
+        "date": "2026-09-20",
         "images": 0,
         "videos": 0
       },
@@ -134,7 +134,7 @@
       "lastActivityDate": "2026-09-16T08:00:48.607Z",
       "lastAction": "Custom background removed",
       "dailyUsage": {
-        "date": "2026-09-19",
+        "date": "2026-09-20",
         "images": 0,
         "videos": 0
       },
@@ -172,6 +172,21 @@
       "scale": 4,
       "processingTime": 1.1,
       "createdAt": "2026-09-16T06:28:48.660Z"
+    }
+  ],
+  "reviews": [
+    {
+      "id": "rev_1789889613245_cu5cm",
+      "telegramId": "7534175269",
+      "rating": 5,
+      "comment": "Bot juda ajoyib, kristaldek tiniq qilib berdi, omad!",
+      "createdAt": "2026-09-20T07:33:33.245Z",
+      "updatedAt": "2026-09-20T07:33:33.245Z",
+      "user": {
+        "telegramId": "7534175269",
+        "firstName": "Rahimjon",
+        "username": "rahmonoov_19"
+      }
     }
   ],
   "stats": {

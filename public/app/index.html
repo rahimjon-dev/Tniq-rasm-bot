@@ -54,6 +54,10 @@
         <span class="tab-icon">💎</span>
         <span class="tab-label">Tariflar</span>
       </button>
+      <button class="nav-tab" data-tab="reviews" id="tab-btn-reviews">
+        <span class="tab-icon">⭐️</span>
+        <span class="tab-label">Fikrlar</span>
+      </button>
     </nav>
 
     <!-- TAB 1: Image 4K Studio -->
@@ -292,6 +296,66 @@
         <a href="https://t.me/rahmonoov_19" target="_blank" class="btn btn-primary btn-full btn-pro-action" id="btn-plan-pro">
           <span>💎 PRO Olish (@rahmonoov_19)</span>
         </a>
+      </div>
+    </section>
+
+    <!-- TAB 5: Reviews & Feedback -->
+    <section class="tab-content" id="tab-content-reviews">
+      <div class="glass-card hero-card">
+        <div class="card-glow"></div>
+        <h2 class="hero-title">Foydalanuvchilar Bahosi</h2>
+        <p class="hero-sub">Botimiz sizga yoqdimi? 1 dan 5 gacha yulduzcha tanlang va o'z fikr yoki taklifingizni qoldiring!</p>
+      </div>
+
+      <!-- Rating Overview Stat Card -->
+      <div class="glass-card rating-overview-card" id="rating-overview-card">
+        <div class="rating-big-score">
+          <span class="big-score-val" id="avg-rating-val">5.0</span>
+          <div class="score-stars-row" id="avg-stars-row">⭐️⭐️⭐️⭐️⭐️</div>
+          <span class="score-count-label" id="avg-count-label">Jami baholar asosida</span>
+        </div>
+      </div>
+
+      <!-- Leave a Review Form Card -->
+      <div class="glass-card review-form-card" id="review-form-card">
+        <h3 class="card-subtitle">⭐️ O'z bahongizni qoldiring:</h3>
+        
+        <!-- 1-5 Star Interactive Selector -->
+        <div class="star-rating-selector" id="star-rating-selector">
+          <button type="button" class="star-btn active" data-star="1" title="1 - Qoniqarsiz">★</button>
+          <button type="button" class="star-btn active" data-star="2" title="2 - O'rtacha">★</button>
+          <button type="button" class="star-btn active" data-star="3" title="3 - Yaxshi">★</button>
+          <button type="button" class="star-btn active" data-star="4" title="4 - Juda yaxshi">★</button>
+          <button type="button" class="star-btn active" data-star="5" title="5 - A'lo darajada">★</button>
+        </div>
+        <div class="star-label-text" id="star-label-text">5/5 — A'lo darajada! ⭐️</div>
+
+        <!-- Text Comment Box -->
+        <div class="form-group">
+          <textarea id="review-comment-text" class="review-textarea" rows="3" placeholder="Bot haqida fikringiz, tilak yoki takliflaringizni yozing (masalan: 'Bot yaxshi omad, rasm 4K tiniq bo'ldi!')..."></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <button class="btn btn-primary btn-action" id="btn-submit-review">
+          <span class="btn-icon">⭐️</span>
+          <span class="btn-text">Fikr va Bahoni Yuborish</span>
+        </button>
+
+        <!-- Success notification -->
+        <div class="review-success-badge" id="review-success-badge" style="display: none;">
+          ✅ Katta rahmat! Sizning bahoyingiz va fikringiz qabul qilindi! ❤️
+        </div>
+      </div>
+
+      <!-- Community Reviews Feed -->
+      <div class="glass-card reviews-feed-card" id="reviews-feed-card">
+        <div class="feed-header">
+          <h3 class="card-subtitle">💬 So'nggi sharhlar:</h3>
+          <span class="badge-pill" id="reviews-total-pill">... ta</span>
+        </div>
+        <div class="reviews-list" id="reviews-list-container">
+          <div class="review-item-placeholder">Sharhlar yuklanmoqda...</div>
+        </div>
       </div>
     </section>
 

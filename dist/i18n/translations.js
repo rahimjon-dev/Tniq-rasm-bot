@@ -143,6 +143,15 @@ export const translations = {
             `<b>AI orqali qaysi sifat darajasiga ko'tarmoqchisiz?</b>`,
         callback_processing: '⏳ Qabul qilingan, ishlanmoqda...',
         callback_cancelled: '❌ Bekor qilindi',
+        btn_feedback: '⭐️ Fikr bildirish',
+        review_prompt_after_job: '⭐️ <b>Natija sizga yoqdimi?</b>\nBotimizni 1 dan 5 gacha yulduzcha bilan baholang va o\'z fikringizni qoldiring:',
+        review_menu_prompt: '⭐️ <b>Botimiz xizmatini baholang!</b>\n\nQuyidagi tugmalar orqali 1 dan 5 gacha yulduzcha tanlang (eng balandi 5 ⭐):',
+        review_rating_selected: (rating) => `⭐️ Rahmat! Siz <b>${rating}/5 ⭐</b> baho tanladingiz.\n\n` +
+            `✍️ <i>Bot haqida o'z fikr, taklif yoki tilaklaringizni yozib qoldiring (masalan: "Bot yaxshi omad!"):</i>\n\n` +
+            `<i>(Agar izoh yozishni xohlamasangiz, /skip buyrug'ini bosing)</i>`,
+        review_thanks: (rating) => `✅ <b>Katta rahmat!</b> Sizning fikringiz va <b>${rating} ⭐</b> bahoyingiz qabul qilindi. Sizning fikringiz biz uchun juda muhim! ❤️`,
+        review_thanks_no_comment: (rating) => `✅ <b>Rahmat!</b> Sizning <b>${rating} ⭐</b> bahoyingiz qabul qilindi! ❤️`,
+        review_skip_hint: '💡 Siz izoh yozishni o\'tkazib yubordingiz.',
     },
     en: {
         choose_language: `🌐 <b>Hello! Please choose your preferred language:</b>\n\n` +
@@ -286,6 +295,15 @@ export const translations = {
             `<b>Select your target AI quality:</b>`,
         callback_processing: '⏳ Processing your request...',
         callback_cancelled: '❌ Cancelled',
+        btn_feedback: '⭐️ Leave Feedback',
+        review_prompt_after_job: '⭐️ <b>Did you like the result?</b>\nRate our bot from 1 to 5 stars and share your feedback:',
+        review_menu_prompt: '⭐️ <b>Rate our AI service!</b>\n\nChoose 1 to 5 stars using the buttons below (5 ⭐ is highest):',
+        review_rating_selected: (rating) => `⭐️ Thank you! You selected <b>${rating}/5 ⭐</b>.\n\n` +
+            `✍️ <i>Please write your comments, feedback, or wishes (e.g., "Great bot, keep it up!"):</i>\n\n` +
+            `<i>(If you do not wish to write a comment, click /skip)</i>`,
+        review_thanks: (rating) => `✅ <b>Thank you so much!</b> Your feedback and <b>${rating} ⭐</b> rating have been recorded. Your opinion matters to us! ❤️`,
+        review_thanks_no_comment: (rating) => `✅ <b>Thank you!</b> Your <b>${rating} ⭐</b> rating has been recorded! ❤️`,
+        review_skip_hint: '💡 You skipped leaving a comment.',
     },
     ru: {
         choose_language: `🌐 <b>Пожалуйста, выберите удобный язык:</b>\n\n` +
@@ -429,6 +447,15 @@ export const translations = {
             `<b>Выберите желаемое качество улучшения:</b>`,
         callback_processing: '⏳ Обрабатывается...',
         callback_cancelled: '❌ Отменено',
+        btn_feedback: '⭐️ Оставить отзыв',
+        review_prompt_after_job: '⭐️ <b>Вам понравился результат?</b>\nОцените бота от 1 до 5 звёзд и оставьте ваш отзыв:',
+        review_menu_prompt: '⭐️ <b>Оцените наш ИИ-сервис!</b>\n\nВыберите от 1 до 5 звёзд с помощью кнопок ниже (максимум 5 ⭐):',
+        review_rating_selected: (rating) => `⭐️ Спасибо! Вы поставили <b>${rating}/5 ⭐</b>.\n\n` +
+            `✍️ <i>Напишите ваш отзыв, пожелания или предложения (например: "Бот отличный, успехов!"):</i>\n\n` +
+            `<i>(Если не хотите писать отзыв, нажмите /skip)</i>`,
+        review_thanks: (rating) => `✅ <b>Большое спасибо!</b> Ваш отзыв и оценка <b>${rating} ⭐</b> успешно сохранены. Ваше мнение очень важно для нас! ❤️`,
+        review_thanks_no_comment: (rating) => `✅ <b>Спасибо!</b> Ваша оценка <b>${rating} ⭐</b> успешно сохранена! ❤️`,
+        review_skip_hint: '💡 Вы пропустили ввод комментария.',
     },
 };
 export function getT(lang) {
