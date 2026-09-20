@@ -26,13 +26,14 @@ export declare class FFmpegService {
         crf?: number;
     }): Promise<void>;
     /**
-     * Directly upscale video using high-quality Lanczos scaling and unsharp filter
-     * without exploding into individual disk frames
+     * Directly upscale video using high-quality Lanczos scaling, unsharp masking,
+     * Contrast Adaptive Sharpening (CAS), and color dynamic enhancement
      */
     static upscaleDirect(params: {
         inputPath: string;
         outputPath: string;
-        scale: number;
+        scale?: number;
+        targetResolution?: '720p' | '1080p' | '2K' | '4K';
         fps?: number;
         crf?: number;
     }): Promise<void>;

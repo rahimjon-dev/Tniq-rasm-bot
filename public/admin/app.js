@@ -37,6 +37,7 @@
   const tabTitles = {
     'tab-overview': { title: "Umumiy Ko'rsatkichlar", subtitle: "Bot faoliyati va AI serverining jonli monitoringi" },
     'tab-users': { title: "Foydalanuvchilar Boshqaruvi", subtitle: "Barcha foydalanuvchilar, ularning hisoblari va limitlari" },
+    'tab-reviews': { title: "Foydalanuvchilar Fikrlari & Sharhlar", subtitle: "Foydalanuvchilar qoldirgan 1-5 yulduzli baholar va barcha izohlar jurnali" },
     'tab-broadcast': { title: "Xabar Tarqatish Studiyasi", subtitle: "Telegram foydalanuvchilariga e'lon va xabarlar yuborish" },
     'tab-jobs': { title: "Media Ishlari Navbati", subtitle: "AI orqali tiniqlashtirilgan rasmlar va videolarning jonli jurnali" },
     'tab-system': { title: "Server Salomatligi", subtitle: "Infratuzilma, xotira va bot konfiguratsiyasi" },
@@ -158,6 +159,7 @@
     }
 
     if (tabId === 'tab-users') loadUsers();
+    if (tabId === 'tab-reviews') loadReviews();
     if (tabId === 'tab-jobs') loadJobs();
     if (tabId === 'tab-overview') loadStats();
   }
@@ -239,6 +241,20 @@
         const sysCpu = document.getElementById('sysCpu');
         if (sysCpu) sysCpu.innerText = `${s.server.cpuCores} ta yadro`;
       }
+
+      // Also update reviews metrics on Overview
+      try {
+        const revData = await apiFetch('/api/admin/reviews?limit=1');
+        if (revData && revData.ratingStats) {
+          const st = revData.ratingStats;
+          const statAvgRating = document.getElementById('statAvgRating');
+          const statReviewsDesc = document.getElementById('statReviewsDesc');
+          const badgeReviewCount = document.getElementById('badgeReviewCount');
+          if (statAvgRating) statAvgRating.innerText = `${st.average.toFixed(1)} ⭐`;
+          if (statReviewsDesc) statReviewsDesc.innerText = `Jami: ${st.count} ta fikr va izoh`;
+          if (badgeReviewCount) badgeReviewCount.innerText = st.count;
+        }
+      } catch {}
 
       lastUpdatedText.innerText = `Yangilandi: ${new Date().toLocaleTimeString()}`;
     } catch (e) {
@@ -811,6 +827,159 @@
   });
 
   // ----------------------------------------------------------------------------
+  // Reviews & Ratings Management
+  // ----------------------------------------------------------------------------
+  const reviewSearchInput = document.getElementById('reviewSearchInput');
+  const reviewRatingFilter = document.getElementById('reviewRatingFilter');
+  const reviewsTableBody = document.getElementById('reviewsTableBody');
+  const btnRefreshReviews = document.getElementById('btnRefreshReviews');
+  const btnPrevReviewPage = document.getElementById('btnPrevReviewPage');
+  const btnNextReviewPage = document.getElementById('btnNextReviewPage');
+  const reviewPageIndicator = document.getElementById('reviewPageIndicator');
+
+  let currentReviewPage = 1;
+  let currentReviewQuery = '';
+  let currentReviewRatingFilter = '0';
+  let reviewSearchTimeout = null;
+
+  reviewSearchInput?.addEventListener('input', (e) => {
+    clearTimeout(reviewSearchTimeout);
+    reviewSearchTimeout = setTimeout(() => {
+      currentReviewQuery = e.target.value.trim();
+      currentReviewPage = 1;
+      loadReviews();
+    }, 300);
+  });
+
+  reviewRatingFilter?.addEventListener('change', (e) => {
+    currentReviewRatingFilter = e.target.value;
+    currentReviewPage = 1;
+    loadReviews();
+  });
+
+  btnRefreshReviews?.addEventListener('click', () => loadReviews());
+
+  btnPrevReviewPage?.addEventListener('click', () => {
+    if (currentReviewPage > 1) {
+      currentReviewPage--;
+      loadReviews();
+    }
+  });
+
+  btnNextReviewPage?.addEventListener('click', () => {
+    currentReviewPage++;
+    loadReviews();
+  });
+
+  document.getElementById('cardReviewsOverview')?.addEventListener('click', () => switchTab('tab-reviews'));
+
+  async function loadReviews() {
+    if (!reviewsTableBody) return;
+    reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Yuklanmoqda...</td></tr>`;
+
+    try {
+      const q = encodeURIComponent(currentReviewQuery);
+      const r = currentReviewRatingFilter;
+      const data = await apiFetch(`/api/admin/reviews?page=${currentReviewPage}&limit=15&q=${q}&rating=${r}`);
+
+      if (!data || !data.success) {
+        reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Fikrlarni yuklashda xatolik yuz berdi</td></tr>`;
+        return;
+      }
+
+      // Update Header Stats
+      const stats = data.ratingStats || { average: 5.0, count: 0, breakdown: {} };
+      const avgEl = document.getElementById('reviewsTabAvgRating');
+      const starsEl = document.getElementById('reviewsTabStars');
+      const countEl = document.getElementById('reviewsTabTotalCount');
+      const star5El = document.getElementById('reviewsTab5StarCount');
+      const badgeReviewCount = document.getElementById('badgeReviewCount');
+
+      if (avgEl) avgEl.innerText = stats.average.toFixed(1);
+      if (starsEl) starsEl.innerText = '⭐️'.repeat(Math.round(stats.average));
+      if (countEl) countEl.innerText = stats.count;
+      if (star5El) star5El.innerText = stats.breakdown ? (stats.breakdown[5] || 0) : 0;
+      if (badgeReviewCount) badgeReviewCount.innerText = stats.count;
+
+      // Update Overview card too
+      const statAvgRating = document.getElementById('statAvgRating');
+      const statReviewsDesc = document.getElementById('statReviewsDesc');
+      if (statAvgRating) statAvgRating.innerText = `${stats.average.toFixed(1)} ⭐`;
+      if (statReviewsDesc) statReviewsDesc.innerText = `Jami: ${stats.count} ta fikr va izoh`;
+
+      if (!data.reviews || data.reviews.length === 0) {
+        reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Hozircha hech qanday fikr topilmadi</td></tr>`;
+        if (reviewPageIndicator) reviewPageIndicator.innerText = `Sahifa 1 / 1`;
+        if (btnPrevReviewPage) btnPrevReviewPage.disabled = true;
+        if (btnNextReviewPage) btnNextReviewPage.disabled = true;
+        return;
+      }
+
+      reviewsTableBody.innerHTML = data.reviews.map((rev) => {
+        const u = rev.user;
+        const name = u?.firstName || 'Foydalanuvchi';
+        const username = u?.username ? `@${escapeHtml(u.username)}` : '<span class="text-muted">—</span>';
+        const stars = '★'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating);
+        const comment = rev.comment
+          ? `<blockquote style="margin: 0; font-size: 13px; font-weight: 500; color: #f3f4f6; border-left: 3px solid #eab308; padding-left: 8px;">"${escapeHtml(rev.comment)}"</blockquote>`
+          : `<span class="text-muted" style="font-style: italic;">Faqat ${rev.rating}★ baho qoldirilgan</span>`;
+        const time = rev.createdAt ? new Date(rev.createdAt).toLocaleString('uz-UZ') : '';
+
+        return `
+          <tr>
+            <td>
+              <div class="user-cell">
+                <div class="avatar-cell">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+                <div>
+                  <div class="user-name-strong">${escapeHtml(name)}</div>
+                  <div class="user-sub">${username}</div>
+                </div>
+              </div>
+            </td>
+            <td><code class="code-id">${escapeHtml(rev.telegramId)}</code></td>
+            <td><span style="color: #facc15; font-size: 14px; font-weight: 700; letter-spacing: 1px;">${stars}</span></td>
+            <td>${comment}</td>
+            <td class="text-muted" style="font-size: 12px;">${time}</td>
+            <td style="text-align: right;">
+              <button class="btn-action-sm btn-danger btn-delete-review" data-id="${rev.id}" title="Izohni o'chirish">
+                🗑
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // Wire delete buttons
+      document.querySelectorAll('.btn-delete-review').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const revId = btn.dataset.id;
+          if (!confirm("Haqiqatan ham bu sharhni o'chirmoqchimisiz?")) return;
+          try {
+            const delRes = await apiFetch(`/api/admin/reviews/${revId}`, { method: 'DELETE' });
+            if (delRes && delRes.success) {
+              showToast("Sharh muvaffaqiyatli o'chirildi!");
+              loadReviews();
+            } else {
+              alert(delRes?.error || "O'chirishda xatolik yuz berdi");
+            }
+          } catch (delErr) {
+            alert("O'chirishda xatolik yuz berdi");
+          }
+        });
+      });
+
+      // Pagination
+      if (reviewPageIndicator) reviewPageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages}`;
+      if (btnPrevReviewPage) btnPrevReviewPage.disabled = data.page <= 1;
+      if (btnNextReviewPage) btnNextReviewPage.disabled = data.page >= data.totalPages;
+
+    } catch (err) {
+      console.error('Error loading reviews:', err);
+      reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger">Sharhlarni yuklashda xatolik yuz berdi</td></tr>`;
+    }
+  }
+
+  // ----------------------------------------------------------------------------
   // Beethoven Classical Piano Soundtrack & Volume Engine (Web Audio Royalty-Free)
   // ----------------------------------------------------------------------------
   let audioCtx = null;
@@ -1061,12 +1230,14 @@
   function initDashboard() {
     loadStats();
     loadUsers();
+    loadReviews();
     loadJobs();
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
       loadStats();
       if (activeTab === 'tab-jobs') loadJobs();
+      if (activeTab === 'tab-reviews') loadReviews();
     }, 25000);
   }
 

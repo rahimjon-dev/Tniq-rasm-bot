@@ -154,25 +154,49 @@ export class FFmpegService {
         }
     }
     /**
-     * Directly upscale video using high-quality Lanczos scaling and unsharp filter
-     * without exploding into individual disk frames
+     * Directly upscale video using high-quality Lanczos scaling, unsharp masking,
+     * Contrast Adaptive Sharpening (CAS), and color dynamic enhancement
      */
     static async upscaleDirect(params) {
-        const { inputPath, outputPath, scale, crf = 18 } = params;
+        const { inputPath, outputPath, scale = 2, targetResolution, crf = 17 } = params;
         const outputDir = path.dirname(outputPath);
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
+        // Determine precise dimension scaling for true 4K/2K/HD:
+        // 4K Ultra HD: 3840px on longest dimension
+        // 2K Quad HD: 2560px on longest dimension
+        // 1080p Full HD: 1920px on longest dimension
+        // 720p HD: 1280px on longest dimension
+        let scaleFilter;
+        if (targetResolution === '4K') {
+            scaleFilter = "scale='if(gte(iw,ih),3840,trunc(3840*iw/ih/2)*2)':'if(gte(iw,ih),trunc(3840*ih/iw/2)*2,3840)':flags=lanczos+accurate_rnd+full_chroma_int";
+        }
+        else if (targetResolution === '2K') {
+            scaleFilter = "scale='if(gte(iw,ih),2560,trunc(2560*iw/ih/2)*2)':'if(gte(iw,ih),trunc(2560*ih/iw/2)*2,2560)':flags=lanczos+accurate_rnd+full_chroma_int";
+        }
+        else if (targetResolution === '1080p') {
+            scaleFilter = "scale='if(gte(iw,ih),1920,trunc(1920*iw/ih/2)*2)':'if(gte(iw,ih),trunc(1920*ih/iw/2)*2,1920)':flags=lanczos+accurate_rnd+full_chroma_int";
+        }
+        else if (targetResolution === '720p') {
+            scaleFilter = "scale='if(gte(iw,ih),1280,trunc(1280*iw/ih/2)*2)':'if(gte(iw,ih),trunc(1280*ih/iw/2)*2,1280)':flags=lanczos+accurate_rnd+full_chroma_int";
+        }
+        else {
+            scaleFilter = `scale=w='trunc(iw*${scale}/2)*2':h='trunc(ih*${scale}/2)*2':flags=lanczos+accurate_rnd+full_chroma_int`;
+        }
         // Ultra-clarity video filter chain:
-        // Lanczos high-order scaling + Contrast Adaptive Sharpening (cas=0.7) for razor-sharp contours
-        const filter = `scale=w='trunc(iw*${scale}/2)*2':h='trunc(ih*${scale}/2)*2':flags=lanczos,cas=0.7`;
+        // 1. High-order Lanczos scaling + accurate rounding + full chroma interpolation
+        // 2. Unsharp filter (sharpen luminance and chrominance edges)
+        // 3. Contrast Adaptive Sharpening (cas=0.75) for razor-sharp contours
+        // 4. Color & contrast tuning (eq: contrast +6%, saturation +8%)
+        const filter = `${scaleFilter},unsharp=5:5:1.4:5:5:0.5,cas=0.75,eq=contrast=1.06:brightness=0.01:saturation=1.08`;
         const args = [
             '-y',
             '-i', inputPath,
             '-vf', filter,
             '-c:v', 'libx264',
             '-pix_fmt', 'yuv420p',
-            '-preset', 'veryfast',
+            '-preset', 'fast',
             '-threads', '0',
             '-crf', crf.toString(),
             '-c:a', 'copy',
@@ -180,7 +204,7 @@ export class FFmpegService {
             outputPath,
         ];
         await new Promise((resolve, reject) => {
-            execFile(this.ffmpegExe, args, { timeout: 300000 }, (error, stdout, stderr) => {
+            execFile(this.ffmpegExe, args, { timeout: 600000 }, (error, stdout, stderr) => {
                 if (error) {
                     return reject(new Error(`FFmpeg direct upscale failed: ${error.message}`));
                 }

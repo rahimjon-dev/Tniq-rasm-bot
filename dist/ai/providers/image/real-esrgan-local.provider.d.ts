@@ -8,7 +8,7 @@ export declare class RealESRGANLocalProvider implements ImageUpscalerProvider {
     private getModelsDirectory;
     isAvailable(): Promise<boolean>;
     /**
-     * Ultra-Clarity Multi-Pass Filter Engine
+     * Ultra-Clarity 4K Multi-Pass Filter Engine
      * Eliminates blurriness using high-order Lanczos3 supersampling,
      * full dynamic range contrast normalization, and high-frequency edge crisping.
      */

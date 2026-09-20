@@ -64,6 +64,11 @@
           <span class="nav-label">Foydalanuvchilar</span>
           <span class="badge-pill" id="badgeUserCount">0</span>
         </button>
+        <button class="nav-item" data-tab="tab-reviews" id="navReviews">
+          <span class="nav-icon">⭐️</span>
+          <span class="nav-label">Foydalanuvchilar Fikrlari</span>
+          <span class="badge-pill" id="badgeReviewCount">0</span>
+        </button>
         <button class="nav-item" data-tab="tab-broadcast" id="navBroadcast">
           <span class="nav-icon">📢</span>
           <span class="nav-label">Xabar Tarqatish</span>
@@ -208,6 +213,16 @@
                 <span class="metric-title">PRO & PREMIUM</span>
                 <h3 class="metric-val" id="statProUsers">0</h3>
                 <span class="metric-desc">Cheksiz & Maxsus fon egalari</span>
+              </div>
+            </div>
+
+            <!-- 9. REVIEWS & RATING -->
+            <div class="metric-card gradient-amber clickable-card" id="cardReviewsOverview" title="Fikrlar bo'limiga o'tish" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(245, 158, 11, 0.05)); border-color: rgba(234, 179, 8, 0.3);">
+              <div class="metric-icon">⭐️</div>
+              <div class="metric-meta">
+                <span class="metric-title">O'RTACHA BAHO</span>
+                <h3 class="metric-val" id="statAvgRating" style="color: #fde047;">5.0 ⭐</h3>
+                <span class="metric-desc" id="statReviewsDesc">Jami: 0 ta sharh va izoh</span>
               </div>
             </div>
           </div>
@@ -438,6 +453,90 @@
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- 3.5. REVIEWS TAB -->
+        <section id="tab-reviews" class="tab-pane">
+          <!-- Top Stat row -->
+          <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 20px;">
+            <div class="metric-card gradient-amber" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.15), rgba(245, 158, 11, 0.05)); border-color: rgba(234, 179, 8, 0.3);">
+              <div class="metric-icon">⭐️</div>
+              <div class="metric-meta">
+                <span class="metric-title">O'RTACHA BAHO</span>
+                <h3 class="metric-val" id="reviewsTabAvgRating" style="color: #fde047;">5.0</h3>
+                <span class="metric-desc" id="reviewsTabStars">⭐️⭐️⭐️⭐️⭐️</span>
+              </div>
+            </div>
+            <div class="metric-card gradient-purple">
+              <div class="metric-icon">💬</div>
+              <div class="metric-meta">
+                <span class="metric-title">JAMI SHARHLAR</span>
+                <h3 class="metric-val" id="reviewsTabTotalCount">0</h3>
+                <span class="metric-desc">Foydalanuvchilar qoldirgan</span>
+              </div>
+            </div>
+            <div class="metric-card gradient-emerald">
+              <div class="metric-icon">🏆</div>
+              <div class="metric-meta">
+                <span class="metric-title">5 YULDUZLI BAHOLAR</span>
+                <h3 class="metric-val" id="reviewsTab5StarCount">0</h3>
+                <span class="metric-desc">A'lo darajada deb baholangan</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="table-toolbar">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                id="reviewSearchInput"
+                placeholder="Fikr matni, ism yoki Telegram ID..."
+              />
+            </div>
+            <div class="filter-group">
+              <select id="reviewRatingFilter" class="custom-select">
+                <option value="0">Barcha Baholar</option>
+                <option value="5">⭐️⭐️⭐️⭐️⭐️ (5 yulduz)</option>
+                <option value="4">⭐️⭐️⭐️⭐️ (4 yulduz)</option>
+                <option value="3">⭐️⭐️⭐️ (3 yulduz)</option>
+                <option value="2">⭐️⭐️ (2 yulduz)</option>
+                <option value="1">⭐️ (1 yulduz)</option>
+              </select>
+              <button class="btn-secondary" id="btnRefreshReviews">
+                <span>Yangilash</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Reviews Table -->
+          <div class="table-container">
+            <table class="data-table" id="reviewsTable">
+              <thead>
+                <tr>
+                  <th>Foydalanuvchi</th>
+                  <th>Telegram ID</th>
+                  <th>Baho</th>
+                  <th style="min-width: 250px;">Izoh / Fikr</th>
+                  <th>Sana & Vaqt</th>
+                  <th style="text-align: right;">Amallar</th>
+                </tr>
+              </thead>
+              <tbody id="reviewsTableBody">
+                <tr>
+                  <td colspan="6" class="text-center py-4">Fikrlar yuklanmoqda...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination-footer">
+            <button class="btn-secondary" id="btnPrevReviewPage" disabled>&larr; Oldingi</button>
+            <span id="reviewPageIndicator">Sahifa 1 / 1</span>
+            <button class="btn-secondary" id="btnNextReviewPage" disabled>Keyingi &rarr;</button>
           </div>
         </section>
 

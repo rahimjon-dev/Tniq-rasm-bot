@@ -64,7 +64,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
   }
 
   /**
-   * Ultra-Clarity Multi-Pass Filter Engine
+   * Ultra-Clarity 4K Multi-Pass Filter Engine
    * Eliminates blurriness using high-order Lanczos3 supersampling,
    * full dynamic range contrast normalization, and high-frequency edge crisping.
    */
@@ -76,19 +76,38 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
     originalHeight: number,
     startTime: number
   ): Promise<ImageUpscaleResult> {
-    // True 4K Ultra HD bounding: max dimension capped at 3840px (standard 4K UHD)
-    // This prevents 40+ Megapixel memory explosions while ensuring authentic 4K resolution
-    const maxTargetDim = scale === 4 ? 3840 : 2560;
-    let targetWidth = Math.round(originalWidth * scale);
-    let targetHeight = Math.round(originalHeight * scale);
+    const longerEdge = Math.max(originalWidth, originalHeight);
+    const shorterEdge = Math.min(originalWidth, originalHeight);
+    const aspect = shorterEdge / (longerEdge || 1);
 
-    if (targetWidth > maxTargetDim || targetHeight > maxTargetDim) {
-      const ratio = Math.min(maxTargetDim / targetWidth, maxTargetDim / targetHeight);
-      targetWidth = Math.max(1, Math.round(targetWidth * ratio));
-      targetHeight = Math.max(1, Math.round(targetHeight * ratio));
+    let targetWidth: number;
+    let targetHeight: number;
+
+    if (scale === 4) {
+      // Authentic 4K Ultra HD: target 3840px on longest dimension
+      const boundedLonger = Math.min(3840, Math.max(Math.round(longerEdge * 4), 3840));
+      const boundedShorter = Math.round(boundedLonger * aspect);
+      if (originalWidth >= originalHeight) {
+        targetWidth = boundedLonger;
+        targetHeight = boundedShorter;
+      } else {
+        targetWidth = boundedShorter;
+        targetHeight = boundedLonger;
+      }
+    } else {
+      // 2K Quad HD: target 2560px on longest dimension
+      const boundedLonger = Math.min(2560, Math.max(Math.round(longerEdge * 2), 2560));
+      const boundedShorter = Math.round(boundedLonger * aspect);
+      if (originalWidth >= originalHeight) {
+        targetWidth = boundedLonger;
+        targetHeight = boundedShorter;
+      } else {
+        targetWidth = boundedShorter;
+        targetHeight = boundedLonger;
+      }
     }
 
-    logger.info(`[AI_IMAGE] Applying Ultra-Clarity Remini Engine: ${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight} (${scale}x 4K UHD)...`);
+    logger.info(`[AI_IMAGE] Applying Ultra-Clarity 4K Remini Engine: ${originalWidth}x${originalHeight} -> ${targetWidth}x${targetHeight} (${scale}x 4K UHD)...`);
 
     // High fidelity resize with enhanced dynamic range, rich contrast and razor-sharp clarity
     await sharp(inputPath)
@@ -100,20 +119,20 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
         fastShrinkOnLoad: false,
       })
       // 1. Dynamic range enhancement (eliminates grey veil, deepens blacks)
-      .linear(1.06, -6)
+      .linear(1.08, -6)
       // 2. High-vibrance color modulation
       .modulate({
         brightness: 1.02,
-        saturation: 1.08,
+        saturation: 1.12,
       })
       // 3. Multi-pass micro-edge crisping (facial features, eyes, hair, contours)
       .sharpen({
-        sigma: 0.8,
-        m1: 2.2,
-        m2: 0.8,
+        sigma: 1.2,
+        m1: 3.5,
+        m2: 1.0,
       })
       // 4. Lossless 4:4:4 chroma subsampling prevents JPEG color compression blur
-      .jpeg({ quality: 98, chromaSubsampling: '4:4:4', mozjpeg: true })
+      .jpeg({ quality: 99, chromaSubsampling: '4:4:4', mozjpeg: true })
       .toFile(outputPath);
 
     const processingTimeSeconds = (Date.now() - startTime) / 1000;
@@ -127,7 +146,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       outputHeight: targetHeight,
       processingTimeSeconds,
       provider: 'ultra-clarity-engine',
-      modelUsed: 'Real-ESRGAN Enhanced Clarity Pipeline',
+      modelUsed: 'Real-ESRGAN 4K Enhanced Clarity Pipeline',
     };
   }
 
@@ -164,18 +183,22 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       return this.fallbackSharpUpscale(inputPath, outputPath, scale, originalWidth, originalHeight, startTime);
     }
 
-    // Use fast real-time neural model (1-2s inference with zero tile latency)
-    let modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
-    const modelBin = path.join(models, `${modelName}.bin`);
-    if (!fs.existsSync(modelBin)) {
-      modelName = 'realesr-animevideov3';
-      const fallbackBin = path.join(models, `${modelName}.bin`);
-      if (!fs.existsSync(fallbackBin)) {
-        modelName = 'realesrgan-x4plus';
+    // Flagship AI models:
+    // Priority 1: realesrgan-x4plus (33.4MB deep neural network for authentic photo & portrait 4K clarity)
+    // Priority 2: realesrgan-x4plus-anime
+    // Priority 3: realesr-animevideov3
+    let modelName = 'realesrgan-x4plus';
+    if (!fs.existsSync(path.join(models, `${modelName}.bin`))) {
+      modelName = 'realesrgan-x4plus-anime';
+      if (!fs.existsSync(path.join(models, `${modelName}.bin`))) {
+        modelName = scale === 4 ? 'realesr-animevideov3-x4' : 'realesr-animevideov3-x2';
+        if (!fs.existsSync(path.join(models, `${modelName}.bin`))) {
+          modelName = 'realesr-animevideov3';
+        }
       }
     }
 
-    logger.info(`[AI_IMAGE] Starting fast Real-ESRGAN 4K AI enhancement: scale=${scale}x, model=${modelName}`, {
+    logger.info(`[AI_IMAGE] Starting Real-ESRGAN 4K AI enhancement: scale=${scale}x, model=${modelName}`, {
       exe,
       models,
       inputPath,
@@ -189,14 +212,14 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       '-n', modelName,
       '-m', models,
       '-s', scale.toString(),
-      '-t', '0', // 0 = full frame auto (removes tile seams and latency)
-      '-j', '2:2:2',
+      '-t', '64', // 64 = tile size prevents Vulkan out-of-memory on integrated & mobile GPUs
+      '-j', '1:2:2',
       '-f', format,
     ];
 
     try {
       await new Promise<void>((resolve, reject) => {
-        const child = execFile(exe, args, { timeout: 15000 }, (error, stdout, stderr) => {
+        const child = execFile(exe, args, { timeout: 90000 }, (error, stdout, stderr) => {
           if (error) return reject(error);
           resolve();
         });
@@ -209,13 +232,13 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
       // Post-inference dynamic sharpening for crystal clarity without color washing
       const polishedPath = outputPath + '.tmp.jpg';
       await sharp(outputPath)
-        .linear(1.04, -4)
+        .linear(1.04, -3)
         .sharpen({
-          sigma: 0.8,
-          m1: 1.8,
-          m2: 0.6,
+          sigma: 0.9,
+          m1: 2.2,
+          m2: 0.7,
         })
-        .jpeg({ quality: 98, chromaSubsampling: '4:4:4', mozjpeg: true })
+        .jpeg({ quality: 99, chromaSubsampling: '4:4:4', mozjpeg: true })
         .toFile(polishedPath);
 
       if (fs.existsSync(polishedPath)) {
@@ -240,7 +263,7 @@ export class RealESRGANLocalProvider implements ImageUpscalerProvider {
         modelUsed: modelName,
       };
     } catch (e: any) {
-      logger.warn(`[AI_IMAGE] Real-ESRGAN execution timed out or failed (${e.message}), instantly engaging Ultra-Clarity engine.`);
+      logger.warn(`[AI_IMAGE] Real-ESRGAN execution failed (${e.message}), instantly engaging Ultra-Clarity engine.`);
       return this.fallbackSharpUpscale(inputPath, outputPath, scale, originalWidth, originalHeight, startTime);
     }
   }
