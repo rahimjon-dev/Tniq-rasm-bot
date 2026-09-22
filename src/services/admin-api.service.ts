@@ -117,8 +117,9 @@ export class AdminApiService {
         const page = parseInt(parsedUrl.searchParams.get('page') || '1', 10);
         const limit = parseInt(parsedUrl.searchParams.get('limit') || '15', 10);
         const planFilter = parsedUrl.searchParams.get('plan') || '';
+        const statusFilter = parsedUrl.searchParams.get('status') || '';
 
-        const result = await AdminService.searchUsers(query, page, limit, planFilter);
+        const result = await AdminService.searchUsers(query, page, limit, planFilter, statusFilter);
         this.sendJson(res, 200, { success: true, ...result });
         return true;
       }

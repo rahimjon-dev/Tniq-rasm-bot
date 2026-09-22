@@ -91,8 +91,9 @@ declare class StoreService {
     setUserLanguage(telegramId: number | bigint | string, languageCode: string): boolean;
     updateUserActivity(telegramId: number | bigint | string, action: string): void;
     getUser(telegramId: number | bigint | string): StoredUser | null;
-    getAllUsers(query?: string, page?: number, limit?: number, planFilter?: string): {
+    getAllUsers(query?: string, page?: number, limit?: number, planFilter?: string, statusFilter?: string): {
         users: {
+            isActiveNow: boolean;
             subscription: {
                 plan: UserPlan;
                 status: string;
@@ -119,6 +120,10 @@ declare class StoreService {
             metadata?: Record<string, any>;
         }[];
         total: number;
+        allUsersCount: number;
+        activeUsersCount: number;
+        proUsersCount: number;
+        inactiveUsersCount: number;
         page: number;
         totalPages: number;
     };
@@ -129,37 +134,20 @@ declare class StoreService {
     incrementUsage(telegramId: number | bigint | string, type: 'IMAGE' | 'VIDEO'): void;
     getAllActiveTelegramIds(): number[];
     syncFromDatabase(dbUsers: any[]): void;
-    recordJob(job: {
+    recordJob(params: {
+        id?: string;
         telegramId: string | number | bigint;
         type: 'IMAGE' | 'VIDEO';
-        status: 'COMPLETED' | 'FAILED';
+        status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
         scale: number;
-        processingTime: number;
-        targetResolution?: string;
+        processingTime?: number;
         inputResolution?: string;
         outputResolution?: string;
         inputSize?: number;
         outputSize?: number;
     }): void;
-    getRecentJobs(limit?: number): {
-        user: {
-            telegramId: string;
-            firstName?: string | null;
-            username?: string | null;
-        } | null;
-        id: string;
-        telegramId: string;
-        type: "IMAGE" | "VIDEO";
-        status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-        scale: number;
-        targetResolution?: string;
-        inputResolution?: string;
-        outputResolution?: string;
-        inputSize?: number;
-        outputSize?: number;
-        processingTime?: number;
-        createdAt: string;
-    }[];
+    addJob(job: StoredJob): void;
+    getRecentJobs(limit?: number): StoredJob[];
     getJobs(params?: {
         query?: string;
         type?: string;
@@ -199,11 +187,11 @@ declare class StoreService {
         totalUsers: number;
         activeUsers: number;
         newUsersToday: number;
-        imagesToday: number;
-        videosToday: number;
         freeUsers: number;
         premiumUsers: number;
         proUsers: number;
+        imagesToday: number;
+        videosToday: number;
         totalImages: number;
         totalVideos: number;
         totalJobs: number;
@@ -244,6 +232,8 @@ declare class StoreService {
     getAverageRating(): {
         average: number;
         count: number;
+        topCount: number;
+        badCount: number;
         breakdown: Record<number, number>;
     };
     deleteReview(reviewId: string): boolean;

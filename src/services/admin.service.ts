@@ -131,10 +131,10 @@ export class AdminService {
   }
 
   /**
-   * Search users with query, pagination, plan filter, and total count
+   * Search users with query, pagination, plan filter, status filter, and total count
    */
-  static async searchUsers(query = '', page = 1, limit = 20, planFilter = '') {
-    return store.getAllUsers(query, page, limit, planFilter);
+  static async searchUsers(query = '', page = 1, limit = 20, planFilter = '', statusFilter = '') {
+    return store.getAllUsers(query, page, limit, planFilter, statusFilter);
   }
 
   /**

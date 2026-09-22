@@ -341,19 +341,43 @@ class StoreService {
         }
         return user;
     }
-    getAllUsers(query = '', page = 1, limit = 20, planFilter = '') {
+    getAllUsers(query = '', page = 1, limit = 20, planFilter = '', statusFilter = '') {
         let list = Object.values(this.data.users);
         const trimmed = query.trim().toLowerCase();
         const today = this.getTodayTashkent();
+        const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
         // Auto-reset dailyUsage for any user if date changed
         for (const u of list) {
             if (!u.dailyUsage || u.dailyUsage.date !== today) {
                 u.dailyUsage = { date: today, images: 0, videos: 0 };
             }
         }
+        // Global summary counts across all registered users
+        const allUsersCount = list.length;
+        let activeUsersCount = 0;
+        let proUsersCount = 0;
+        for (const u of list) {
+            const lastActive = new Date(u.lastActivityDate || u.updatedAt || u.createdAt).getTime();
+            if (lastActive >= oneDayAgo)
+                activeUsersCount++;
+            if (u.plan === 'PRO' || u.plan === 'PREMIUM' || u.plan === 'BUSINESS')
+                proUsersCount++;
+        }
         if (planFilter && planFilter !== 'ALL') {
             const filterUpper = planFilter.toUpperCase();
             list = list.filter((u) => u.plan === filterUpper);
+        }
+        if (statusFilter && statusFilter !== 'ALL') {
+            const sUpper = statusFilter.toUpperCase();
+            if (sUpper === 'ACTIVE') {
+                list = list.filter((u) => new Date(u.lastActivityDate || u.updatedAt || u.createdAt).getTime() >= oneDayAgo);
+            }
+            else if (sUpper === 'INACTIVE') {
+                list = list.filter((u) => new Date(u.lastActivityDate || u.updatedAt || u.createdAt).getTime() < oneDayAgo);
+            }
+            else if (sUpper === 'BANNED') {
+                list = list.filter((u) => u.isBanned);
+            }
         }
         if (trimmed) {
             list = list.filter((u) => {
@@ -374,14 +398,21 @@ class StoreService {
         return {
             users: paginated.map((u) => {
                 const limits = PlanService.getLimits(u.plan);
+                const lastActiveTime = new Date(u.lastActivityDate || u.updatedAt || u.createdAt).getTime();
+                const isActiveNow = lastActiveTime >= oneDayAgo;
                 return {
                     ...u,
+                    isActiveNow,
                     subscription: { plan: u.plan, status: 'ACTIVE' },
                     remainingImages: limits.isUnlimitedImages ? 'Unlimited' : Math.max(0, limits.dailyImages - (u.dailyUsage?.images || 0)),
                     remainingVideos: limits.isUnlimitedVideos ? 'Unlimited' : Math.max(0, limits.dailyVideos - (u.dailyUsage?.videos || 0)),
                 };
             }),
             total,
+            allUsersCount,
+            activeUsersCount,
+            proUsersCount,
+            inactiveUsersCount: Math.max(0, allUsersCount - activeUsersCount),
             page,
             totalPages: Math.ceil(total / limit) || 1,
         };
@@ -389,7 +420,7 @@ class StoreService {
     setUserPlan(telegramId, plan) {
         const key = telegramId.toString();
         if (this.data.users[key]) {
-            this.data.users[key].plan = PlanService.normalizePlan(plan);
+            this.data.users[key].plan = plan;
             this.data.users[key].updatedAt = new Date().toISOString();
             this.data.users[key].lastAction = `Plan changed to ${plan}`;
             this.saveToDisk(true);
@@ -452,9 +483,15 @@ class StoreService {
         this.saveToDisk(true);
     }
     getAllActiveTelegramIds() {
-        return Object.values(this.data.users)
-            .filter((u) => !u.isBanned)
-            .map((u) => Number(u.telegramId));
+        const ids = [];
+        for (const [idStr, u] of Object.entries(this.data.users)) {
+            if (!u.isBanned) {
+                const num = Number(idStr);
+                if (!isNaN(num) && num > 0)
+                    ids.push(num);
+            }
+        }
+        return ids;
     }
     // Bidirectional sync with PostgreSQL database
     syncFromDatabase(dbUsers) {
@@ -495,35 +532,49 @@ class StoreService {
             logger.info(`[STORE] Synchronized ${count} users from database into persistent store.`);
         }
     }
-    // --- Jobs ---
-    recordJob(job) {
-        const key = job.telegramId.toString();
-        if (job.status === 'FAILED') {
-            this.data.stats.failedJobs++;
-        }
-        const u = this.data.users[key];
-        const newJob = {
-            id: `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-            telegramId: key,
-            type: job.type,
-            status: job.status,
-            scale: job.scale,
-            targetResolution: job.targetResolution,
-            inputResolution: job.inputResolution,
-            outputResolution: job.outputResolution,
-            inputSize: job.inputSize,
-            outputSize: job.outputSize,
-            processingTime: job.processingTime,
+    // --- Media Jobs Tracking (Persistent history) ---
+    recordJob(params) {
+        const tgId = String(params.telegramId);
+        const u = this.data.users[tgId];
+        const job = {
+            id: params.id || `job_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            telegramId: tgId,
+            type: params.type,
+            status: params.status,
+            scale: params.scale,
+            processingTime: params.processingTime || 0,
+            inputResolution: params.inputResolution,
+            outputResolution: params.outputResolution,
+            inputSize: params.inputSize,
+            outputSize: params.outputSize,
             createdAt: new Date().toISOString(),
             user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : null,
         };
-        this.data.jobs.unshift(newJob);
-        if (this.data.jobs.length > 1000) {
-            this.data.jobs = this.data.jobs.slice(0, 1000);
-        }
-        this.saveToDisk(true);
+        this.addJob(job);
     }
-    getRecentJobs(limit = 25) {
+    addJob(job) {
+        if (!Array.isArray(this.data.jobs)) {
+            this.data.jobs = [];
+        }
+        const existingIdx = this.data.jobs.findIndex((j) => j.id === job.id);
+        if (existingIdx !== -1) {
+            this.data.jobs[existingIdx] = {
+                ...this.data.jobs[existingIdx],
+                ...job,
+            };
+        }
+        else {
+            this.data.jobs.unshift(job);
+        }
+        // Keep up to 10,000 historical jobs
+        if (this.data.jobs.length > 10000) {
+            this.data.jobs = this.data.jobs.slice(0, 10000);
+        }
+        this.saveToDisk();
+    }
+    getRecentJobs(limit = 10) {
+        if (!Array.isArray(this.data.jobs))
+            return [];
         return this.data.jobs.slice(0, limit).map((j) => {
             const u = this.data.users[j.telegramId];
             return {
@@ -533,6 +584,9 @@ class StoreService {
         });
     }
     getJobs(params = {}) {
+        if (!Array.isArray(this.data.jobs)) {
+            this.data.jobs = [];
+        }
         const query = (params.query || '').toLowerCase().trim();
         const type = (params.type || '').toUpperCase().trim();
         const status = (params.status || '').toUpperCase().trim();
@@ -598,8 +652,8 @@ class StoreService {
         }
         if (added > 0) {
             this.data.jobs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            if (this.data.jobs.length > 1000) {
-                this.data.jobs = this.data.jobs.slice(0, 1000);
+            if (this.data.jobs.length > 10000) {
+                this.data.jobs = this.data.jobs.slice(0, 10000);
             }
             this.saveToDisk(true);
             logger.info(`[STORE] Synchronized ${added} historical media jobs from PostgreSQL into store.`);
@@ -650,23 +704,26 @@ class StoreService {
         // At least 1 active if total > 0
         if (activeUsers === 0 && totalUsers > 0)
             activeUsers = totalUsers;
-        const totalJobs = this.data.stats.totalImages + this.data.stats.totalVideos;
+        const totalImages = this.data.stats.totalImages || 0;
+        const totalVideos = this.data.stats.totalVideos || 0;
+        const totalJobs = totalImages + totalVideos;
+        const failedJobs = this.data.stats.failedJobs || 0;
         const successRatePercent = totalJobs > 0
-            ? Math.round(((totalJobs - this.data.stats.failedJobs) / totalJobs) * 100)
+            ? Math.max(0, Math.min(100, Math.round(((totalJobs - failedJobs) / totalJobs) * 100)))
             : 100;
         return {
             totalUsers,
             activeUsers,
             newUsersToday,
-            imagesToday,
-            videosToday,
             freeUsers,
             premiumUsers,
             proUsers,
-            totalImages: this.data.stats.totalImages,
-            totalVideos: this.data.stats.totalVideos,
+            imagesToday,
+            videosToday,
+            totalImages,
+            totalVideos,
             totalJobs,
-            failedJobs: this.data.stats.failedJobs,
+            failedJobs,
             successRatePercent,
         };
     }
@@ -675,8 +732,8 @@ class StoreService {
         const key = params.telegramId.toString();
         const cleanRating = Math.max(1, Math.min(5, Math.round(params.rating || 5)));
         const cleanComment = (params.comment || '').trim();
-        const u = this.data.users[key];
         const now = new Date().toISOString();
+        const u = this.data.users[key];
         if (!Array.isArray(this.data.reviews)) {
             this.data.reviews = [];
         }
@@ -705,9 +762,9 @@ class StoreService {
             };
             this.data.reviews.unshift(reviewItem);
         }
-        // Keep up to 2000 reviews
-        if (this.data.reviews.length > 2000) {
-            this.data.reviews = this.data.reviews.slice(0, 2000);
+        // Reviews are stored permanently (100,000+ capacity)
+        if (this.data.reviews.length > 100000) {
+            this.data.reviews = this.data.reviews.slice(0, 100000);
         }
         if (u) {
             u.lastAction = `Left ${cleanRating}★ review`;
@@ -739,7 +796,7 @@ class StoreService {
             this.data.reviews = [];
         }
         const query = (params.query || '').toLowerCase().trim();
-        const ratingFilter = params.ratingFilter ? Number(params.ratingFilter) : 0;
+        const filterVal = String(params.ratingFilter || '').toLowerCase().trim();
         const page = Math.max(1, params.page || 1);
         const limit = Math.max(1, Math.min(100, params.limit || 20));
         let list = this.data.reviews.map((r) => {
@@ -749,8 +806,17 @@ class StoreService {
                 user: u ? { telegramId: u.telegramId, firstName: u.firstName, username: u.username } : (r.user || null),
             };
         });
-        if (ratingFilter > 0) {
-            list = list.filter((r) => r.rating === ratingFilter);
+        // Sentiment / Rating filtering:
+        // 'top' / 'positive' -> rating >= 4 (4★ and 5★)
+        // 'bad' / 'negative' -> rating <= 3 (1★, 2★, 3★)
+        if (filterVal === 'top' || filterVal === 'positive') {
+            list = list.filter((r) => r.rating >= 4);
+        }
+        else if (filterVal === 'bad' || filterVal === 'negative') {
+            list = list.filter((r) => r.rating <= 3);
+        }
+        else if (Number(filterVal) > 0) {
+            list = list.filter((r) => r.rating === Number(filterVal));
         }
         if (query) {
             list = list.filter((r) => {
@@ -777,17 +843,23 @@ class StoreService {
         const reviews = Array.isArray(this.data.reviews) ? this.data.reviews : [];
         const count = reviews.length;
         const breakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        let topCount = 0;
+        let badCount = 0;
         if (count === 0) {
-            return { average: 5.0, count: 0, breakdown };
+            return { average: 5.0, count: 0, topCount: 0, badCount: 0, breakdown };
         }
         let sum = 0;
         for (const r of reviews) {
             const star = Math.max(1, Math.min(5, Math.round(r.rating || 5)));
             breakdown[star] = (breakdown[star] || 0) + 1;
             sum += star;
+            if (star >= 4)
+                topCount++;
+            else
+                badCount++;
         }
         const average = parseFloat((sum / count).toFixed(1));
-        return { average, count, breakdown };
+        return { average, count, topCount, badCount, breakdown };
     }
     deleteReview(reviewId) {
         if (!Array.isArray(this.data.reviews))

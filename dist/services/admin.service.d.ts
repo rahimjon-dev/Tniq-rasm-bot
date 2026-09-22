@@ -43,10 +43,11 @@ export declare class AdminService {
     static unbanUser(telegramId: number | bigint | string): Promise<boolean>;
     static setPlan(telegramId: number | bigint | string, plan: UserPlan, durationDays?: number): Promise<boolean>;
     /**
-     * Search users with query, pagination, plan filter, and total count
+     * Search users with query, pagination, plan filter, status filter, and total count
      */
-    static searchUsers(query?: string, page?: number, limit?: number, planFilter?: string): Promise<{
+    static searchUsers(query?: string, page?: number, limit?: number, planFilter?: string, statusFilter?: string): Promise<{
         users: {
+            isActiveNow: boolean;
             subscription: {
                 plan: UserPlan;
                 status: string;
@@ -73,6 +74,10 @@ export declare class AdminService {
             metadata?: Record<string, any>;
         }[];
         total: number;
+        allUsersCount: number;
+        activeUsersCount: number;
+        proUsersCount: number;
+        inactiveUsersCount: number;
         page: number;
         totalPages: number;
     }>;
@@ -118,6 +123,7 @@ export declare class AdminService {
      * Get list of recent users
      */
     static getRecentUsers(limit?: number): Promise<{
+        isActiveNow: boolean;
         subscription: {
             plan: UserPlan;
             status: string;
@@ -146,25 +152,7 @@ export declare class AdminService {
     /**
      * Get list of recent media processing jobs
      */
-    static getRecentJobs(limit?: number): Promise<{
-        user: {
-            telegramId: string;
-            firstName?: string | null;
-            username?: string | null;
-        } | null;
-        id: string;
-        telegramId: string;
-        type: "IMAGE" | "VIDEO";
-        status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-        scale: number;
-        targetResolution?: string;
-        inputResolution?: string;
-        outputResolution?: string;
-        inputSize?: number;
-        outputSize?: number;
-        processingTime?: number;
-        createdAt: string;
-    }[]>;
+    static getRecentJobs(limit?: number): Promise<import("./store.service.js").StoredJob[]>;
     /**
      * Search and filter media jobs with pagination
      */

@@ -2,7 +2,6 @@ import store from '../../services/store.service.js';
 import UserService from '../../services/user.service.js';
 import { getT } from '../../i18n/index.js';
 import { getStarRatingKeyboard } from '../keyboards/main.keyboard.js';
-import config from '../../config/index.js';
 import logger from '../../utils/logger.js';
 import { bot } from '../bot.instance.js';
 // Pending map for users who picked a star rating and may send a text review

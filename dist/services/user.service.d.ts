@@ -56,25 +56,7 @@ export declare class UserService {
     static setUserPlan(telegramId: number | bigint | string, plan: UserPlan): Promise<boolean>;
     static upgradeUserSubscription(telegramId: number | bigint | string, plan: UserPlan, durationDays?: number): Promise<boolean>;
     static getUserTotalJobsCount(userId: string): Promise<number>;
-    static getUserHistory(userId: string, limit?: number): Promise<{
-        user: {
-            telegramId: string;
-            firstName?: string | null;
-            username?: string | null;
-        } | null;
-        id: string;
-        telegramId: string;
-        type: "IMAGE" | "VIDEO";
-        status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-        scale: number;
-        targetResolution?: string;
-        inputResolution?: string;
-        outputResolution?: string;
-        inputSize?: number;
-        outputSize?: number;
-        processingTime?: number;
-        createdAt: string;
-    }[] | {
+    static getUserHistory(userId: string, limit?: number): Promise<import("./store.service.js").StoredJob[] | {
         type: import(".prisma/client").$Enums.JobType;
         id: string;
         createdAt: Date;

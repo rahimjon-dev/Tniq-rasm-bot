@@ -169,8 +169,21 @@
   });
 
   // Overview Clickable Cards
-  document.getElementById('cardUsers')?.addEventListener('click', () => switchTab('tab-users'));
-  document.getElementById('cardActiveUsers')?.addEventListener('click', () => switchTab('tab-users'));
+  document.getElementById('cardUsers')?.addEventListener('click', () => {
+    switchUserStatusFilter('ALL');
+    switchTab('tab-users');
+  });
+  document.getElementById('cardActiveUsers')?.addEventListener('click', () => {
+    switchUserStatusFilter('ACTIVE');
+    switchTab('tab-users');
+  });
+  document.getElementById('cardNewUsers')?.addEventListener('click', () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (userSearchInput) userSearchInput.value = today;
+    currentUserQuery = today;
+    switchTab('tab-users');
+  });
+  document.getElementById('cardSuccessRate')?.addEventListener('click', () => switchTab('tab-system'));
   document.getElementById('cardFreeUsers')?.addEventListener('click', () => {
     const pf = document.getElementById('userPlanFilter');
     if (pf) pf.value = 'FREE';
@@ -191,6 +204,20 @@
     if (jobTypeFilter) jobTypeFilter.value = 'VIDEO';
     switchTab('tab-jobs');
   });
+  document.getElementById('cardReviewsOverview')?.addEventListener('click', () => switchTab('tab-reviews'));
+  document.getElementById('cardRevTop')?.addEventListener('click', () => {
+    if (typeof switchReviewSentiment === 'function') switchReviewSentiment('top');
+    switchTab('tab-reviews');
+  });
+  document.getElementById('cardRevBad')?.addEventListener('click', () => {
+    if (typeof switchReviewSentiment === 'function') switchReviewSentiment('bad');
+    switchTab('tab-reviews');
+  });
+  document.getElementById('cardRevTotal')?.addEventListener('click', () => {
+    if (typeof switchReviewSentiment === 'function') switchReviewSentiment('all');
+    switchTab('tab-reviews');
+  });
+  document.getElementById('cardRevAvg')?.addEventListener('click', () => switchTab('tab-reviews'));
   document.getElementById('cardQueue')?.addEventListener('click', () => switchTab('tab-jobs'));
   document.getElementById('cardSystem')?.addEventListener('click', () => switchTab('tab-system'));
 
@@ -263,8 +290,41 @@
   }
 
   // ----------------------------------------------------------------------------
+  // Helper: Clipboard Copy
+  // ----------------------------------------------------------------------------
+  window.copyToClipboard = function (text, successMsg = 'Nusxalandi!') {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(String(text)).then(() => {
+        showToast(`📋 ${successMsg}`);
+      }).catch(() => {
+        fallbackCopyText(String(text), successMsg);
+      });
+    } else {
+      fallbackCopyText(String(text), successMsg);
+    }
+  };
+
+  function fallbackCopyText(text, successMsg) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast(`📋 ${successMsg}`);
+    } catch {
+      showToast('Nusxalashda xatolik');
+    }
+    document.body.removeChild(ta);
+  }
+
+  // ----------------------------------------------------------------------------
   // Users Management
   // ----------------------------------------------------------------------------
+  let currentUserStatusFilter = 'ALL';
   const userSearchInput = document.getElementById('userSearchInput');
   const userPlanFilter = document.getElementById('userPlanFilter');
   const usersTableBody = document.getElementById('usersTableBody');
@@ -272,6 +332,34 @@
   const btnPrevPage = document.getElementById('btnPrevPage');
   const btnNextPage = document.getElementById('btnNextPage');
   const pageIndicator = document.getElementById('pageIndicator');
+  const btnRefreshUsers = document.getElementById('btnRefreshUsers');
+
+  // Status Tab Elements & Counters
+  const userStatusTabs = document.querySelectorAll('#userStatusTabs .status-tab-btn');
+  const userCountAll = document.getElementById('userCountAll');
+  const userCountActive = document.getElementById('userCountActive');
+  const userCountPro = document.getElementById('userCountPro');
+  const userCountInactive = document.getElementById('userCountInactive');
+
+  function switchUserStatusFilter(status) {
+    currentUserStatusFilter = status;
+    userStatusTabs.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.status === status);
+    });
+    currentUserPage = 1;
+    loadUsers();
+  }
+
+  userStatusTabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      switchUserStatusFilter(btn.dataset.status);
+    });
+  });
+
+  btnRefreshUsers?.addEventListener('click', () => {
+    loadUsers();
+    showToast('Foydalanuvchilar ro\'yxati yangilandi! 👥');
+  });
 
   let searchTimeout = null;
   userSearchInput?.addEventListener('input', (e) => {
@@ -313,13 +401,34 @@
 
       const lastAct = u.lastAction || 'Active';
       const timeAgo = u.lastActivityDate ? new Date(u.lastActivityDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      const initial = (u.firstName || 'U').charAt(0).toUpperCase();
+
+      const tgUsernameHtml = u.username
+        ? `<a href="https://t.me/${escapeHtml(u.username)}" target="_blank" class="tg-user-link" onclick="event.stopPropagation()">@${escapeHtml(u.username)} ↗</a>`
+        : `<span class="text-muted" style="font-size: 11px;">username yo'q</span>`;
+
+      const statusBadge = isBanned
+        ? `<span class="status-pill banned">⛔ Bloklangan</span>`
+        : (u.isActiveNow
+          ? `<span class="status-pill active" title="Oxirgi 24 soatda faol bo'lgan">🟢 Faol</span>`
+          : `<span class="status-pill" style="opacity: 0.75;" title="24 soatdan ortiq vaqt kirmagan">💤 Nofaol</span>`);
 
       return `
-        <tr class="user-table-row" style="cursor: pointer;" onclick="window.openUserDetails('${userPayload}')" title="Batafsil ma'lumotni ko'rish">
-          <td><code>${u.telegramId}</code></td>
+        <tr class="user-table-row clickable-row" onclick="window.openUserDetails('${userPayload}')" title="Batafsil ma'lumotni ko'rish">
           <td>
-            <strong>${escapeHtml(u.firstName || 'Foydalanuvchi')} ${escapeHtml(u.lastName || '')}</strong>
-            <div class="input-hint">${u.username ? '@' + u.username : 'username yo\'q'}</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <code class="code-id">${u.telegramId}</code>
+              <button class="btn-copy-id" onclick="event.stopPropagation(); window.copyToClipboard('${u.telegramId}', 'ID nusxalandi!')" title="ID nusxalash">📋</button>
+            </div>
+          </td>
+          <td>
+            <div class="user-cell">
+              <div class="avatar-cell">${escapeHtml(initial)}</div>
+              <div>
+                <div class="user-name-strong">${escapeHtml(u.firstName || 'Foydalanuvchi')} ${escapeHtml(u.lastName || '')}</div>
+                <div class="user-sub">${tgUsernameHtml}</div>
+              </div>
+            </div>
           </td>
           <td><code>${(u.languageCode || 'uz').toUpperCase()}</code></td>
           <td><span class="status-pill ${planClass}">${plan}</span></td>
@@ -332,20 +441,20 @@
             <div class="input-hint">${timeAgo}</div>
           </td>
           <td>
-            <span class="status-pill ${isBanned ? 'banned' : 'active'}">
-              ${isBanned ? 'Bloklangan' : 'Faol'}
-            </span>
+            ${statusBadge}
           </td>
           <td onclick="event.stopPropagation()">
-            <button class="btn-action-sm" onclick="window.openUserDetails('${userPayload}')">
-              👁 Ko'rish
-            </button>
-            <button class="btn-action-sm" onclick="window.openPlanModal('${u.telegramId}', '${escapeHtml(u.firstName || '')}')">
-              ⭐ Tarif
-            </button>
-            <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
-              ${isBanned ? 'Ochish' : 'Bloklash'}
-            </button>
+            <div style="display: flex; gap: 4px;">
+              <button class="btn-action-sm" onclick="window.openUserDetails('${userPayload}')" title="Profilni ko'rish">
+                👁 Ko'rish
+              </button>
+              <button class="btn-action-sm" onclick="window.openPlanModal('${u.telegramId}', '${escapeHtml(u.firstName || '')}')" title="Tarifni boshqarish">
+                ⭐ Tarif
+              </button>
+              <button class="btn-action-sm ${isBanned ? 'btn-unban' : 'btn-ban'}" onclick="window.toggleUserBan('${u.telegramId}', ${!isBanned})">
+                ${isBanned ? 'Ochish' : 'Bloklash'}
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -362,14 +471,24 @@
         limit: '15',
       });
       if (currentUserPlanFilter) params.append('plan', currentUserPlanFilter);
+      if (currentUserStatusFilter && currentUserStatusFilter !== 'ALL') {
+        params.append('status', currentUserStatusFilter);
+      }
 
       const url = `/api/admin/users?${params.toString()}`;
       const data = await apiFetch(url);
 
       if (!data.success) return;
 
-      userTableSummary.innerText = `Jami topildi: ${data.total} ta`;
-      pageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages}`;
+      // Update counters
+      const totalAll = data.allUsersCount !== undefined ? data.allUsersCount : (data.total || 0);
+      if (userCountAll) userCountAll.innerText = totalAll.toLocaleString();
+      if (userCountActive) userCountActive.innerText = (data.activeUsersCount || 0).toLocaleString();
+      if (userCountPro) userCountPro.innerText = (data.proUsersCount || 0).toLocaleString();
+      if (userCountInactive) userCountInactive.innerText = (data.inactiveUsersCount || 0).toLocaleString();
+
+      userTableSummary.innerText = `Ko'rsatilmoqda: ${data.users?.length || 0} ta (Jami ro'yxatdan o'tgan: ${totalAll} ta)`;
+      pageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages || 1}`;
       btnPrevPage.disabled = data.page <= 1;
       btnNextPage.disabled = data.page >= data.totalPages;
 
@@ -381,6 +500,7 @@
       usersTableBody.innerHTML = renderUsersHtml(data.users);
     } catch (e) {
       console.warn('Failed to load users:', e);
+      usersTableBody.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-danger">Foydalanuvchilarni yuklashda xatolik yuz berdi</td></tr>`;
     }
   }
 
@@ -707,10 +827,25 @@
   const jobSearchInput = document.getElementById('jobSearchInput');
   const jobTypeFilter = document.getElementById('jobTypeFilter');
   const jobStatusFilter = document.getElementById('jobStatusFilter');
+  const btnRefreshJobs = document.getElementById('btnRefreshJobs');
   const jobTableSummary = document.getElementById('jobTableSummary');
   const btnPrevJobPage = document.getElementById('btnPrevJobPage');
   const btnNextJobPage = document.getElementById('btnNextJobPage');
   const jobPageIndicator = document.getElementById('jobPageIndicator');
+
+  // Job Detail Modal Elements
+  const jobDetailModal = document.getElementById('jobDetailModal');
+  const jdId = document.getElementById('jdId');
+  const jdUser = document.getElementById('jdUser');
+  const jdTgId = document.getElementById('jdTgId');
+  const jdType = document.getElementById('jdType');
+  const jdAction = document.getElementById('jdAction');
+  const jdResolution = document.getElementById('jdResolution');
+  const jdStatus = document.getElementById('jdStatus');
+  const jdDuration = document.getElementById('jdDuration');
+  const jdDate = document.getElementById('jdDate');
+  const jdBtnTg = document.getElementById('jdBtnTg');
+  const jdBtnClose = document.getElementById('jdBtnClose');
 
   let currentJobPage = 1;
   let totalJobPages = 1;
@@ -724,25 +859,100 @@
 
     jobsTableBody.innerHTML = jobs.map((j) => {
       const u = j.user;
-      const icon = j.type === 'IMAGE' ? '🖼️' : '🎬';
+      const isImg = j.type === 'IMAGE';
       const statusClass = j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-business');
+      const statusText = j.status === 'COMPLETED' ? '✅ Yakunlandi' : (j.status === 'FAILED' ? '❌ Xato' : '⏳ Jarayonda...');
       const duration = j.processingTime ? `${j.processingTime.toFixed(1)}s` : '-';
       const date = j.createdAt ? new Date(j.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '-';
-      const res = j.outputResolution || (j.inputResolution ? `${j.inputResolution} (${j.scale}x)` : `${j.scale}x HD`);
+      const res = j.outputResolution || (j.inputResolution ? `${j.inputResolution} ➔ ${j.scale}x` : `${j.scale}x HD`);
+      const taskTitle = isImg ? `🖼️ Rasm ${j.scale || 4}x HD Tiniqlashtirish` : `🎬 Video ${j.scale || 4}x Render`;
+
+      const userName = u ? (`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Foydalanuvchi') : (j.telegramId ? `ID: ${j.telegramId}` : 'Noma\'lum');
+      const userSub = u?.username
+        ? `<a href="https://t.me/${escapeHtml(u.username)}" target="_blank" class="tg-user-link" onclick="event.stopPropagation()">@${escapeHtml(u.username)} ↗</a>`
+        : (j.telegramId ? `<code class="code-id">${j.telegramId}</code>` : '');
+
+      const jobPayload = encodeURIComponent(JSON.stringify(j));
 
       return `
-        <tr>
-          <td><code>${j.id.slice(0, 10)}</code></td>
-          <td>${u ? escapeHtml(u.firstName || u.username || u.telegramId) : (j.telegramId ? `ID: ${j.telegramId}` : 'Noma\'lum')}</td>
-          <td>${icon} ${j.type}</td>
-          <td><strong>${j.scale}x (${res})</strong></td>
-          <td><span class="status-pill ${statusClass}">${j.status}</span></td>
-          <td>${duration}</td>
-          <td>${date}</td>
+        <tr class="clickable-row" onclick="window.openJobDetails('${jobPayload}')" title="Batafsil ma'lumotni ko'rish">
+          <td>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <code class="code-id">${j.id.slice(0, 10)}</code>
+              <button class="btn-copy-id" onclick="event.stopPropagation(); window.copyToClipboard('${j.id}', 'Ish ID nusxalandi!')" title="Ish ID nusxalash">📋</button>
+            </div>
+          </td>
+          <td>
+            <div class="user-cell">
+              <div class="avatar-cell">${escapeHtml(userName.charAt(0).toUpperCase())}</div>
+              <div>
+                <div class="user-name-strong">${escapeHtml(userName)}</div>
+                <div class="user-sub">${userSub}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge-job-task badge-${j.type.toLowerCase()}">${taskTitle}</span>
+          </td>
+          <td><span class="badge-res-tag">${res}</span></td>
+          <td><span class="status-pill ${statusClass}">${statusText}</span></td>
+          <td><strong>${duration}</strong></td>
+          <td><span class="text-muted" style="font-size: 12px;">${date}</span></td>
         </tr>
       `;
     }).join('');
   }
+
+  window.openJobDetails = function (jobPayload) {
+    try {
+      const j = typeof jobPayload === 'string' ? JSON.parse(decodeURIComponent(jobPayload)) : jobPayload;
+      if (!j) return;
+
+      const u = j.user;
+      const userName = u ? (`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Foydalanuvchi') : 'Noma\'lum';
+      const tgId = j.telegramId || (u ? u.telegramId : '—');
+
+      if (jdId) jdId.innerText = j.id;
+      if (jdUser) jdUser.innerText = userName;
+      if (jdTgId) jdTgId.innerText = tgId;
+      if (jdType) jdType.innerText = j.type === 'IMAGE' ? '🖼️ Rasm (IMAGE)' : '🎬 Video (VIDEO)';
+      if (jdAction) jdAction.innerText = `${j.scale || 4}x kattalashtirish va tiniqlashtirish`;
+      if (jdResolution) jdResolution.innerText = j.outputResolution || (j.inputResolution ? `${j.inputResolution} ➔ ${j.scale}x` : `${j.scale}x HD`);
+
+      if (jdStatus) {
+        jdStatus.innerText = j.status;
+        jdStatus.className = `status-pill ${j.status === 'COMPLETED' ? 'active' : (j.status === 'FAILED' ? 'banned' : 'plan-business')}`;
+      }
+
+      if (jdDuration) jdDuration.innerText = j.processingTime ? `${j.processingTime.toFixed(2)} sekund` : 'Hisoblanmagan';
+      if (jdDate) jdDate.innerText = j.createdAt ? new Date(j.createdAt).toLocaleString('uz-UZ') : '—';
+
+      if (jdBtnTg) {
+        if (u?.username) {
+          jdBtnTg.href = `https://t.me/${u.username}`;
+          jdBtnTg.style.display = 'inline-flex';
+        } else if (tgId && tgId !== '—') {
+          jdBtnTg.href = `tg://openmessage?user_id=${tgId}`;
+          jdBtnTg.style.display = 'inline-flex';
+        } else {
+          jdBtnTg.style.display = 'none';
+        }
+      }
+
+      if (jobDetailModal) jobDetailModal.style.display = 'flex';
+    } catch (e) {
+      console.error('Failed to open job details:', e);
+    }
+  };
+
+  jdBtnClose?.addEventListener('click', () => {
+    if (jobDetailModal) jobDetailModal.style.display = 'none';
+  });
+
+  btnRefreshJobs?.addEventListener('click', () => {
+    loadJobs(currentJobPage);
+    showToast('Ishlar navbati yangilandi! ⚡');
+  });
 
   // Load from LocalStorage cache immediately for zero-flicker experience
   try {
@@ -827,7 +1037,7 @@
   });
 
   // ----------------------------------------------------------------------------
-  // Reviews & Ratings Management
+  // Reviews & Ratings Management (Permanent Retention & Sentiment Categorization)
   // ----------------------------------------------------------------------------
   const reviewSearchInput = document.getElementById('reviewSearchInput');
   const reviewRatingFilter = document.getElementById('reviewRatingFilter');
@@ -836,11 +1046,55 @@
   const btnPrevReviewPage = document.getElementById('btnPrevReviewPage');
   const btnNextReviewPage = document.getElementById('btnNextReviewPage');
   const reviewPageIndicator = document.getElementById('reviewPageIndicator');
+  const reviewTableSummary = document.getElementById('reviewTableSummary');
+
+  // Sentiment Segmented Tab Elements
+  const reviewSentimentTabs = document.querySelectorAll('#reviewSentimentTabs .sentiment-tab-btn');
+  const revPillAll = document.getElementById('revPillAll');
+  const revPillTop = document.getElementById('revPillTop');
+  const revPillBad = document.getElementById('revPillBad');
+
+  // Header Stat Card Elements
+  const reviewsTabAvgRating = document.getElementById('reviewsTabAvgRating');
+  const reviewsTabStars = document.getElementById('reviewsTabStars');
+  const reviewsTabTotalCount = document.getElementById('reviewsTabTotalCount');
+  const reviewsTabTopCount = document.getElementById('reviewsTabTopCount');
+  const reviewsTabBadCount = document.getElementById('reviewsTabBadCount');
+
+  // Review Detail Modal Elements
+  const reviewDetailModal = document.getElementById('reviewDetailModal');
+  const rdFullName = document.getElementById('rdFullName');
+  const rdId = document.getElementById('rdId');
+  const rdUsername = document.getElementById('rdUsername');
+  const rdStars = document.getElementById('rdStars');
+  const rdSentimentBadge = document.getElementById('rdSentimentBadge');
+  const rdTime = document.getElementById('rdTime');
+  const rdCommentText = document.getElementById('rdCommentText');
+  const rdBtnTgLink = document.getElementById('rdBtnTgLink');
+  const rdBtnDelete = document.getElementById('rdBtnDelete');
+  const rdBtnClose = document.getElementById('rdBtnClose');
 
   let currentReviewPage = 1;
   let currentReviewQuery = '';
+  let currentReviewSentiment = 'all'; // 'all' | 'top' | 'bad'
   let currentReviewRatingFilter = '0';
   let reviewSearchTimeout = null;
+  let activeReviewForModal = null;
+
+  window.switchReviewSentiment = function (sentiment) {
+    currentReviewSentiment = sentiment;
+    reviewSentimentTabs.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.sentiment === sentiment);
+    });
+    currentReviewPage = 1;
+    loadReviews();
+  };
+
+  reviewSentimentTabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      window.switchReviewSentiment(btn.dataset.sentiment);
+    });
+  });
 
   reviewSearchInput?.addEventListener('input', (e) => {
     clearTimeout(reviewSearchTimeout);
@@ -857,7 +1111,10 @@
     loadReviews();
   });
 
-  btnRefreshReviews?.addEventListener('click', () => loadReviews());
+  btnRefreshReviews?.addEventListener('click', () => {
+    loadReviews();
+    showToast('Fikrlar va baholar yangilandi! ⭐️');
+  });
 
   btnPrevReviewPage?.addEventListener('click', () => {
     if (currentReviewPage > 1) {
@@ -871,15 +1128,84 @@
     loadReviews();
   });
 
-  document.getElementById('cardReviewsOverview')?.addEventListener('click', () => switchTab('tab-reviews'));
+  window.openReviewDetails = function (revPayload) {
+    try {
+      const rev = typeof revPayload === 'string' ? JSON.parse(decodeURIComponent(revPayload)) : revPayload;
+      if (!rev) return;
+      activeReviewForModal = rev;
+
+      const u = rev.user;
+      const fullName = u ? (`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Foydalanuvchi') : 'Foydalanuvchi';
+      const tgId = rev.telegramId || (u ? u.telegramId : '—');
+      const isTop = rev.rating >= 4;
+
+      if (rdFullName) rdFullName.innerText = fullName;
+      if (rdId) rdId.innerText = tgId;
+      if (rdUsername) rdUsername.innerText = u?.username ? `@${u.username}` : 'username yo\'q';
+      if (rdStars) rdStars.innerText = '★'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating) + ` (${rev.rating} / 5)`;
+      if (rdSentimentBadge) {
+        rdSentimentBadge.innerText = isTop ? '🌟 Top / Ijobiy Sharh' : '⚠️ E\'tiroz / Shikoyat';
+        rdSentimentBadge.className = `status-pill ${isTop ? 'badge-sentiment-top' : 'badge-sentiment-bad'}`;
+      }
+      if (rdTime) rdTime.innerText = rev.createdAt ? new Date(rev.createdAt).toLocaleString('uz-UZ') : '—';
+      if (rdCommentText) {
+        rdCommentText.innerText = rev.comment ? `"${rev.comment}"` : `Foydalanuvchi faqat ${rev.rating} yulduzli baho qo'ygan, matnli izoh yozmagan.`;
+      }
+
+      if (rdBtnTgLink) {
+        if (u?.username) {
+          rdBtnTgLink.href = `https://t.me/${u.username}`;
+          rdBtnTgLink.style.display = 'inline-flex';
+        } else if (tgId && tgId !== '—') {
+          rdBtnTgLink.href = `tg://openmessage?user_id=${tgId}`;
+          rdBtnTgLink.style.display = 'inline-flex';
+        } else {
+          rdBtnTgLink.style.display = 'none';
+        }
+      }
+
+      if (reviewDetailModal) reviewDetailModal.style.display = 'flex';
+    } catch (e) {
+      console.error('Error opening review details:', e);
+    }
+  };
+
+  rdBtnClose?.addEventListener('click', () => {
+    if (reviewDetailModal) reviewDetailModal.style.display = 'none';
+  });
+
+  rdBtnDelete?.addEventListener('click', async () => {
+    if (!activeReviewForModal) return;
+    if (!confirm('Haqiqatan ham bu sharhni o\'chirmoqchimisiz?')) return;
+    try {
+      const delRes = await apiFetch(`/api/admin/reviews/${activeReviewForModal.id}`, { method: 'DELETE' });
+      if (delRes && delRes.success) {
+        showToast('Sharh muvaffaqiyatli o\'chirildi!');
+        if (reviewDetailModal) reviewDetailModal.style.display = 'none';
+        loadReviews();
+      } else {
+        alert(delRes?.error || "O'chirishda xatolik yuz berdi");
+      }
+    } catch {
+      alert("O'chirishda xatolik yuz berdi");
+    }
+  });
 
   async function loadReviews() {
     if (!reviewsTableBody) return;
-    reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Yuklanmoqda...</td></tr>`;
+    reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Sharhlar yuklanmoqda...</td></tr>`;
 
     try {
       const q = encodeURIComponent(currentReviewQuery);
-      const r = currentReviewRatingFilter;
+      let r = '';
+      if (currentReviewSentiment === 'top') {
+        r = 'top';
+      } else if (currentReviewSentiment === 'bad') {
+        r = 'bad';
+      } else if (currentReviewRatingFilter && currentReviewRatingFilter !== '0') {
+        r = currentReviewRatingFilter;
+      }
+
       const data = await apiFetch(`/api/admin/reviews?page=${currentReviewPage}&limit=15&q=${q}&rating=${r}`);
 
       if (!data || !data.success) {
@@ -887,25 +1213,34 @@
         return;
       }
 
-      // Update Header Stats
-      const stats = data.ratingStats || { average: 5.0, count: 0, breakdown: {} };
-      const avgEl = document.getElementById('reviewsTabAvgRating');
-      const starsEl = document.getElementById('reviewsTabStars');
-      const countEl = document.getElementById('reviewsTabTotalCount');
-      const star5El = document.getElementById('reviewsTab5StarCount');
-      const badgeReviewCount = document.getElementById('badgeReviewCount');
+      // Update Header Stats Cards & Segmented Pills
+      const stats = data.ratingStats || { average: 5.0, count: 0, topCount: 0, badCount: 0, breakdown: {} };
+      const avg = Number(stats.average || 5).toFixed(1);
+      const totalCount = Number(stats.count || 0);
+      const topCount = Number(stats.topCount !== undefined ? stats.topCount : (stats.breakdown ? ((stats.breakdown[5] || 0) + (stats.breakdown[4] || 0)) : 0));
+      const badCount = Number(stats.badCount !== undefined ? stats.badCount : (stats.breakdown ? ((stats.breakdown[1] || 0) + (stats.breakdown[2] || 0) + (stats.breakdown[3] || 0)) : 0));
 
-      if (avgEl) avgEl.innerText = stats.average.toFixed(1);
-      if (starsEl) starsEl.innerText = '⭐️'.repeat(Math.round(stats.average));
-      if (countEl) countEl.innerText = stats.count;
-      if (star5El) star5El.innerText = stats.breakdown ? (stats.breakdown[5] || 0) : 0;
-      if (badgeReviewCount) badgeReviewCount.innerText = stats.count;
+      if (reviewsTabAvgRating) reviewsTabAvgRating.innerText = avg;
+      if (reviewsTabStars) reviewsTabStars.innerText = '⭐️'.repeat(Math.min(5, Math.max(1, Math.round(stats.average || 5))));
+      if (reviewsTabTotalCount) reviewsTabTotalCount.innerText = totalCount.toLocaleString();
+      if (reviewsTabTopCount) reviewsTabTopCount.innerText = topCount.toLocaleString();
+      if (reviewsTabBadCount) reviewsTabBadCount.innerText = badCount.toLocaleString();
 
-      // Update Overview card too
+      if (revPillAll) revPillAll.innerText = totalCount.toLocaleString();
+      if (revPillTop) revPillTop.innerText = topCount.toLocaleString();
+      if (revPillBad) revPillBad.innerText = badCount.toLocaleString();
+
+      // Update Overview stats card too
       const statAvgRating = document.getElementById('statAvgRating');
       const statReviewsDesc = document.getElementById('statReviewsDesc');
-      if (statAvgRating) statAvgRating.innerText = `${stats.average.toFixed(1)} ⭐`;
-      if (statReviewsDesc) statReviewsDesc.innerText = `Jami: ${stats.count} ta fikr va izoh`;
+      const badgeReviewCount = document.getElementById('badgeReviewCount');
+      if (statAvgRating) statAvgRating.innerText = `${avg} ⭐`;
+      if (statReviewsDesc) statReviewsDesc.innerText = `Jami: ${totalCount} ta fikr (${topCount} top, ${badCount} e'tiroz)`;
+      if (badgeReviewCount) badgeReviewCount.innerText = totalCount;
+
+      if (reviewTableSummary) {
+        reviewTableSummary.innerText = `Ko'rsatilmoqda: ${data.reviews?.length || 0} ta (Jami: ${data.total || totalCount} ta)`;
+      }
 
       if (!data.reviews || data.reviews.length === 0) {
         reviewsTableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">Hozircha hech qanday fikr topilmadi</td></tr>`;
@@ -917,41 +1252,70 @@
 
       reviewsTableBody.innerHTML = data.reviews.map((rev) => {
         const u = rev.user;
-        const name = u?.firstName || 'Foydalanuvchi';
-        const username = u?.username ? `@${escapeHtml(u.username)}` : '<span class="text-muted">—</span>';
+        const name = u ? (`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Foydalanuvchi') : 'Foydalanuvchi';
+        const initial = name.charAt(0).toUpperCase();
+        const tgLink = u?.username
+          ? `<a href="https://t.me/${escapeHtml(u.username)}" target="_blank" class="tg-user-link" onclick="event.stopPropagation()">@${escapeHtml(u.username)} ↗</a>`
+          : `<span class="text-muted" style="font-size: 11px;">username yo'q</span>`;
+
+        const isTop = rev.rating >= 4;
         const stars = '★'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating);
-        const comment = rev.comment
-          ? `<blockquote style="margin: 0; font-size: 13px; font-weight: 500; color: #f3f4f6; border-left: 3px solid #eab308; padding-left: 8px;">"${escapeHtml(rev.comment)}"</blockquote>`
-          : `<span class="text-muted" style="font-style: italic;">Faqat ${rev.rating}★ baho qoldirilgan</span>`;
-        const time = rev.createdAt ? new Date(rev.createdAt).toLocaleString('uz-UZ') : '';
+        const sentimentBadge = isTop
+          ? `<span class="status-pill badge-sentiment-top">🌟 Top (${rev.rating}★)</span>`
+          : `<span class="status-pill badge-sentiment-bad">⚠️ E'tiroz (${rev.rating}★)</span>`;
+
+        const commentHtml = rev.comment
+          ? `<blockquote class="review-modal-quote" style="margin: 0; padding: 8px 12px; font-size: 13px; max-height: 80px; overflow-y: auto;">"${escapeHtml(rev.comment)}"</blockquote>`
+          : `<span class="text-muted" style="font-style: italic; font-size: 12px;">Faqat ${rev.rating}★ baho qoldirilgan</span>`;
+
+        const time = rev.createdAt ? new Date(rev.createdAt).toLocaleString('uz-UZ', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+        const revPayload = encodeURIComponent(JSON.stringify(rev));
+
+        const directTgBtn = u?.username
+          ? `<a href="https://t.me/${escapeHtml(u.username)}" target="_blank" class="btn-action-sm" onclick="event.stopPropagation()" title="Telegramda yozish">💬 TG</a>`
+          : (rev.telegramId ? `<a href="tg://openmessage?user_id=${rev.telegramId}" target="_blank" class="btn-action-sm" onclick="event.stopPropagation()" title="Telegramda yozish">💬 TG</a>` : '');
 
         return `
-          <tr>
+          <tr class="clickable-row" onclick="window.openReviewDetails('${revPayload}')" title="Batafsil ma'lumotni ko'rish">
             <td>
               <div class="user-cell">
-                <div class="avatar-cell">${escapeHtml(name.charAt(0).toUpperCase())}</div>
+                <div class="avatar-cell">${escapeHtml(initial)}</div>
                 <div>
                   <div class="user-name-strong">${escapeHtml(name)}</div>
-                  <div class="user-sub">${username}</div>
+                  <div class="user-sub">${tgLink}</div>
                 </div>
               </div>
             </td>
-            <td><code class="code-id">${escapeHtml(rev.telegramId)}</code></td>
-            <td><span style="color: #facc15; font-size: 14px; font-weight: 700; letter-spacing: 1px;">${stars}</span></td>
-            <td>${comment}</td>
-            <td class="text-muted" style="font-size: 12px;">${time}</td>
-            <td style="text-align: right;">
-              <button class="btn-action-sm btn-danger btn-delete-review" data-id="${rev.id}" title="Izohni o'chirish">
-                🗑
-              </button>
+            <td>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <code class="code-id">${escapeHtml(rev.telegramId)}</code>
+                <button class="btn-copy-id" onclick="event.stopPropagation(); window.copyToClipboard('${rev.telegramId}', 'ID nusxalandi!')" title="ID nusxalash">📋</button>
+              </div>
+            </td>
+            <td>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="color: ${isTop ? '#facc15' : '#f87171'}; font-size: 15px; font-weight: 700; letter-spacing: 1px;">${stars}</span>
+                ${sentimentBadge}
+              </div>
+            </td>
+            <td>${commentHtml}</td>
+            <td><span class="text-muted" style="font-size: 12px;">${time}</span></td>
+            <td style="text-align: right;" onclick="event.stopPropagation()">
+              <div style="display: flex; justify-content: flex-end; gap: 4px;">
+                ${directTgBtn}
+                <button class="btn-action-sm btn-danger btn-delete-review" data-id="${rev.id}" title="Izohni o'chirish">
+                  🗑
+                </button>
+              </div>
             </td>
           </tr>
         `;
       }).join('');
 
-      // Wire delete buttons
+      // Wire row delete buttons
       document.querySelectorAll('.btn-delete-review').forEach((btn) => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
           const revId = btn.dataset.id;
           if (!confirm("Haqiqatan ham bu sharhni o'chirmoqchimisiz?")) return;
           try {
@@ -962,14 +1326,14 @@
             } else {
               alert(delRes?.error || "O'chirishda xatolik yuz berdi");
             }
-          } catch (delErr) {
+          } catch {
             alert("O'chirishda xatolik yuz berdi");
           }
         });
       });
 
       // Pagination
-      if (reviewPageIndicator) reviewPageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages}`;
+      if (reviewPageIndicator) reviewPageIndicator.innerText = `Sahifa ${data.page} / ${data.totalPages || 1}`;
       if (btnPrevReviewPage) btnPrevReviewPage.disabled = data.page <= 1;
       if (btnNextReviewPage) btnNextReviewPage.disabled = data.page >= data.totalPages;
 
@@ -980,18 +1344,18 @@
   }
 
   // ----------------------------------------------------------------------------
-  // Beethoven Classical Piano Soundtrack & Volume Engine (Web Audio Royalty-Free)
+  // Ambient Relaxing Piano Engine (Rich Harmonic Acoustic Emulation)
   // ----------------------------------------------------------------------------
   let audioCtx = null;
   let masterGainNode = null;
   let isMusicPlaying = false;
-  let beethovenTimeout = null;
+  let ambientPianoTimeout = null;
+  let pianoPhraseStep = 0;
 
   const musicToggleBtn = document.getElementById('musicToggleBtn');
   const musicIcon = document.getElementById('musicIcon');
   const musicLabel = document.getElementById('musicLabel');
   const musicWave = document.getElementById('musicWave');
-  const symphonyAudio = document.getElementById('symphonyAudio');
   const musicVolumeSlider = document.getElementById('musicVolumeSlider');
 
   // Load saved volume
@@ -1004,102 +1368,126 @@
     if (masterGainNode && audioCtx) {
       masterGainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
     }
-    if (symphonyAudio) symphonyAudio.volume = vol;
   });
 
-  // Note Frequencies
-  const FREQS = {
-    E4: 329.63, F4: 349.23, G4: 392.00, Gs4: 415.30, A4: 440.00, B4: 493.88,
-    C5: 523.25, D5: 587.33, Ds5: 622.25, E5: 659.25,
-    A2: 110.00, E3: 164.81, A3: 220.00, C4: 261.63,
-    E2: 82.41,  B2: 123.47, Gs3: 207.65,
-  };
-
-  // Beethoven's Für Elise Theme
-  const beethovenMelody = [
-    { note: FREQS.E5,  dur: 0.30, bass: [FREQS.A2, FREQS.E3, FREQS.A3, FREQS.C4] },
-    { note: FREQS.Ds5, dur: 0.30 },
-    { note: FREQS.E5,  dur: 0.30 },
-    { note: FREQS.Ds5, dur: 0.30 },
-    { note: FREQS.E5,  dur: 0.30 },
-    { note: FREQS.B4,  dur: 0.30 },
-    { note: FREQS.D5,  dur: 0.30 },
-    { note: FREQS.C5,  dur: 0.30 },
-    { note: FREQS.A4,  dur: 0.65, bass: [FREQS.A2, FREQS.C4, FREQS.E4] },
-
-    { note: FREQS.C4,  dur: 0.28 },
-    { note: FREQS.E4,  dur: 0.28 },
-    { note: FREQS.A4,  dur: 0.28 },
-    { note: FREQS.B4,  dur: 0.65, bass: [FREQS.E2, FREQS.B2, FREQS.E3, FREQS.Gs3] },
-
-    { note: FREQS.E4,  dur: 0.28 },
-    { note: FREQS.Gs4, dur: 0.28 },
-    { note: FREQS.B4,  dur: 0.28 },
-    { note: FREQS.C5,  dur: 0.65, bass: [FREQS.A2, FREQS.E3, FREQS.A3] },
-
-    { note: FREQS.E4,  dur: 0.28 },
-    { note: FREQS.E5,  dur: 0.30 },
-    { note: FREQS.Ds5, dur: 0.30 },
-    { note: FREQS.E5,  dur: 0.30 },
-    { note: FREQS.Ds5, dur: 0.30 },
-    { note: FREQS.E5,  dur: 0.30 },
-    { note: FREQS.B4,  dur: 0.30 },
-    { note: FREQS.D5,  dur: 0.30 },
-    { note: FREQS.C5,  dur: 0.30 },
-    { note: FREQS.A4,  dur: 0.80, bass: [FREQS.A2, FREQS.E3, FREQS.A3] },
+  // Warm Studio Ambient Piano Chords
+  // Voicings designed with rich open harmonies and relaxing emotional resonance
+  const ambientChords = [
+    // 1. Cmaj9 (Peaceful, spacious)
+    {
+      bass: [65.41, 98.00], // C2, G2
+      notes: [164.81, 196.00, 246.94, 293.66, 329.63, 392.00], // E3, G3, B3, D4, E4, G4
+      duration: 4.8,
+    },
+    // 2. Am9 (Warm, nostalgic, deep)
+    {
+      bass: [55.00, 82.41], // A1, E2
+      notes: [130.81, 164.81, 196.00, 246.94, 261.63, 329.63], // C3, E3, G3, B3, C4, E4
+      duration: 4.8,
+    },
+    // 3. Fmaj7#11 / Fmaj9 (Lush, uplifting, airy)
+    {
+      bass: [43.65, 65.41], // F1, C2
+      notes: [110.00, 130.81, 164.81, 196.00, 261.63, 349.23], // A2, C3, E3, G3, C4, F4
+      duration: 4.8,
+    },
+    // 4. Gadd9 / Gsus4 (Calm, gentle resolution)
+    {
+      bass: [49.00, 73.42], // G1, D2
+      notes: [123.47, 146.83, 196.00, 220.00, 293.66, 392.00], // B2, D3, G3, A3, D4, G4
+      duration: 5.0,
+    },
+    // 5. Em7 (Introspective, tender)
+    {
+      bass: [82.41, 123.47], // E2, B2
+      notes: [164.81, 196.00, 246.94, 293.66, 329.63], // E3, G3, B3, D4, E4
+      duration: 4.6,
+    },
+    // 6. Dm9 (Velvety, soft)
+    {
+      bass: [73.42, 110.00], // D2, A2
+      notes: [146.83, 174.61, 220.00, 261.63, 329.63], // D3, F3, A3, C4, E4
+      duration: 4.8,
+    },
   ];
 
-  let melodyStep = 0;
-
-  function playPianoNote(freq, dur) {
+  function playAcousticPianoNote(freq, startTime, duration, velocity = 1.0) {
     if (!audioCtx || !masterGainNode) return;
-    const now = audioCtx.currentTime;
 
+    // Amplitude envelope: Soft hammer attack (no harsh clicking) and long natural exponential decay
     const noteGain = audioCtx.createGain();
-    noteGain.gain.setValueAtTime(0.001, now);
-    noteGain.gain.exponentialRampToValueAtTime(0.18, now + 0.015);
-    noteGain.gain.exponentialRampToValueAtTime(0.0001, now + dur * 1.6);
+    const peakGain = 0.12 * velocity;
+    noteGain.gain.setValueAtTime(0.0001, startTime);
+    noteGain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.045);
+    noteGain.gain.exponentialRampToValueAtTime(peakGain * 0.45, startTime + 0.5);
+    noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
+    // Warm Lowpass Filter: felt hammer simulation (rich low-mid warmth, tamed highs)
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(2400, now);
-    filter.frequency.exponentialRampToValueAtTime(600, now + dur * 1.5);
+    filter.frequency.setValueAtTime(1400, startTime);
+    filter.frequency.exponentialRampToValueAtTime(340, startTime + duration);
 
     noteGain.connect(filter);
     filter.connect(masterGainNode);
 
-    // Primary hammer oscillator
+    // Fundamental Body Oscillator (Triangle for rich acoustic warmth)
     const osc1 = audioCtx.createOscillator();
     osc1.type = 'triangle';
-    osc1.frequency.setValueAtTime(freq, now);
+    osc1.frequency.setValueAtTime(freq, startTime);
     osc1.connect(noteGain);
-    osc1.start(now);
-    osc1.stop(now + dur * 1.7);
+    osc1.start(startTime);
+    osc1.stop(startTime + duration + 0.1);
 
-    // Warm body harmonic oscillator
+    // Harmonic Overtone Oscillator (Gentle Sine)
     const osc2 = audioCtx.createOscillator();
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(freq * 2, now);
-    osc2.connect(noteGain);
-    osc2.start(now);
-    osc2.stop(now + dur * 1.2);
+    osc2.frequency.setValueAtTime(freq * 2, startTime);
+    const osc2Gain = audioCtx.createGain();
+    osc2Gain.gain.value = 0.25;
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(noteGain);
+    osc2.start(startTime);
+    osc2.stop(startTime + duration * 0.7);
+
+    // Detuned String Chorus (Adds genuine acoustic piano string resonance)
+    const osc3 = audioCtx.createOscillator();
+    osc3.type = 'triangle';
+    osc3.frequency.setValueAtTime(freq * 1.0016, startTime);
+    const osc3Gain = audioCtx.createGain();
+    osc3Gain.gain.value = 0.18;
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(noteGain);
+    osc3.start(startTime);
+    osc3.stop(startTime + duration + 0.1);
   }
 
-  function playPianoStep() {
+  function playAmbientPianoProgression() {
     if (!audioCtx || !isMusicPlaying) return;
 
-    const item = beethovenMelody[melodyStep % beethovenMelody.length];
-    melodyStep++;
+    const chord = ambientChords[pianoPhraseStep % ambientChords.length];
+    pianoPhraseStep++;
 
-    // Play bass chord if present
-    if (item.bass && item.bass.length > 0) {
-      item.bass.forEach((bFreq) => playPianoNote(bFreq, item.dur * 2.2));
+    const now = audioCtx.currentTime;
+
+    // 1. Play warm bass pedals
+    if (chord.bass) {
+      chord.bass.forEach((bFreq, idx) => {
+        playAcousticPianoNote(bFreq, now + idx * 0.08, chord.duration * 1.2, 1.1);
+      });
     }
 
-    // Play melodic lead
-    playPianoNote(item.note, item.dur);
+    // 2. Play lush arpeggiated chord notes with humanized stagger
+    if (chord.notes) {
+      chord.notes.forEach((nFreq, idx) => {
+        const stagger = 0.12 + idx * 0.095;
+        const vel = 0.85 + (idx % 2 === 0 ? 0.15 : -0.1);
+        playAcousticPianoNote(nFreq, now + stagger, chord.duration, vel);
+      });
+    }
 
-    beethovenTimeout = setTimeout(playPianoStep, item.dur * 1000);
+    // Schedule next chord phrase
+    ambientPianoTimeout = setTimeout(playAmbientPianoProgression, (chord.duration - 0.3) * 1000);
   }
 
   async function toggleMusic() {
@@ -1111,50 +1499,32 @@
       if (musicLabel) musicLabel.innerText = 'Pianino: Yangramoqda';
       if (musicWave) musicWave.style.display = 'inline-flex';
 
-      let playedAudio = false;
-      if (symphonyAudio) {
-        try {
-          const vol = musicVolumeSlider ? parseFloat(musicVolumeSlider.value) : 0.6;
-          symphonyAudio.volume = vol;
-          await symphonyAudio.play();
-          playedAudio = true;
-        } catch {
-          playedAudio = false;
-        }
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      if (!masterGainNode && audioCtx) {
+        masterGainNode = audioCtx.createGain();
+        const vol = musicVolumeSlider ? parseFloat(musicVolumeSlider.value) : 0.6;
+        masterGainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+        masterGainNode.connect(audioCtx.destination);
       }
 
-      if (!playedAudio) {
-        if (!audioCtx) {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) audioCtx = new AudioContextClass();
-        }
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-        if (!masterGainNode && audioCtx) {
-          masterGainNode = audioCtx.createGain();
-          const vol = musicVolumeSlider ? parseFloat(musicVolumeSlider.value) : 0.6;
-          masterGainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
-          masterGainNode.connect(audioCtx.destination);
-        }
-
-        melodyStep = 0;
-        playPianoStep();
-      }
-
-      showToast('Beethoven — Für Elise (Klassik Pianino) yangramoqda 🎹');
+      pianoPhraseStep = 0;
+      playAmbientPianoProgression();
+      showToast('Yumshoq relaksatsion pianino musiqasi yangramoqda 🎹✨');
     } else {
       musicToggleBtn?.classList.remove('playing');
       if (musicIcon) musicIcon.innerText = '🎹';
       if (musicLabel) musicLabel.innerText = 'Pianino: Yoqish';
       if (musicWave) musicWave.style.display = 'none';
 
-      if (symphonyAudio) {
-        try { symphonyAudio.pause(); } catch {}
-      }
-      if (beethovenTimeout) {
-        clearTimeout(beethovenTimeout);
-        beethovenTimeout = null;
+      if (ambientPianoTimeout) {
+        clearTimeout(ambientPianoTimeout);
+        ambientPianoTimeout = null;
       }
       showToast('Musiqa to\'xtatildi');
     }
