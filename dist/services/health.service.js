@@ -243,7 +243,6 @@ export function startHealthServer() {
         // 1.6 Telegram Mini App Reviews & Ratings REST APIs
         if (pathname === '/api/miniapp/reviews' && req.method === 'GET') {
             const stats = store.getAverageRating();
-            const reviews = store.getRecentReviews(20);
             res.writeHead(200, {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*',
@@ -253,7 +252,6 @@ export function startHealthServer() {
                 average: stats.average,
                 count: stats.count,
                 breakdown: stats.breakdown,
-                reviews,
             }));
             return;
         }
@@ -273,29 +271,8 @@ export function startHealthServer() {
                     rating,
                     comment,
                 });
-                // Notify Admin if there is a comment
-                if (comment) {
-                    const u = store.getUser(tid);
-                    const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ') || 'Mini App Foydalanuvchisi';
-                    const username = u?.username ? `@${u.username}` : 'Mavjud emas';
-                    const stars = '⭐'.repeat(saved.rating);
-                    const nowStr = new Intl.DateTimeFormat('uz-UZ', {
-                        timeZone: 'Asia/Tashkent',
-                        dateStyle: 'short',
-                        timeStyle: 'medium',
-                    }).format(new Date());
-                    for (const adminId of config.ADMIN_TELEGRAM_IDS) {
-                        try {
-                            await bot.telegram.sendMessage(Number(adminId), `🌟 <b>YANGI BAHOLASH VA IZOH (Mini App)!</b>\n\n` +
-                                `👤 <b>Foydalanuvchi:</b> ${name} (${username})\n` +
-                                `🆔 <b>Telegram ID:</b> <code>${tid}</code>\n` +
-                                `⭐ <b>Baho:</b> ${stars} (${saved.rating}/5)\n` +
-                                `💬 <b>Izoh:</b> <i>"${comment}"</i>\n` +
-                                `📅 <b>Vaqt:</b> ${nowStr}`, { parse_mode: 'HTML' });
-                        }
-                        catch { }
-                    }
-                }
+                // Reviews are saved exclusively in the admin database/store for Admin Panel view.
+                // No telegram bot alert sent to prevent bot chat spam.
                 res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                 res.end(JSON.stringify({ success: true, message: 'Fikringiz va bahoyingiz muvaffaqiyatli saqlandi!', review: saved }));
                 return;

@@ -638,47 +638,8 @@ async function loadReviewsData() {
     if (totalPill) {
       totalPill.textContent = `${count} ta`;
     }
-
-    // Render list
-    const container = document.getElementById('reviews-list-container');
-    if (!container) return;
-
-    if (!data.reviews || data.reviews.length === 0) {
-      container.innerHTML = `
-        <div class="review-empty-state">
-          <span>🌟 Birinchi bo'lib fikr va baho qoldiring!</span>
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = data.reviews
-      .map((r) => {
-        const name = r.user?.firstName || 'Foydalanuvchi';
-        const letter = name.charAt(0).toUpperCase();
-        const starsStr = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
-        const commentHtml = r.comment
-          ? `<p class="review-comment-body">"${escapeHtml(r.comment)}"</p>`
-          : `<p class="review-comment-body" style="font-style: italic; opacity: 0.7;">Baho qoldirildi: ${r.rating} yulduz</p>`;
-        const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '';
-
-        return `
-          <div class="review-card-item">
-            <div class="review-item-top">
-              <div class="review-author">
-                <div class="review-avatar-mini">${letter}</div>
-                <span class="review-author-name">${escapeHtml(name)}</span>
-              </div>
-              <span class="review-stars-val">${starsStr}</span>
-            </div>
-            ${commentHtml}
-            <span class="review-time-stamp">${dateStr}</span>
-          </div>
-        `;
-      })
-      .join('');
   } catch (err) {
-    console.debug('Could not load reviews feed:', err);
+    console.debug('Could not load reviews stats:', err);
   }
 }
 

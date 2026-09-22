@@ -112,32 +112,9 @@ export async function checkAndProcessReviewComment(ctx: Context): Promise<boolea
   // Send thank you response to user
   await ctx.replyWithHTML(t.review_thanks(pending.rating));
 
-  // Notify Admins in real-time
-  const stars = '⭐'.repeat(pending.rating);
-  const name = [ctx.from?.first_name, ctx.from?.last_name].filter(Boolean).join(' ') || 'Foydalanuvchi';
-  const username = ctx.from?.username ? `@${ctx.from.username}` : 'Mavjud emas';
-  const nowStr = new Intl.DateTimeFormat('uz-UZ', {
-    timeZone: 'Asia/Tashkent',
-    dateStyle: 'short',
-    timeStyle: 'medium',
-  }).format(new Date());
-
-  for (const adminId of config.ADMIN_TELEGRAM_IDS) {
-    try {
-      await bot.telegram.sendMessage(
-        Number(adminId),
-        `🌟 <b>YANGI BAHOLASH VA IZOH!</b>\n\n` +
-        `👤 <b>Foydalanuvchi:</b> ${name} (${username})\n` +
-        `🆔 <b>Telegram ID:</b> <code>${telegramId}</code>\n` +
-        `⭐ <b>Baho:</b> ${stars} (${pending.rating}/5)\n` +
-        `💬 <b>Izoh:</b> <i>"${text}"</i>\n` +
-        `📅 <b>Vaqt:</b> ${nowStr}`,
-        { parse_mode: 'HTML' }
-      );
-    } catch (adminErr: any) {
-      logger.debug('[REVIEW] Admin alert notice:', adminErr.message);
-    }
-  }
+  // Reviews & comments are saved exclusively to the store for Admin Panel view.
+  // No telegram alert is sent to prevent bot chat spam.
+  logger.info(`[REVIEW] New review and comment saved for user ${telegramId} (${pending.rating}★)`);
 
   return true;
 }
