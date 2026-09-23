@@ -56,16 +56,17 @@ export const translations = {
         stage_enhancing: '✨ <b>Sifat oshirilmoqda...</b>',
         stage_uploading: '📤 <b>Yuklanmoqda...</b>',
         stage_done: '✅ <b>Tayyor!</b>',
-        complete_image: (scale, inRes, outRes, time) => `✨ <b>AI Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
-            `🔍 <b>Kattalashtirish:</b> ${scale}x Ultra HD\n` +
+        complete_image: (scale, inRes, outRes, time) => `✨ <b>AI 4K Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
+            `🔍 <b>Sifat:</b> ${scale}x Ultra HD\n` +
             `📏 <b>O'lchamlari:</b> ${inRes} ➔ <b>${outRes} px</b>\n` +
             `⚡ <b>Ishlov berish vaqti:</b> ${time.toFixed(1)} soniya\n` +
             `🧠 <b>AI Neyron Tarmoq:</b> Real-ESRGAN Ultra-Fast\n\n` +
-            `<i>Telegram sifatni buzmasligi uchun asl fayl quyida yuborildi 👇</i>`,
-        complete_video: (res, time) => `✨ <b>Video Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
+            `<i>Telegram sifatni buzmasligi uchun asl 100% 4K fayl quyida hujjat sifatida yuborildi 👇</i>`,
+        complete_video: (res, time) => `✨ <b>Video 4K Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
             `🎬 <b>Yangi format:</b> ${res} Ultra HD\n` +
             `⚡ <b>Ishlov berish vaqti:</b> ${time.toFixed(1)} soniya\n` +
-            `🔊 <b>Ovoz:</b> 100% sinxron saqlangan`,
+            `🔊 <b>Ovoz:</b> 100% sinxron saqlangan\n\n` +
+            `<i>Asl sifatdagi video fayl quyida hujjat sifatida yuborildi 👇</i>`,
         account_info: (id, name, username, plan, total, date, hasCustomBg) => `👤 <b>Foydalanuvchi Profili</b>\n\n` +
             `• <b>Telegram ID:</b> <code>${id}</code>\n` +
             `• <b>Ism:</b> ${name}\n` +

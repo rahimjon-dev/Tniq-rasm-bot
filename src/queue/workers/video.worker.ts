@@ -85,7 +85,7 @@ export async function processVideoJob(payload: VideoJobPayload): Promise<void> {
       try {
         await bot.telegram.sendDocument(
           telegramChatId,
-          { source: outputFilePath, filename: `upscaled_${targetResolution}_${result.outputResolution}.mp4` },
+          { source: outputFilePath, filename: `${targetResolution}_UltraHD_${result.outputResolution}.mp4` },
           { caption: t.doc_video_caption, parse_mode: 'HTML' }
         );
       } catch (docSendErr: any) {

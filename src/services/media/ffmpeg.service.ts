@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 // @ts-ignore
 import ffmpegPath from 'ffmpeg-static';
 // @ts-ignore
@@ -231,23 +232,29 @@ export class FFmpegService {
     let scaleFilter: string;
 
     if (targetResolution === '4K') {
-      scaleFilter = "scale='if(gte(iw,ih),3840,trunc(3840*iw/ih/2)*2)':'if(gte(iw,ih),trunc(3840*ih/iw/2)*2,3840)':flags=lanczos+accurate_rnd+full_chroma_int";
+      scaleFilter = "scale='if(gte(iw,ih),3840,trunc(3840*iw/ih/2)*2)':'if(gte(iw,ih),trunc(3840*ih/iw/2)*2,3840)':flags=bicubic";
     } else if (targetResolution === '2K') {
-      scaleFilter = "scale='if(gte(iw,ih),2560,trunc(2560*iw/ih/2)*2)':'if(gte(iw,ih),trunc(2560*ih/iw/2)*2,2560)':flags=lanczos+accurate_rnd+full_chroma_int";
+      scaleFilter = "scale='if(gte(iw,ih),2560,trunc(2560*iw/ih/2)*2)':'if(gte(iw,ih),trunc(2560*ih/iw/2)*2,2560)':flags=bicubic";
     } else if (targetResolution === '1080p') {
-      scaleFilter = "scale='if(gte(iw,ih),1920,trunc(1920*iw/ih/2)*2)':'if(gte(iw,ih),trunc(1920*ih/iw/2)*2,1920)':flags=lanczos+accurate_rnd+full_chroma_int";
+      scaleFilter = "scale='if(gte(iw,ih),1920,trunc(1920*iw/ih/2)*2)':'if(gte(iw,ih),trunc(1920*ih/iw/2)*2,1920)':flags=bicubic";
     } else if (targetResolution === '720p') {
-      scaleFilter = "scale='if(gte(iw,ih),1280,trunc(1280*iw/ih/2)*2)':'if(gte(iw,ih),trunc(1280*ih/iw/2)*2,1280)':flags=lanczos+accurate_rnd+full_chroma_int";
+      scaleFilter = "scale='if(gte(iw,ih),1280,trunc(1280*iw/ih/2)*2)':'if(gte(iw,ih),trunc(1280*ih/iw/2)*2,1280)':flags=bicubic";
     } else {
-      scaleFilter = `scale=w='trunc(iw*${scale}/2)*2':h='trunc(ih*${scale}/2)*2':flags=lanczos+accurate_rnd+full_chroma_int`;
+      scaleFilter = `scale=w='trunc(iw*${scale}/2)*2':h='trunc(ih*${scale}/2)*2':flags=bicubic`;
     }
 
-    // Ultra-clarity video filter chain:
-    // 1. High-order Lanczos scaling + accurate rounding + full chroma interpolation
-    // 2. Unsharp filter (sharpen luminance and chrominance edges)
-    // 3. Contrast Adaptive Sharpening (cas=0.75) for razor-sharp contours
-    // 4. Color & contrast tuning (eq: contrast +6%, saturation +8%)
-    const filter = `${scaleFilter},unsharp=5:5:1.4:5:5:0.5,cas=0.75,eq=contrast=1.06:brightness=0.01:saturation=1.08`;
+    // High-performance ultra-clarity video filter:
+    // 1. Clean bicubic scaling to true 4K/2K (avoids massive 36-tap CPU stall)
+    // 2. Optimized 3x3 unsharp filter for crisp facial and landscape contours
+    // 3. Dynamic color & contrast pop (+5% contrast, +6% saturation)
+    const filter = `${scaleFilter},unsharp=3:3:1.0:3:3:0.0,eq=contrast=1.05:brightness=0.01:saturation=1.06`;
+
+    // Multi-core thread acceleration: uses available CPU cores (up to 8)
+    const cpuThreads = Math.max(2, Math.min(os.cpus()?.length || 4, 8)).toString();
+    const effectiveCrf = crf ? Math.max(crf, 22).toString() : '22';
+    const maxBitrate = targetResolution === '4K' ? '8M' : '6M';
+    const bufSize = targetResolution === '4K' ? '16M' : '12M';
+    const preset = 'veryfast';
 
     const args = [
       '-y',
@@ -255,18 +262,18 @@ export class FFmpegService {
       '-vf', filter,
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
-      '-preset', 'fast',
-      '-threads', '2', // Strict 2-thread limit prevents memory ballooning & OOM on Render 512MB RAM
-      '-crf', crf.toString(),
-      '-maxrate', '14M', // Caps peak bitrate so 4K video never exceeds Telegram Bot 50MB limit
-      '-bufsize', '28M',
+      '-preset', preset,
+      '-threads', cpuThreads,
+      '-crf', effectiveCrf,
+      '-maxrate', maxBitrate,
+      '-bufsize', bufSize,
       '-c:a', 'copy',
       '-movflags', '+faststart',
       outputPath,
     ];
 
     await new Promise<void>((resolve, reject) => {
-      execFile(this.ffmpegExe, args, { timeout: 600000 }, (error, stdout, stderr) => {
+      execFile(this.ffmpegExe, args, { timeout: 180000 }, (error, stdout, stderr) => {
         if (error) {
           // If -c:a copy failed because of audio track container issues, retry with AAC re-encode
           const fallbackArgs = [
@@ -275,18 +282,18 @@ export class FFmpegService {
             '-vf', filter,
             '-c:v', 'libx264',
             '-pix_fmt', 'yuv420p',
-            '-preset', 'fast',
-            '-threads', '2',
-            '-crf', crf.toString(),
-            '-maxrate', '14M',
-            '-bufsize', '28M',
+            '-preset', preset,
+            '-threads', cpuThreads,
+            '-crf', effectiveCrf,
+            '-maxrate', maxBitrate,
+            '-bufsize', bufSize,
             '-c:a', 'aac',
             '-b:a', '192k',
             '-movflags', '+faststart',
             outputPath,
           ];
 
-          execFile(this.ffmpegExe, fallbackArgs, { timeout: 600000 }, (fallbackErr) => {
+          execFile(this.ffmpegExe, fallbackArgs, { timeout: 180000 }, (fallbackErr) => {
             if (fallbackErr) {
               return reject(new Error(`FFmpeg direct upscale failed: ${fallbackErr.message}`));
             }

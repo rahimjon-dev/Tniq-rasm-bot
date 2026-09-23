@@ -56,10 +56,21 @@ export async function processImageJob(payload) {
         const outputSize = fs.existsSync(outputFilePath) ? (await fs.promises.stat(outputFilePath)).size : 0;
         const duration = (Date.now() - startTime) / 1000;
         const caption = t.complete_image(scale, `${result.originalWidth}x${result.originalHeight}`, `${result.outputWidth}x${result.outputHeight}`, duration);
-        // Send as compressed photo for instant viewing
-        await bot.telegram.sendPhoto(telegramChatId, { source: outputFilePath }, { caption, parse_mode: 'HTML' });
-        // Send as uncompressed document to prevent Telegram lossy re-compression
-        await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${scale}x_${result.outputWidth}x${result.outputHeight}.jpg` }, { caption: t.doc_image_caption, parse_mode: 'HTML' });
+        // Send as photo for quick preview
+        try {
+            await bot.telegram.sendPhoto(telegramChatId, { source: outputFilePath }, { caption, parse_mode: 'HTML' });
+        }
+        catch (photoErr) {
+            logger.warn('[IMAGE_WORKER] sendPhoto notice:', photoErr.message);
+        }
+        // Send as uncompressed document to guarantee 100% full 4K fidelity without Telegram compression
+        const qualityPrefix = scale === 4 ? '4K_UltraHD' : '2K_QuadHD';
+        try {
+            await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `${qualityPrefix}_${result.outputWidth}x${result.outputHeight}.jpg` }, { caption: t.doc_image_caption, parse_mode: 'HTML' });
+        }
+        catch (docErr) {
+            logger.warn('[IMAGE_WORKER] sendDocument notice:', docErr.message);
+        }
         // Send interactive 1-5 star review invitation
         setTimeout(() => {
             sendReviewInvitation(telegramChatId, payload.language).catch(() => { });

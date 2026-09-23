@@ -54,7 +54,7 @@ export async function processVideoJob(payload) {
         // Send as uncompressed document if under 50MB
         if (finalSize < 49.5 * 1024 * 1024) {
             try {
-                await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `upscaled_${targetResolution}_${result.outputResolution}.mp4` }, { caption: t.doc_video_caption, parse_mode: 'HTML' });
+                await bot.telegram.sendDocument(telegramChatId, { source: outputFilePath, filename: `${targetResolution}_UltraHD_${result.outputResolution}.mp4` }, { caption: t.doc_video_caption, parse_mode: 'HTML' });
             }
             catch (docSendErr) {
                 logger.warn(`[VIDEO_WORKER] sendDocument notice: ${docSendErr.message}`);

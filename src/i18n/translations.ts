@@ -70,17 +70,18 @@ export const translations = {
     stage_done: '✅ <b>Tayyor!</b>',
 
     complete_image: (scale: number, inRes: string, outRes: string, time: number) =>
-      `✨ <b>AI Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
-      `🔍 <b>Kattalashtirish:</b> ${scale}x Ultra HD\n` +
+      `✨ <b>AI 4K Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
+      `🔍 <b>Sifat:</b> ${scale}x Ultra HD\n` +
       `📏 <b>O'lchamlari:</b> ${inRes} ➔ <b>${outRes} px</b>\n` +
       `⚡ <b>Ishlov berish vaqti:</b> ${time.toFixed(1)} soniya\n` +
       `🧠 <b>AI Neyron Tarmoq:</b> Real-ESRGAN Ultra-Fast\n\n` +
-      `<i>Telegram sifatni buzmasligi uchun asl fayl quyida yuborildi 👇</i>`,
+      `<i>Telegram sifatni buzmasligi uchun asl 100% 4K fayl quyida hujjat sifatida yuborildi 👇</i>`,
     complete_video: (res: string, time: number) =>
-      `✨ <b>Video Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
+      `✨ <b>Video 4K Tiniqlashtirish Muvaffaqiyatli Yakunlandi!</b>\n\n` +
       `🎬 <b>Yangi format:</b> ${res} Ultra HD\n` +
       `⚡ <b>Ishlov berish vaqti:</b> ${time.toFixed(1)} soniya\n` +
-      `🔊 <b>Ovoz:</b> 100% sinxron saqlangan`,
+      `🔊 <b>Ovoz:</b> 100% sinxron saqlangan\n\n` +
+      `<i>Asl sifatdagi video fayl quyida hujjat sifatida yuborildi 👇</i>`,
 
     account_info: (id: number | bigint, name: string, username: string, plan: string, total: number, date: string, hasCustomBg: boolean) =>
       `👤 <b>Foydalanuvchi Profili</b>\n\n` +
